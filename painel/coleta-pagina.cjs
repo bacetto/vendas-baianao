@@ -22,13 +22,29 @@ async function coletarRawPainel(P) {
   const dAt = await dados(P.mes.inicio, P.mes.fim);
   const dAn = await dados(P.mesAnt.inicio, P.mesAnt.fim);
   const [lH, lM] = await Promise.all([leads(P.hoje.inicio, P.hoje.fim), leads(P.mes.inicio, P.mes.fim)]);
+  // mês cheio (meta do mês inteiro) e mês passado até o mesmo dia
+  const [rC, rAH] = await Promise.all([resumo(P.mesCheio), resumo(P.mesAntAteHoje)]);
+  // meta de cada dia do mês (pra linha da meta no gráfico) — vem em cache quando já foi lida hoje
+  let metasDia = P.metasDia;
+  if (!Array.isArray(metasDia) || metasDia.length !== P.diasMesAtual) {
+    metasDia = [];
+    for (let d0 = 1; d0 <= P.diasMesAtual; d0 += 5) {
+      const lote = [];
+      for (let d = d0; d < d0 + 5 && d <= P.diasMesAtual; d++) {
+        const dia = `${P.mesCheio.inicio.slice(0, 8)}${String(d).padStart(2, "0")}`;
+        lote.push(resumo({ inicio: dia, fim: dia }).then((r) => r?.geral?.mercantil?.meta || 0).catch(() => null));
+      }
+      metasDia.push(...(await Promise.all(lote)));
+    }
+  }
   // só o que o agregador usa (nada de cliente/CPF sai daqui)
   const enxuga = (ls) => ls.map((l) => ({ grupo: l.grupo, subgrupo: l.subgrupo, produto: l.produto, loja: l.loja, data: l.data, vendedor: l.vendedor, pedido: l.pedido, tipo: l.tipo, marca: l.marca, quantidade: l.quantidade, valorTotal: l.valorTotal }));
   const filEnx = fil.map((f) => ({ codigoProtheus: f.codigoProtheus, name: f.name, tradeName: f.tradeName, regional: f.regional }));
   return {
     agora: new Date().toISOString(), periodos: P, diasMesAtual: P.diasMesAtual, diasMesAnterior: P.diasMesAnterior,
     filiais: filEnx,
-    resumo: { hoje: rH, ontem: rO, mes: rM, mesAnt: rA, mesAteOntem: rAO, mesAntParcial: rAP },
+    resumo: { hoje: rH, ontem: rO, mes: rM, mesAnt: rA, mesAteOntem: rAO, mesAntParcial: rAP, mesCheio: rC, mesAntAteHoje: rAH },
+    metasDia,
     dados: { atual: enxuga(dAt), anterior: enxuga(dAn) },
     leads: { hoje: lH, mes: lM },
   };

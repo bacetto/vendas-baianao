@@ -44,7 +44,11 @@ try {
   await page.waitForFunction(() => !!self.webpackChunk_N_E, null, { timeout: 90000 });
   await page.getByText(/^Total Geral$/i).first().waitFor({ timeout: 30000 }).catch(() => {});
   const P = periodosPainel();
+  // meta de cada dia: lê do portal uma vez por dia e guarda
+  const CACHE = "saida/metas-dia.json";
+  try { const c = JSON.parse(fs.readFileSync(CACHE, "utf8")); if (c.dia === P.hoje.inicio && !c.metas.includes(null)) P.metasDia = c.metas; } catch (e) {}
   const raw = await page.evaluate(coletarRawPainel, P);
+  if (Array.isArray(raw.metasDia) && !raw.metasDia.includes(null)) fs.writeFileSync(CACHE, JSON.stringify({ dia: P.hoje.inicio, metas: raw.metasDia }));
   const dados = agregarPainel(raw);
   fs.writeFileSync("saida/dados.json", JSON.stringify(dados));
   const m = dados.periodos.mes, h = dados.periodos.hoje;

@@ -115,6 +115,23 @@ function agregarPainel(raw) {
       mes: raw.leads.mes ? { ...raw.leads.mes.cards, porLoja: (raw.leads.mes.resumoPorLoja || []).map((l) => ({ nome: limpa(l.nome), num: Number(l.extra) || 0, regional: l.regional, contatos: l.contatos, convertidos: l.convertidos, valor: l.valor, taxa: l.taxaConversao })) } : null,
     },
   };
+  // meta acumulada dia a dia (linha da meta no gráfico)
+  if (Array.isArray(raw.metasDia)) { let acc = 0; out.diario.metaAtual = raw.metasDia.map((m) => r2(acc += m || 0)); }
+  // aba Regionais: mês até agora x mês passado até o mesmo dia x meta
+  {
+    const rm = resumo(raw.resumo.mes), rah = resumo(raw.resumo.mesAntAteHoje), ra = resumo(raw.resumo.mesAnt), rc = resumo(raw.resumo.mesCheio);
+    const de = (r, reg) => (reg ? r?.regionais.find((x) => x.reg === reg) : r?.geral) || {};
+    const linha = (reg) => ({
+      reg: reg || "Rede", lider: reg ? LIDER[reg] || "" : "",
+      venda: de(rm, reg).venda || 0, metaAteHoje: de(rm, reg).meta || 0,
+      anteriorMesmoPeriodo: de(rah, reg).venda || 0, anteriorFechado: de(ra, reg).venda || 0,
+      metaMes: de(rc, reg).meta || 0,
+    });
+    out.regionaisComparativo = {
+      ateDia: Number(p.hoje.fim.slice(8)), diaAnterior: Number(p.mesAntAteHoje.fim.slice(8)),
+      rede: linha(null), regionais: (rm?.regionais || []).map((r) => linha(r.reg)),
+    };
+  }
   // só as lojas que aparecem em algum período
   const usadas = new Set();
   for (const x of Object.values(out.periodos)) { for (const l of x.resumo?.lojas || []) if (l.venda || l.meta) usadas.add(l.cod); for (const v of x.vendedores) usadas.add(v.loja); }
@@ -143,6 +160,8 @@ function periodosPainel(agoraMs = Date.now()) {
     mesAnt: { label: nomes[aM - 1], inicio: iso(aY, aM, 1), fim: iso(aY, aM, diasNo(aY, aM)) },
     // comparação justa: dias fechados (dia 1 até ontem) x mesmos dias do mês anterior
     mesAteOntem: D > 1 ? { inicio: iso(Y, M, 1), fim: ontem } : null,
+    mesCheio: { inicio: iso(Y, M, 1), fim: iso(Y, M, diasNo(Y, M)) },
+    mesAntAteHoje: { inicio: iso(aY, aM, 1), fim: iso(aY, aM, Math.min(D, diasNo(aY, aM))) },
     mesAntParcial: D > 1 ? { inicio: iso(aY, aM, 1), fim: iso(aY, aM, Math.min(D - 1, diasNo(aY, aM))) } : null,
     diasMesAtual: diasNo(Y, M), diasMesAnterior: diasNo(aY, aM),
   };
