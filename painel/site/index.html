@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel de Gestão à Vista · Baianão</title>
+<style>
+:root{--bg:#f4f5f8;--card:#fff;--ink:#12172b;--mut:#6b7285;--line:#e4e6ee;--navy:#14246b;--red:#e02b2b;--ok:#0e9f6e;--bad:#d63b3b;--warn:#c98a00;--soft:#eef0f7;--meta:#1e88e5}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
+.wrap{max-width:1500px;margin:0 auto;padding:14px 18px 40px}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.logo{width:38px;height:38px;border-radius:10px;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:900;font-style:italic;font-size:22px;border-bottom:4px solid var(--red)}
+h1{font-size:18px;margin:0;font-weight:700}
+.quando{font-size:20px;font-weight:700;color:var(--ink)}
+.tabs{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--card)}
+.tabs button{border:0;background:none;padding:7px 14px;font:inherit;font-weight:600;color:var(--mut);cursor:pointer;text-transform:capitalize}
+.tabs button+button{border-left:1px solid var(--line)}
+.tabs button.on{background:var(--ink);color:#fff}
+.vivo{color:var(--mut);font-size:13px}.vivo i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:6px}
+.vivo.velho i{background:var(--warn)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.hero{display:grid;grid-template-columns:minmax(320px,440px) 1fr;gap:14px}
+.sub{color:var(--mut);font-size:13px}
+.big{font-size:54px;font-weight:900;letter-spacing:-1.5px;line-height:1.05;margin:4px 0 8px}
+.big small{font-size:24px;font-weight:700;margin-right:6px;letter-spacing:0}
+.linha{margin:5px 0;color:var(--mut)}.linha b{color:var(--ink)}
+.up{color:var(--ok);font-weight:700}.down{color:var(--bad);font-weight:700}
+.barra{height:8px;background:var(--soft);border-radius:9px;overflow:hidden;margin:8px 0 4px}.barra i{display:block;height:100%;background:var(--navy);border-radius:9px}
+.dest{font-size:17px;margin-top:10px}.dest b{color:var(--ok)}
+.grid{display:grid;gap:12px;margin-top:14px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.reg{cursor:pointer;border-top:3px solid var(--navy);transition:box-shadow .15s}
+.reg:hover{box-shadow:0 2px 10px #14246b22}.reg.on{outline:2px solid var(--navy)}
+.reg h3{margin:0;font-size:13px;font-weight:700}.reg .v{font-size:24px;font-weight:800;margin:4px 0}
+.cats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.cat .n{font-size:12px;color:var(--mut)}.cat .v{font-weight:800;font-size:16px}
+.mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.mini div b{display:block;font-size:17px}
+.sec{margin-top:16px}
+.ferr{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+input,select{font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+input[type=search]{min-width:230px}
+.tw{overflow:auto;max-height:72vh;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th{position:sticky;top:0;background:#f8f9fc;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);cursor:pointer;user-select:none;z-index:1}
+th.s::after{content:" ↓"}th.s.asc::after{content:" ↑"}
+td.l,th.l{text-align:left}td.nome{white-space:normal;min-width:180px;font-weight:600}
+tr:hover td{background:#fafbff}
+.pill{display:inline-block;padding:1px 7px;border-radius:9px;background:var(--soft);font-size:11px;font-weight:700;color:var(--navy)}
+.pb{display:inline-block;width:70px;height:6px;background:var(--soft);border-radius:6px;vertical-align:middle;margin-right:6px;overflow:hidden}.pb i{display:block;height:100%;border-radius:6px}
+.rk{color:var(--mut);width:34px}
+.nota{color:var(--mut);font-size:12px;margin-top:8px}
+svg text{font:11px system-ui,sans-serif;fill:var(--mut)}
+.leg{display:flex;gap:14px;font-size:12px;color:var(--mut);align-items:center}
+.leg i{display:inline-block;width:18px;height:0;border-top:2.5px solid var(--navy);vertical-align:middle;margin-right:5px}.leg i.d{border-top:2px dashed #9aa1b5}.leg i.m{border-top-color:var(--meta)}
+#tip{position:fixed;pointer-events:none;background:var(--ink);color:#fff;padding:6px 9px;border-radius:7px;font-size:12px;display:none;z-index:9}
+@media(max-width:900px){.hero{grid-template-columns:1fr}.g4{grid-template-columns:repeat(2,1fr)}.big{font-size:40px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="logo">B</div><h1>Painel de Gestão à Vista</h1><span class="quando" id="quando"></span>
+  <div class="tabs" id="tabsP"></div>
+  <span class="vivo" id="vivo"></span>
+</header>
+<div id="app"><div class="card">Carregando dados…</div></div>
+</div>
+<div id="tip"></div>
+<script>
+const $=(s,e=document)=>e.querySelector(s);
+const brl=(v,d=0)=>(v<0?"-":"")+"R$ "+Math.abs(v||0).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const mil=v=>Math.abs(v)>=1e6?"R$ "+(v/1e6).toLocaleString("pt-BR",{maximumFractionDigits:2})+" mi":Math.abs(v)>=1e3?"R$ "+(v/1e3).toLocaleString("pt-BR",{maximumFractionDigits:1})+" mil":brl(v);
+const num=v=>(v||0).toLocaleString("pt-BR",{maximumFractionDigits:0});
+const pct=(v,d=1)=>((v||0)*100).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d})+"%";
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const delta=(a,b)=>{if(!b)return"";const d=a/b-1;return `<span class="${d>=0?"up":"down"}">${d>=0?"↑ +":"↓ "}${pct(d)}</span>`};
+const cor=p=>p>=1?"var(--ok)":p>=.8?"var(--warn)":"var(--bad)";
+const DIAS=["dom","seg","ter","qua","qui","sex","sáb"];
+let D=null,S={per:"hoje",aba:"loja",reg:"",loja:"",q:"",sort:{}};
+try{Object.assign(S,JSON.parse(localStorage.getItem("painel-baianao")||"{}"),{q:""})}catch(e){}
+const salva=()=>{try{localStorage.setItem("painel-baianao",JSON.stringify({per:S.per,aba:S.aba}))}catch(e){}};
+const nomeLoja=c=>{const l=D.lojas[c];return l?`${String(l.num).padStart(2,"0")} · ${l.nome||"Loja "+l.num}`:c};
+const regLoja=c=>D.lojas[c]?.regional||"Sem regional";
+
+const DADOS_URL=(document.querySelector('meta[name="dados"]')||{}).content||"";
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function abre(enc,senha){
+  const k0=await crypto.subtle.importKey("raw",new TextEncoder().encode(senha),"PBKDF2",false,["deriveKey"]);
+  const k=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(enc.salt),iterations:enc.iter,hash:"SHA-256"},k0,{name:"AES-GCM",length:256},false,["decrypt"]);
+  const zip=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(enc.iv)},k,b64(enc.dados));
+  const txt=await new Response(new Blob([zip]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+  return JSON.parse(txt);
+}
+function pedeSenha(enc,erro){
+  $("#app").innerHTML=`<div class="card" style="max-width:380px;margin:60px auto;text-align:center"><div class="logo" style="margin:0 auto 12px">B</div><b style="font-size:17px">Painel de vendas</b><p class="sub">Acesso restrito. Digite a senha.</p>
+  <form id="fS"><input type="password" id="iS" placeholder="Senha" autofocus style="width:100%;margin-bottom:10px"><button style="width:100%;padding:9px;border:0;border-radius:8px;background:var(--navy);color:#fff;font:inherit;font-weight:700;cursor:pointer">Entrar</button></form>
+  <p class="down" style="min-height:18px">${erro?"Senha incorreta.":""}</p></div>`;
+  $("#fS").onsubmit=async e=>{e.preventDefault();const s=$("#iS").value;try{D=await abre(enc,s);try{localStorage.setItem("painel-baianao-s",s)}catch(x){}render()}catch(x){pedeSenha(enc,true)}};
+}
+async function carrega(){
+  try{const r=await fetch("dados.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;D=await r.json();render();return}catch(e){}
+  try{let enc=null;for(const u of [...DADOS_URL.split(",").map(x=>x.trim()).filter(Boolean),"dados.enc"]){if(!u)continue;try{const r=await fetch(u+(u.includes("?")?"&":"?")+"t="+Date.now(),{cache:"no-store"});if(r.ok){enc=await r.json();break}}catch(x){}}if(!enc)throw 0;let s="";try{s=localStorage.getItem("painel-baianao-s")||""}catch(x){}
+    if(s){try{D=await abre(enc,s);render();return}catch(x){}}
+    if(!D)pedeSenha(enc)}
+  catch(e){if(!D)$("#app").innerHTML='<div class="card">Ainda sem dados. A primeira coleta do portal está a caminho.</div>'}
+}
+function cabecalho(){
+  const g=new Date(D.geradoEm),loc=new Date(g.getTime()-3*3600e3);
+  const hh=String(loc.getUTCHours()).padStart(2,"0")+":"+String(loc.getUTCMinutes()).padStart(2,"0");
+  $("#quando").textContent=`${DIAS[loc.getUTCDay()]} ${String(loc.getUTCDate()).padStart(2,"0")}/${String(loc.getUTCMonth()+1).padStart(2,"0")} · ${hh}`;
+  const min=Math.round((Date.now()-g)/6e4);
+  const hojeLoc=new Date(Date.now()-3*3600e3).toISOString().slice(0,10),diaDados=loc.toISOString().slice(0,10);
+  const outroDia=hojeLoc!==diaDados;
+  $("#vivo").className="vivo"+(min>45?" velho":"");
+  $("#vivo").innerHTML=outroDia?`<i></i><b style="color:var(--warn)">dados de ${String(loc.getUTCDate()).padStart(2,"0")}/${String(loc.getUTCMonth()+1).padStart(2,"0")} às ${hh}</b> · a leitura do dia começa às 7h`:`<i></i>${min>45?"última leitura":"ao vivo"} · dados de ${hh}`+(min>45?` (há ${min>=120?Math.round(min/60)+" h":min+" min"})`:"");
+  const P=D.periodos;
+  $("#tabsP").innerHTML=["hoje","ontem","mes","mesAnt"].map(k=>`<button data-p="${k}" class="${S.per===k?"on":""}">${k==="mes"?"Mês":P[k].label}</button>`).join("")+
+    (D.regionaisComparativo?`<button data-p="regionais" class="${S.per==="regionais"?"on":""}">Regionais</button>`:"");
+  $("#tabsP").onclick=e=>{const p=e.target.dataset.p;if(p){S.per=p;S.sort={};salva();render()}};
+}
+function diasHist(){return Object.keys(D.historicoHoras||{}).filter(k=>(D.historicoHoras[k]||[]).length).sort().reverse()}
+function mesAntDe(dia){const [y,m,d]=dia.split("-").map(Number);const dt=new Date(Date.UTC(y,m-2,1));const ult=new Date(Date.UTC(y,m-1,0)).getUTCDate();return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,"0")}-${String(Math.min(d,ult)).padStart(2,"0")}`}
+function metaDoDia(dia){const M=D.diario.metaAtual||[];if(!M.length||dia.slice(0,7)!==D.periodos.mes.inicio.slice(0,7))return 0;const i=Number(dia.slice(8))-1;return (M[i]||0)-(i?M[i-1]||0:0)}
+const fmtH=m=>`${Math.floor(m/60)}h${m%60?String(m%60).padStart(2,"0"):""}`;
+function graficoDia(dia){
+  const H0=420,H1=1320,W=900,H=250,L=52,R=78,T=14,Bm=26,hist=D.historicoHoras||{};
+  const A=(hist[dia]||[]).map(p=>[p[0],p[1]]),ant=mesAntDe(dia),B=(hist[ant]||[]).map(p=>[p[0],p[1]]),md=metaDoDia(dia);
+  // meta do dia distribuída por igual das 8h às 20h
+  const Mt=md?[[H0,0],[480,0],[1200,md],[H1,md]]:[];
+  const max=Math.max(...A.map(p=>p[1]),...B.map(p=>p[1]),md,1)*1.1;
+  const x=m=>L+(W-L-R)*((Math.min(H1,Math.max(H0,m))-H0)/(H1-H0)),y=v=>T+(H-T-Bm)*(1-v/max);
+  const path=arr=>arr.map((p,i)=>(i?"L":"M")+x(p[0]).toFixed(1)+" "+y(p[1]).toFixed(1)).join("");
+  const passo=max>6e5?1e5:max>3e5?5e4:max>1.2e5?25e3:1e4;let grade="";
+  for(let v=0;v<=max;v+=passo)grade+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#e9ebf2"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end">${(v/1e3).toLocaleString("pt-BR")}</text>`;
+  let eixo="";for(let h=7;h<=22;h++)eixo+=`<text x="${x(h*60)}" y="${H-6}" text-anchor="middle">${h}h</text>`;
+  const u=A[A.length-1],dd=s=>s.slice(8)+"/"+s.slice(5,7),q=md&&u?u[1]/md:0;
+  const ehHoje=dia===D.periodos.hoje.inicio;
+  return `<b>${ehHoje?"Hoje":dd(dia)} hora a hora · todas as lojas${md&&u?` <span style="font-weight:600;color:${cor(q)}">· ${pct(q)} da meta do dia</span>`:""}</b>
+  <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;margin-top:6px">${grade}${eixo}
+  ${B.length?`<path d="${path(B)}" fill="none" stroke="#9aa1b5" stroke-width="2" stroke-dasharray="5 4"/><text x="${x(B[B.length-1][0])+6}" y="${y(B[B.length-1][1])-6}">${dd(ant)} · ${mil(B[B.length-1][1])}</text>`:""}
+  ${Mt.length?`<path d="${path(Mt)}" fill="none" stroke="var(--meta)" stroke-width="2.5"/><text x="${W-R+6}" y="${y(md)-4}" style="fill:var(--meta)">meta do dia</text><text x="${W-R+6}" y="${y(md)+10}" style="font-weight:700;fill:var(--meta)">${mil(md)}</text>`:""}
+  ${A.length?`<path d="${path(A)}" fill="none" stroke="var(--navy)" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="${x(u[0])}" cy="${y(u[1])}" r="5" fill="var(--red)" stroke="#fff" stroke-width="2"/>
+  <text x="${x(u[0])+9}" y="${y(u[1])+14}" style="font-weight:700;fill:var(--ink)">${fmtH(u[0])} · ${mil(u[1])}</text>`:""}
+  <rect class="grafHitDia" data-dia="${dia}" x="${L}" y="${T}" width="${W-L-R}" height="${H-T-Bm}" fill="transparent"/></svg>
+  <div class="nota">Venda acumulada do dia, lida a cada 5 min${B.length?` · tracejado: ${dd(ant)} (mesmo dia do mês passado)`:` · o mesmo dia do mês passado aparece quando houver registro dele (começou em ${dd(diasHist().slice(-1)[0]||dia)})`}${md?" · meta do dia distribuída por igual das 8h às 20h":""}.</div>`;
+}
+function ligaGraficoDia(){
+  const hit=document.querySelector(".grafHitDia");if(!hit)return;const tip=$("#tip"),dia=hit.dataset.dia,hist=D.historicoHoras||{};
+  const A=hist[dia]||[],B=hist[mesAntDe(dia)]||[],md=metaDoDia(dia);
+  const ate=(arr,m)=>{let r=null;for(const p of arr){if(p[0]<=m)r=p;else break}return r};
+  hit.onmousemove=e=>{const r=hit.getBoundingClientRect(),m=Math.round(420+(e.clientX-r.left)/r.width*900);
+    const a=ate(A,m),b=ate(B,m),mt=md?md*Math.min(1,Math.max(0,(m-480)/720)):0;
+    tip.style.display="block";tip.style.left=e.clientX+12+"px";tip.style.top=e.clientY+12+"px";
+    tip.innerHTML=`<b>${fmtH(m)}</b><br>vendido: ${a?mil(a[1])+" (leitura das "+fmtH(a[0])+")":"—"}${B.length?`<br>mês passado: ${b?mil(b[1]):"—"}`:""}${md?`<br>meta até aqui: ${mil(mt)}`+(a&&mt?` · ${pct(a[1]/mt)}`:""):""}`};
+  hit.onmouseleave=()=>tip.style.display="none";
+}
+function graficoCard(){
+  const dias=diasHist();if(!dias.length)return grafico();
+  S.graf=S.graf||"mes";if(!S.diaG||!dias.includes(S.diaG))S.diaG=dias[0];
+  const sel=`<select id="selDia" style="padding:4px 8px">${dias.map(d=>`<option value="${d}" ${d===S.diaG?"selected":""}>${d===D.periodos.hoje.inicio?"Hoje":d.slice(8)+"/"+d.slice(5,7)}</option>`).join("")}</select>`;
+  return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><div class="tabs" id="tabsG"><button data-g="mes" class="${S.graf==="mes"?"on":""}" style="text-transform:none;padding:4px 12px">Mês</button><button data-g="dia" class="${S.graf==="dia"?"on":""}" style="text-transform:none;padding:4px 12px">Dia por hora</button></div>${S.graf==="dia"?sel:""}</div>
+  ${S.graf==="dia"?graficoDia(S.diaG):grafico()}`;
+}
+function ligaGraficoCard(){
+  ligaGrafico();ligaGraficoDia();
+  const t=$("#tabsG");if(t)t.onclick=e=>{const g=e.target.dataset.g;if(g){S.graf=g;render()}};
+  const sd=$("#selDia");if(sd)sd.onchange=e=>{S.diaG=e.target.value;render()};
+}
+function serieGeral(){return {id:"g",titulo:"Acumulado dia a dia · todas as lojas",a:D.diario.atual,b:D.diario.anterior,M:D.diario.metaAtual||[]}}
+function grafico(S0){
+  S0=S0||serieGeral();const a=S0.a,b=S0.b,M=S0.M||[],hoje=Number(D.periodos.hoje.fim.slice(8));
+  const ac=x=>{let s=0;return x.map(v=>s+=v)};
+  const A=ac(a).slice(0,hoje),B=ac(b),n=Math.max(a.length,b.length),W=900,H=250,L=52,R=78,T=14,Bm=26;
+  const max=Math.max(A[A.length-1]||0,B[B.length-1]||0,M[M.length-1]||0,1)*1.08;
+  const x=i=>L+(W-L-R)*(i/(n-1)),y=v=>T+(H-T-Bm)*(1-v/max);
+  const path=arr=>arr.map((v,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1)).join("");
+  const passo=max>8e6?2e6:max>3e6?1e6:max>1.5e6?5e5:max>6e5?25e4:max>2e5?5e4:1e4;let grade="";
+  for(let v=0;v<=max;v+=passo)grade+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#e9ebf2"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end">${(v/1e3).toLocaleString("pt-BR")}</text>`;
+  let eixo="";for(const d of [1,5,10,15,20,25,n])eixo+=`<text x="${x(d-1)}" y="${H-6}" text-anchor="middle">${d===1?"dia 1":d}</text>`;
+  const ult=A.length-1,mA=D.periodos.mes.label.slice(0,3),mB=D.periodos.mesAnt.label.slice(0,3);
+  const q=M[ult]?A[ult]/M[ult]:0;
+  return `<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><b>${S0.titulo}${M[ult]?` <span style="font-weight:600;color:${cor(q)}">· ${pct(q)} da meta</span>`:""}</b><span class="leg"><span>R$ mil</span><span><i></i>${mA}</span><span><i class="d"></i>${mB}</span>${M.length?'<span><i class="m"></i>meta</span>':""}</span></div>
+  <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;margin-top:6px">${grade}${eixo}
+  <path d="${path(B)}" fill="none" stroke="#9aa1b5" stroke-width="2" stroke-dasharray="5 4"/>
+  ${M.length?`<path d="${path(M)}" fill="none" stroke="var(--meta)" stroke-width="2.5" stroke-linejoin="round"/>`:""}
+  <path d="${path(A)}" fill="none" stroke="var(--navy)" stroke-width="3" stroke-linejoin="round"/>
+  <line x1="${x(ult)}" x2="${x(ult)}" y1="${T}" y2="${H-Bm}" stroke="#c7cbda"/>
+  <circle cx="${x(ult)}" cy="${y(A[ult])}" r="5" fill="var(--red)" stroke="#fff" stroke-width="2"/>
+  <text x="${x(ult)+9}" y="${y(A[ult])+14}" style="font-weight:700;fill:var(--ink)">hoje · ${mil(A[ult])}</text>
+  ${(()=>{let yb=y(B[B.length-1]),ym=M.length?y(M[M.length-1]):-99;if(Math.abs(yb-ym)<30){if(ym<yb)yb=ym+30;else ym=yb+30}
+    return `<text x="${W-R+6}" y="${yb-4}">${mB} fechou</text><text x="${W-R+6}" y="${yb+10}" style="font-weight:700;fill:var(--ink)">${mil(B[B.length-1])}</text>`+
+    (M.length?`<text x="${W-R+6}" y="${ym-4}" style="fill:var(--meta)">meta ${mA}</text><text x="${W-R+6}" y="${ym+10}" style="font-weight:700;fill:var(--meta)">${mil(M[M.length-1])}</text>`:"")})()}
+  <rect class="grafHit" data-g="${S0.id}" x="${L}" y="${T}" width="${W-L-R}" height="${H-T-Bm}" fill="transparent"/></svg>
+  ${S0.id==="g"?`<div class="nota">Venda líquida (vendas − devoluções) somada dia a dia${M.length?" · linha azul: meta somada dia a dia":""}.</div>`:""}`;
+}
+function ligaGrafico(series){
+  series=series||[serieGeral()];const tip=$("#tip"),hoje=Number(D.periodos.hoje.fim.slice(8));
+  document.querySelectorAll(".grafHit").forEach(hit=>{
+    const S0=series.find(z=>z.id===hit.dataset.g);if(!S0)return;
+    const a=S0.a,b=S0.b,M=S0.M||[],n=Math.max(a.length,b.length);
+    const ac=x=>{let s=0;return x.map(v=>s+=v)};const A=ac(a),B=ac(b);
+    hit.onmousemove=e=>{const r=hit.getBoundingClientRect(),i=Math.max(0,Math.min(n-1,Math.round((e.clientX-r.left)/r.width*(n-1))));
+      tip.style.display="block";tip.style.left=e.clientX+12+"px";tip.style.top=e.clientY+12+"px";
+      tip.innerHTML=`<b>${S0.id==="g"?"":esc(S0.nome)+" · "}Dia ${i+1}</b><br>${D.periodos.mes.label}: ${i<hoje?brl(a[i])+" no dia · "+mil(A[i])+" acum.":"—"}<br>${D.periodos.mesAnt.label}: ${i<b.length?brl(b[i])+" no dia · "+mil(B[i])+" acum.":"—"}${i<M.length?`<br>meta: ${mil(M[i])} acum.`+(i<hoje&&M[i]?` · ${pct(A[i]/M[i])} atingido`:""):""}`};
+    hit.onmouseleave=()=>tip.style.display="none";
+  });
+}
+function seriesRegionais(){
+  const pr=D.diario.porRegional||{};
+  return Object.keys(pr).sort().map(k=>({id:k,nome:k+" · "+(pr[k].lider||""),titulo:`${k} · ${esc(pr[k].lider||"")} · acumulado dia a dia`,a:pr[k].atual,b:pr[k].anterior,M:pr[k].meta||[]}));
+}
+function hero(p){
+  const g=p.resumo?.geral||{},c=D.comparativos;let comp="";
+  if(S.per==="mes"&&c){comp=`<div class="linha">Até dia ${c.ateDia}: <b>${mil(c.atual.venda)}</b> · ${D.periodos.mesAnt.label} até dia ${c.ateDia}: <b>${mil(c.anterior.venda)}</b> ${delta(c.atual.venda,c.anterior.venda)}</div>
+    <div class="linha">Pedidos até dia ${c.ateDia}: <b>${num(c.atual.pedidos)}</b> · ${D.periodos.mesAnt.label.slice(0,3)} ${num(c.anterior.pedidos)} ${delta(c.atual.pedidos,c.anterior.pedidos)}</div>`}
+  if(S.per==="hoje"){const o=D.periodos.ontem.resumo?.geral;if(o)comp=`<div class="linha">Ontem fechou em <b>${mil(o.venda)}</b> · ${pct(o.pct)} da meta</div>`}
+  const tit={hoje:"Hoje",ontem:"Ontem",mes:`${p.label} até dia ${Number(p.fim.slice(8))}`,mesAnt:`${p.label} (mês fechado)`}[S.per];
+  return `<div class="card"><div class="sub" style="font-weight:700;color:var(--ink)">${tit[0].toUpperCase()+tit.slice(1)}</div>
+  <div class="big"><small>R$</small>${num(g.venda)}</div>
+  <div class="linha">Meta <b>${mil(g.meta)}</b> · <b style="color:${cor(g.pct)}">${pct(g.pct)}</b> atingido${g.meta>g.venda?` · faltam <b>${mil(g.meta-g.venda)}</b>`:""}</div>
+  <div class="barra"><i style="width:${Math.min(100,(g.pct||0)*100)}%;background:${cor(g.pct)}"></i></div>
+  ${comp}
+  <div class="linha"><b>${num(p.pedidos)}</b> pedidos · ticket médio <b>${brl(p.ticket)}</b> · devoluções <b>${mil(p.devolucoes)}</b></div>
+  <div class="dest">Lucro bruto <b>${mil(g.lucro)}</b> · ${pct(g.margem)}</div>
+  <div class="mini" style="margin-top:12px"><div><span class="sub">Sorte Dobrada</span><b>${num(g.sorteQtd)} · ${mil(g.sorteValor)}</b></div><div><span class="sub">Garantia</span><b>${mil(g.garantia)}</b></div><div><span class="sub">Pacote serviços</span><b>${mil(g.pacote)}</b></div></div>
+  </div>`;
+}
+function regionais(p){
+  return `<div class="grid g4">`+(p.resumo?.regionais||[]).map(r=>`<div class="card reg ${S.reg===r.reg?"on":""}" data-reg="${r.reg}">
+  <h3>${r.reg} · ${esc(r.lider)}</h3><div class="v">${mil(r.venda)}</div>
+  <div class="barra"><i style="width:${Math.min(100,r.pct*100)}%;background:${cor(r.pct)}"></i></div>
+  <div class="sub"><b style="color:${cor(r.pct)}">${pct(r.pct)}</b> da meta de ${mil(r.meta)}</div>
+  <div class="sub">lucro ${mil(r.lucro)} · ${pct(r.margem)}</div></div>`).join("")+`</div>`;
+}
+function categorias(p){
+  const cs=p.resumo?.categorias||[];if(!cs.length)return"";
+  return `<div class="card" style="margin-top:14px"><b>Por categoria</b><div class="cats" style="margin-top:10px">`+cs.map(c=>{const q=c.meta?c.venda/c.meta:0;return `<div class="cat"><div class="n">${esc(c.nome)}</div><div class="v">${mil(c.venda)}</div><div class="barra"><i style="width:${Math.min(100,q*100)}%;background:${cor(q)}"></i></div><div class="sub">${c.meta?pct(q)+" de "+mil(c.meta):"sem meta"}</div></div>`}).join("")+`</div></div>`;
+}
+function leads(){
+  const l=S.per==="hoje"?D.leads.hoje:S.per==="mes"?D.leads.mes:null;if(!l)return"";
+  return `<div class="card" style="margin-top:14px"><b>Leads (${S.per==="hoje"?"hoje":"mês"})</b><div class="mini" style="margin-top:10px">
+  <div><span class="sub">Contatos</span><b>${num(l.contatos)}</b></div><div><span class="sub">Leads</span><b>${num(l.leads)}</b></div><div><span class="sub">Convertidos</span><b>${num(l.leadsConvertidos)}</b></div>
+  <div><span class="sub">Conversão</span><b>${(l.taxaConversao||0).toLocaleString("pt-BR",{maximumFractionDigits:1})}%</b></div><div><span class="sub">Vendido</span><b>${mil(l.valorVendido)}</b></div><div><span class="sub">Ticket</span><b>${brl(l.ticketMedio)}</b></div></div>${leadsRegionais(l)}</div>`;
+}
+function leadsRegionais(l){
+  const m={};for(const x of l.porLoja||[]){const r=x.regional;if(!/^R[1-9]$/.test(r||""))continue;m[r]??={reg:r,lojas:0,contatos:0,convertidos:0,valor:0};const y=m[r];y.lojas++;y.contatos+=x.contatos||0;y.convertidos+=x.convertidos||0;y.valor+=x.valor||0}
+  const rs=Object.values(m).sort((a,b)=>a.reg.localeCompare(b.reg));if(!rs.length)return"";
+  const NOM={R1:"UARA",R2:"DIEGO",R3:"ALEXANDRE",R4:"MICHEL"},mx=Math.max(...rs.map(r=>r.contatos?r.convertidos/r.contatos:0),.0001);
+  return `<div class="tw" style="margin-top:14px"><table><thead><tr><th class="l">Regional</th><th>Contatos</th><th>Convertidos</th><th>Conversão</th><th>Vendido</th><th>Ticket</th></tr></thead><tbody>
+  ${rs.map(r=>{const q=r.contatos?r.convertidos/r.contatos:0;return `<tr><td class="l nome">${r.reg} · ${NOM[r.reg]||""}</td><td>${num(r.contatos)}</td><td>${num(r.convertidos)}</td>
+  <td><span class="pb"><i style="width:${q/mx*100}%;background:var(--navy)"></i></span><b>${pct(q)}</b></td><td><b>${brl(r.valor)}</b></td><td>${r.convertidos?brl(r.valor/r.convertidos):"—"}</td></tr>`}).join("")}
+  </tbody></table></div>`;
+}
+// ---------- tabelas ----------
+function linhas(p){
+  const okLoja=c=>(!S.reg||regLoja(c)===S.reg)&&(!S.loja||c===S.loja);
+  const q=S.q.trim().toLowerCase(),bate=t=>!q||t.toLowerCase().includes(q);
+  if(S.aba==="loja"){
+    const c=S.per==="mes"&&D.comparativos;
+    return (p.resumo?.lojas||[]).filter(l=>okLoja(l.cod)&&(l.venda||l.meta)&&bate(nomeLoja(l.cod))).map(l=>{const ped=p.pedidosPorLoja[l.cod]||0;
+      return {...l,nome:nomeLoja(l.cod),reg:regLoja(l.cod),ped,ticket:ped?l.venda/ped:0,ant:c?(c.lojasAnterior[l.cod]||0):0,atu:c?(c.lojasAtual[l.cod]||0):0}});
+  }
+  if(S.aba==="vend"){
+    const m={};for(const v of p.vendedores){if(!okLoja(v.loja))continue;const k=v.cod;m[k]??={cod:v.cod,nome:v.nome,lojas:new Set(),venda:0,pedidos:0,itens:0,devol:0};const x=m[k];x.lojas.add(v.loja);x.venda+=v.venda;x.pedidos+=v.pedidos;x.itens+=v.itens;x.devol+=v.devol}
+    return Object.values(m).map(x=>({...x,lojaTxt:[...x.lojas].map(nomeLoja).join(", "),reg:regLoja([...x.lojas][0]),ticket:x.pedidos?(x.venda-x.devol)/x.pedidos:0})).filter(x=>bate(x.nome+" "+x.lojaTxt+" "+x.cod));
+  }
+  const m={};for(const v of p.produtos){if(!okLoja(v.loja))continue;m[v.cod]??={cod:v.cod,nome:v.nome,grupo:v.grupo,marca:v.marca,qtd:0,valor:0,nl:0};const x=m[v.cod];x.qtd+=v.qtd;x.valor+=v.valor;x.nl++}
+  return Object.values(m).map(x=>({...x,pm:x.qtd>0?x.valor/x.qtd:0})).filter(x=>bate(x.nome+" "+x.grupo+" "+x.marca+" "+x.cod));
+}
+const COLS={
+  loja:[["nome","Loja","l"],["reg","Regional","l"],["venda","Venda"],["meta","Meta"],["pct","% Meta"],["lucro","Lucro"],["margem","Margem"],["ped","Pedidos"],["ticket","Ticket"],["sorteQtd","Sorte"],["garantia","Garantia"]],
+  vend:[["nome","Vendedor","l"],["lojaTxt","Loja","l"],["venda","Venda"],["pedidos","Pedidos"],["ticket","Ticket"],["itens","Itens"],["devol","Devoluções"]],
+  prod:[["nome","Produto","l"],["grupo","Grupo","l"],["marca","Marca","l"],["valor","Vendido"],["qtd","Qtd"],["pm","Preço médio"],["nl","Lojas"]]};
+function celula(k,r){const v=r[k];
+  if(k==="nome")return `<td class="l nome">${esc(v)}${S.aba!=="loja"?` <span class="sub" style="font-weight:400">${esc(r.cod)}</span>`:""}</td>`;
+  if(k==="reg")return `<td class="l"><span class="pill">${esc(v)}</span></td>`;
+  if(k==="lojaTxt"||k==="grupo"||k==="marca")return `<td class="l">${esc(v)}</td>`;
+  if(k==="pct")return `<td><span class="pb"><i style="width:${Math.min(100,v*100)}%;background:${cor(v)}"></i></span><b style="color:${cor(v)}">${pct(v)}</b></td>`;
+  if(k==="margem")return `<td style="color:${v<0?"var(--bad)":"inherit"}">${pct(v)}</td>`;
+  if(k==="vsAnt")return `<td>${r.ant?delta(r.atu,r.ant):"—"}</td>`;
+  if(["ped","pedidos","itens","qtd","sorteQtd","nl"].includes(k))return `<td>${num(v)}</td>`;
+  if(k==="venda"||k==="valor")return `<td><b>${brl(v)}</b></td>`;
+  return `<td>${brl(v)}</td>`}
+function tabela(p){
+  let cols=COLS[S.aba].slice();if(S.aba==="loja"&&S.per==="mes"&&D.comparativos)cols.splice(5,0,["vsAnt",`vs ${D.periodos.mesAnt.label.slice(0,3)} (até dia ${D.comparativos.ateDia})`]);
+  const pad={loja:"venda",vend:"venda",prod:"valor"}[S.aba],st=S.sort[S.aba]||{k:pad,asc:false};
+  let ls=linhas(p);const val=r=>st.k==="vsAnt"?(r.ant?r.atu/r.ant:-9):r[st.k];
+  ls.sort((a,b)=>{const x=val(a),y=val(b);return (typeof x==="string"?x.localeCompare(y,"pt-BR"):x-y)*(st.asc?1:-1)});
+  const tot=ls.reduce((s,r)=>s+(r[pad]||0),0),LIM=300,mostra=ls.slice(0,LIM);
+  return `<div class="tw"><table><thead><tr><th class="rk">#</th>${cols.map(c=>`<th data-k="${c[0]}" class="${c[2]||""} ${st.k===c[0]?"s"+(st.asc?" asc":""):""}">${c[1]}</th>`).join("")}</tr></thead><tbody>
+  ${mostra.map((r,i)=>`<tr><td class="rk">${i+1}</td>${cols.map(c=>celula(c[0],r)).join("")}</tr>`).join("")||`<tr><td colspan="${cols.length+1}" class="l">Nada por aqui neste período.</td></tr>`}</tbody></table></div>
+  <div class="nota">${num(ls.length)} ${{loja:"lojas",vend:"vendedores",prod:"produtos"}[S.aba]} · total ${brl(tot)}${ls.length>LIM?` · mostrando os ${LIM} primeiros (use a busca)`:""}${S.aba!=="loja"?" · valores já descontam devoluções":""}</div>`;
+}
+function regionaisView(){
+  const R=D.regionaisComparativo,mA=D.periodos.mes.label,mB=D.periodos.mesAnt.label,mA3=mA.slice(0,3),mB3=mB.slice(0,3);
+  const regs=R.regionais,W=900,H=300,L=56,Rm=10,T=24,Bm=46,gw=(W-L-Rm)/regs.length,bw=Math.min(46,gw/5);
+  const max=Math.max(...regs.flatMap(r=>[r.venda,r.anteriorMesmoPeriodo,r.metaAteHoje]),1)*1.15;
+  const y=v=>T+(H-T-Bm)*(1-v/max);
+  const passo=max>3e6?1e6:max>1.5e6?5e5:max>6e5?2e5:max>2e5?5e4:1e4;let grade="";
+  for(let v=0;v<=max;v+=passo)grade+=`<line x1="${L}" x2="${W-Rm}" y1="${y(v)}" y2="${y(v)}" stroke="#e9ebf2"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end">${(v/1e3).toLocaleString("pt-BR")}</text>`;
+  const series=[["venda","var(--navy)",`${mA3} até dia ${R.ateDia}`],["anteriorMesmoPeriodo","#9aa1b5",`${mB3} até dia ${R.diaAnterior}`],["metaAteHoje","var(--meta)",`meta até dia ${R.ateDia}`]];
+  let barras="";
+  regs.forEach((r,i)=>{const cx=L+gw*i+gw/2;
+    series.forEach(([k,c],j)=>{const x0=cx+(j-1.5)*bw+bw*.05,v=r[k]||0,yy=y(v);
+      barras+=`<rect x="${x0.toFixed(1)}" y="${yy.toFixed(1)}" width="${(bw*.9).toFixed(1)}" height="${(y(0)-yy).toFixed(1)}" fill="${c}" rx="3"><title>${esc(r.reg)} · ${series[j][2]}: ${brl(v)}</title></rect>
+      <text x="${(x0+bw*.45).toFixed(1)}" y="${(yy-5).toFixed(1)}" text-anchor="middle" style="font-size:10px;fill:var(--ink);font-weight:600">${(v/1e3).toLocaleString("pt-BR",{maximumFractionDigits:0})}</text>`});
+    const q=r.metaAteHoje?r.venda/r.metaAteHoje:0;
+    barras+=`<text x="${cx}" y="${H-24}" text-anchor="middle" style="font-weight:700;fill:var(--ink);font-size:12px">${esc(r.reg)} · ${esc(r.lider)}</text>
+      <text x="${cx}" y="${H-8}" text-anchor="middle" style="fill:${cor(q)};font-weight:700">${pct(q)} da meta</text>`});
+  const leg=series.map(([,c,t])=>`<span><i style="border-top:8px solid ${c};width:12px;border-radius:2px"></i>${t}</span>`).join("");
+  const linha=(r,rede)=>{const q=r.metaAteHoje?r.venda/r.metaAteHoje:0,qm=r.metaMes?r.venda/r.metaMes:0;
+    return `<tr${rede?' style="font-weight:700;background:#f8f9fc"':""}><td class="l nome">${rede?"Rede toda":esc(r.reg)+" · "+esc(r.lider)}</td>
+    <td><b>${brl(r.venda)}</b></td><td>${brl(r.metaAteHoje)}</td>
+    <td><span class="pb"><i style="width:${Math.min(100,q*100)}%;background:${cor(q)}"></i></span><b style="color:${cor(q)}">${pct(q)}</b></td>
+    <td>${brl(r.anteriorMesmoPeriodo)}</td><td>${delta(r.venda,r.anteriorMesmoPeriodo)||"—"}</td>
+    <td>${brl(r.metaMes)}</td><td>${pct(qm)}</td><td>${r.metaMes>r.venda?brl(r.metaMes-r.venda):"<span class='up'>batida</span>"}</td><td>${brl(r.anteriorFechado)}</td></tr>`};
+  return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <b>Venda por regional · ${mA} x ${mB} x meta</b><span class="leg"><span>R$ mil</span>${leg}</span></div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;margin-top:8px">${grade}${barras}</svg>
+    <div class="nota">${mA[0].toUpperCase()+mA.slice(1)} até agora, ${mB} do dia 1 ao dia ${R.diaAnterior} e meta do dia 1 ao dia ${R.ateDia}.</div></div>
+  <div class="card sec"><div class="tw"><table><thead><tr><th class="l">Regional</th><th>Venda ${mA3}</th><th>Meta até hoje</th><th>% meta</th><th>${mB3} até dia ${R.diaAnterior}</th><th>vs ${mB3}</th><th>Meta do mês</th><th>% do mês</th><th>Falta pro mês</th><th>${mB3} fechado</th></tr></thead>
+  <tbody>${R.regionais.map(r=>linha(r)).join("")}${linha(R.rede,true)}</tbody></table></div></div>
+  ${seriesRegionais().map(z=>`<div class="card sec">${grafico(z)}</div>`).join("")}`;
+}
+function render(){
+  if(!D)return;cabecalho();
+  if(S.per==="regionais"){if(D.regionaisComparativo){$("#app").innerHTML=regionaisView();ligaGrafico(seriesRegionais());return}S.per="mes"}
+  const p=D.periodos[S.per];
+
+  const lojasOpt=Object.keys(D.lojas).filter(c=>(p.resumo?.lojas||[]).some(l=>l.cod===c&&(l.venda||l.meta))&&(!S.reg||regLoja(c)===S.reg)).sort((a,b)=>D.lojas[a].num-D.lojas[b].num);
+  if(S.loja&&!lojasOpt.includes(S.loja))S.loja="";
+  $("#app").innerHTML=`<div class="hero">${hero(p)}<div class="card">${graficoCard()}</div></div>${regionais(p)}${categorias(p)}${leads()}
+  <div class="card sec"><div class="ferr"><div class="tabs" id="tabsA">${[["loja","Por loja"],["vend","Por vendedor"],["prod","Por produto"]].map(a=>`<button data-a="${a[0]}" class="${S.aba===a[0]?"on":""}" style="text-transform:none">${a[1]}</button>`).join("")}</div>
+  <select id="fReg"><option value="">Todas as regionais</option>${(p.resumo?.regionais||[]).map(r=>`<option value="${r.reg}" ${S.reg===r.reg?"selected":""}>${r.reg} · ${esc(r.lider)}</option>`).join("")}</select>
+  <select id="fLoja"><option value="">Todas as lojas</option>${lojasOpt.map(c=>`<option value="${c}" ${S.loja===c?"selected":""}>${esc(nomeLoja(c))}</option>`).join("")}</select>
+  <input type="search" id="fQ" placeholder="Buscar loja, vendedor ou produto…" value="${esc(S.q)}"></div><div id="tab">${tabela(p)}</div></div>`;
+  ligaGraficoCard();
+  $("#tabsA").onclick=e=>{const a=e.target.dataset.a;if(a){S.aba=a;salva();render()}};
+  $("#fReg").onchange=e=>{S.reg=e.target.value;render()};$("#fLoja").onchange=e=>{S.loja=e.target.value;render()};
+  $("#fQ").oninput=e=>{S.q=e.target.value;$("#tab").innerHTML=tabela(p)};
+  document.querySelectorAll(".reg").forEach(el=>el.onclick=()=>{S.reg=S.reg===el.dataset.reg?"":el.dataset.reg;render()});
+  $("#tab").onclick=e=>{const th=e.target.closest("th[data-k]");if(!th)return;const k=th.dataset.k,cur=S.sort[S.aba];S.sort[S.aba]={k,asc:cur&&cur.k===k?!cur.asc:["nome","reg","lojaTxt","grupo","marca"].includes(k)};$("#tab").innerHTML=tabela(p)};
+}
+carrega();setInterval(carrega,5*60*1000);setInterval(()=>D&&cabecalho(),60*1000);
+</script>
+</body>
+</html>

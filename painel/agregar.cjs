@@ -116,7 +116,20 @@ function agregarPainel(raw) {
     },
   };
   // meta acumulada dia a dia (linha da meta no gráfico)
-  if (Array.isArray(raw.metasDia)) { let acc = 0; out.diario.metaAtual = raw.metasDia.map((m) => r2(acc += m || 0)); }
+  const metaG = (m) => (typeof m === "number" ? m : m?.g || 0);
+  if (Array.isArray(raw.metasDia)) { let acc = 0; out.diario.metaAtual = raw.metasDia.map((m) => r2(acc += metaG(m))); }
+  // dia a dia por regional (venda deste mês, do mês passado e meta acumulada)
+  {
+    const pr = {};
+    const soma = (linhas, n, campo) => { for (const l of linhas || []) { const cod = garanteLoja(numDaLoja(l.loja)); const reg = lojas[cod]?.regional; const d = dia(l.data); if (!/^R[1-9]$/.test(reg || "") || d < 1 || d > n) continue;
+      pr[reg] ??= { lider: LIDER[reg] || "", atual: Array(raw.diasMesAtual).fill(0), anterior: Array(raw.diasMesAnterior).fill(0) }; pr[reg][campo][d - 1] += l.valorTotal || 0; } };
+    soma(raw.dados.atual, raw.diasMesAtual, "atual"); soma(raw.dados.anterior, raw.diasMesAnterior, "anterior");
+    for (const reg in pr) {
+      pr[reg].atual = pr[reg].atual.map(r2); pr[reg].anterior = pr[reg].anterior.map(r2);
+      if (Array.isArray(raw.metasDia) && raw.metasDia.some((m) => m && typeof m === "object")) { let acc = 0; pr[reg].meta = raw.metasDia.map((m) => r2(acc += (m?.r?.[reg] || 0))); }
+    }
+    out.diario.porRegional = pr;
+  }
   // aba Regionais: mês até agora x mês passado até o mesmo dia x meta
   {
     const rm = resumo(raw.resumo.mes), rah = resumo(raw.resumo.mesAntAteHoje), ra = resumo(raw.resumo.mesAnt), rc = resumo(raw.resumo.mesCheio);

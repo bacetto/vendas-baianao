@@ -32,7 +32,7 @@ async function coletarRawPainel(P) {
       const lote = [];
       for (let d = d0; d < d0 + 5 && d <= P.diasMesAtual; d++) {
         const dia = `${P.mesCheio.inicio.slice(0, 8)}${String(d).padStart(2, "0")}`;
-        lote.push(resumo({ inicio: dia, fim: dia }).then((r) => r?.geral?.mercantil?.meta || 0).catch(() => null));
+        lote.push(resumo({ inicio: dia, fim: dia }).then((r) => ({ g: r?.geral?.mercantil?.meta || 0, r: Object.fromEntries((r?.porRegional || []).map((x) => [x.regional, x.mercantil?.meta || 0])) })).catch(() => null));
       }
       metasDia.push(...(await Promise.all(lote)));
     }

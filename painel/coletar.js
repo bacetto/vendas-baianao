@@ -37,6 +37,39 @@ async function login() {
   console.log("✅ Login no portal ok");
 }
 
+// Venda do dia hora a hora: o portal não dá a hora da venda, então a cada leitura guardamos
+// quanto o dia já vendeu (rede e cada regional). Fica guardado junto com os dados (cifrado), 62 dias.
+async function historicoHoras(dados) {
+  const ARQ = "saida/historico-horas.json";
+  let hist = null;
+  try { hist = JSON.parse(fs.readFileSync(ARQ, "utf8")); } catch (e) {}
+  if (!hist && process.env.REPO && process.env.SENHA) {
+    try {
+      const r = await fetch(`https://raw.githubusercontent.com/${process.env.REPO}/dados/dados.enc?t=${Date.now()}`);
+      if (r.ok) {
+        const crypto = await import("node:crypto"), zlib = await import("node:zlib");
+        const e = await r.json(), b = Buffer.from(e.dados, "base64");
+        const k = crypto.pbkdf2Sync(process.env.SENHA, Buffer.from(e.salt, "base64"), e.iter, 32, "sha256");
+        const d = crypto.createDecipheriv("aes-256-gcm", k, Buffer.from(e.iv, "base64"));
+        d.setAuthTag(b.subarray(-16));
+        hist = JSON.parse(zlib.gunzipSync(Buffer.concat([d.update(b.subarray(0, -16)), d.final()]))).historicoHoras || null;
+      }
+    } catch (e) { console.log("Histórico anterior não lido:", e.message); }
+  }
+  hist = hist && typeof hist === "object" ? hist : {};
+  const h = dados.periodos.hoje, g = h.resumo?.geral;
+  if (g) {
+    const loc = new Date(Date.now() - 3 * 3600e3), min = loc.getUTCHours() * 60 + loc.getUTCMinutes();
+    const ponto = [min, g.venda, ...["R1", "R2", "R3", "R4"].map((r) => h.resumo.regionais.find((x) => x.reg === r)?.venda || 0)];
+    const lista = (hist[h.inicio] ||= []);
+    if (!lista.length || lista[lista.length - 1][0] !== min) lista.push(ponto);
+  }
+  const corte = new Date(Date.now() - 62 * 864e5).toISOString().slice(0, 10);
+  for (const dia of Object.keys(hist)) if (dia < corte) delete hist[dia];
+  fs.writeFileSync(ARQ, JSON.stringify(hist));
+  return hist;
+}
+
 try {
   await login();
   await page.goto(`${BASE}/portal/colaborador/bi/vendas/vendas-lojas`, { waitUntil: "domcontentloaded" });
@@ -45,11 +78,12 @@ try {
   await page.getByText(/^Total Geral$/i).first().waitFor({ timeout: 30000 }).catch(() => {});
   const P = periodosPainel();
   // meta de cada dia: lê do portal uma vez por dia e guarda
-  const CACHE = "saida/metas-dia.json";
+  const CACHE = "saida/metas-dia-v2.json";
   try { const c = JSON.parse(fs.readFileSync(CACHE, "utf8")); if (c.dia === P.hoje.inicio && !c.metas.includes(null)) P.metasDia = c.metas; } catch (e) {}
   const raw = await page.evaluate(coletarRawPainel, P);
   if (Array.isArray(raw.metasDia) && !raw.metasDia.includes(null)) fs.writeFileSync(CACHE, JSON.stringify({ dia: P.hoje.inicio, metas: raw.metasDia }));
   const dados = agregarPainel(raw);
+  dados.historicoHoras = await historicoHoras(dados);
   fs.writeFileSync("saida/dados.json", JSON.stringify(dados));
   const m = dados.periodos.mes, h = dados.periodos.hoje;
   console.log(`✅ dados.json: ${(fs.statSync("saida/dados.json").size / 1024).toFixed(0)} KB | hoje R$ ${h.resumo?.geral.venda} | mês R$ ${m.resumo?.geral.venda} | ${m.vendedores.length} vendedores | ${m.produtos.length} produtos`);
