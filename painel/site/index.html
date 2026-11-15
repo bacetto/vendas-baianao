@@ -125,11 +125,12 @@ function cabecalho(){
 }
 function diasHist(){return Object.keys(D.historicoHoras||{}).filter(k=>(D.historicoHoras[k]||[]).length).sort().reverse()}
 function mesAntDe(dia){const [y,m,d]=dia.split("-").map(Number);const dt=new Date(Date.UTC(y,m-2,1));const ult=new Date(Date.UTC(y,m-1,0)).getUTCDate();return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,"0")}-${String(Math.min(d,ult)).padStart(2,"0")}`}
-function metaDoDia(dia){const M=D.diario.metaAtual||[];if(!M.length||dia.slice(0,7)!==D.periodos.mes.inicio.slice(0,7))return 0;const i=Number(dia.slice(8))-1;return (M[i]||0)-(i?M[i-1]||0:0)}
+function metaDoDia(dia,reg){const M=(reg?D.diario.porRegional?.[reg]?.meta:D.diario.metaAtual)||[];if(!M.length||dia.slice(0,7)!==D.periodos.mes.inicio.slice(0,7))return 0;const i=Number(dia.slice(8))-1;return (M[i]||0)-(i?M[i-1]||0:0)}
 const fmtH=m=>`${Math.floor(m/60)}h${m%60?String(m%60).padStart(2,"0"):""}`;
-function graficoDia(dia){
+function colReg(reg){return reg?1+Number(reg.slice(1)):1}
+function graficoDia(dia,reg,nome){
   const H0=420,H1=1320,W=900,H=250,L=52,R=78,T=14,Bm=26,hist=D.historicoHoras||{};
-  const A=(hist[dia]||[]).map(p=>[p[0],p[1]]),ant=mesAntDe(dia),B=(hist[ant]||[]).map(p=>[p[0],p[1]]),md=metaDoDia(dia);
+  const k=colReg(reg),A=(hist[dia]||[]).map(p=>[p[0],p[k]||0]),ant=mesAntDe(dia),B=(hist[ant]||[]).map(p=>[p[0],p[k]||0]),md=metaDoDia(dia,reg);
   // meta do dia distribuída por igual das 8h às 20h
   const Mt=md?[[H0,0],[480,0],[1200,md],[H1,md]]:[];
   const max=Math.max(...A.map(p=>p[1]),...B.map(p=>p[1]),md,1)*1.1;
@@ -140,37 +141,40 @@ function graficoDia(dia){
   let eixo="";for(let h=7;h<=22;h++)eixo+=`<text x="${x(h*60)}" y="${H-6}" text-anchor="middle">${h}h</text>`;
   const u=A[A.length-1],dd=s=>s.slice(8)+"/"+s.slice(5,7),q=md&&u?u[1]/md:0;
   const ehHoje=dia===D.periodos.hoje.inicio;
-  return `<b>${ehHoje?"Hoje":dd(dia)} hora a hora · todas as lojas${md&&u?` <span style="font-weight:600;color:${cor(q)}">· ${pct(q)} da meta do dia</span>`:""}</b>
+  return `<b>${ehHoje?"Hoje":dd(dia)} hora a hora · ${nome||"todas as lojas"}${md&&u?` <span style="font-weight:600;color:${cor(q)}">· ${pct(q)} da meta do dia</span>`:""}</b>
   <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;margin-top:6px">${grade}${eixo}
   ${B.length?`<path d="${path(B)}" fill="none" stroke="#9aa1b5" stroke-width="2" stroke-dasharray="5 4"/><text x="${x(B[B.length-1][0])+6}" y="${y(B[B.length-1][1])-6}">${dd(ant)} · ${mil(B[B.length-1][1])}</text>`:""}
   ${Mt.length?`<path d="${path(Mt)}" fill="none" stroke="var(--meta)" stroke-width="2.5"/><text x="${W-R+6}" y="${y(md)-4}" style="fill:var(--meta)">meta do dia</text><text x="${W-R+6}" y="${y(md)+10}" style="font-weight:700;fill:var(--meta)">${mil(md)}</text>`:""}
   ${A.length?`<path d="${path(A)}" fill="none" stroke="var(--navy)" stroke-width="3" stroke-linejoin="round"/>
   <circle cx="${x(u[0])}" cy="${y(u[1])}" r="5" fill="var(--red)" stroke="#fff" stroke-width="2"/>
   <text x="${x(u[0])+9}" y="${y(u[1])+14}" style="font-weight:700;fill:var(--ink)">${fmtH(u[0])} · ${mil(u[1])}</text>`:""}
-  <rect class="grafHitDia" data-dia="${dia}" x="${L}" y="${T}" width="${W-L-R}" height="${H-T-Bm}" fill="transparent"/></svg>
+  <rect class="grafHitDia" data-dia="${dia}" data-reg="${reg||""}" data-nome="${esc(nome||"")}" x="${L}" y="${T}" width="${W-L-R}" height="${H-T-Bm}" fill="transparent"/></svg>
   <div class="nota">Venda acumulada do dia, lida a cada 5 min${B.length?` · tracejado: ${dd(ant)} (mesmo dia do mês passado)`:` · o mesmo dia do mês passado aparece quando houver registro dele (começou em ${dd(diasHist().slice(-1)[0]||dia)})`}${md?" · meta do dia distribuída por igual das 8h às 20h":""}.</div>`;
 }
 function ligaGraficoDia(){
-  const hit=document.querySelector(".grafHitDia");if(!hit)return;const tip=$("#tip"),dia=hit.dataset.dia,hist=D.historicoHoras||{};
-  const A=hist[dia]||[],B=hist[mesAntDe(dia)]||[],md=metaDoDia(dia);
+  document.querySelectorAll(".grafHitDia").forEach(hit=>{const tip=$("#tip"),dia=hit.dataset.dia,reg=hit.dataset.reg||null,hist=D.historicoHoras||{},k=colReg(reg);
+  const A=(hist[dia]||[]).map(p=>[p[0],p[k]||0]),B=(hist[mesAntDe(dia)]||[]).map(p=>[p[0],p[k]||0]),md=metaDoDia(dia,reg);
   const ate=(arr,m)=>{let r=null;for(const p of arr){if(p[0]<=m)r=p;else break}return r};
   hit.onmousemove=e=>{const r=hit.getBoundingClientRect(),m=Math.round(420+(e.clientX-r.left)/r.width*900);
     const a=ate(A,m),b=ate(B,m),mt=md?md*Math.min(1,Math.max(0,(m-480)/720)):0;
     tip.style.display="block";tip.style.left=e.clientX+12+"px";tip.style.top=e.clientY+12+"px";
-    tip.innerHTML=`<b>${fmtH(m)}</b><br>vendido: ${a?mil(a[1])+" (leitura das "+fmtH(a[0])+")":"—"}${B.length?`<br>mês passado: ${b?mil(b[1]):"—"}`:""}${md?`<br>meta até aqui: ${mil(mt)}`+(a&&mt?` · ${pct(a[1]/mt)}`:""):""}`};
-  hit.onmouseleave=()=>tip.style.display="none";
+    tip.innerHTML=`<b>${hit.dataset.nome?hit.dataset.nome+" · ":""}${fmtH(m)}</b><br>vendido: ${a?mil(a[1])+" (leitura das "+fmtH(a[0])+")":"—"}${B.length?`<br>mês passado: ${b?mil(b[1]):"—"}`:""}${md?`<br>meta até aqui: ${mil(mt)}`+(a&&mt?` · ${pct(a[1]/mt)}`:""):""}`};
+  hit.onmouseleave=()=>tip.style.display="none";});
 }
-function graficoCard(){
-  const dias=diasHist();if(!dias.length)return grafico();
-  S.graf=S.graf||"mes";if(!S.diaG||!dias.includes(S.diaG))S.diaG=dias[0];
-  const sel=`<select id="selDia" style="padding:4px 8px">${dias.map(d=>`<option value="${d}" ${d===S.diaG?"selected":""}>${d===D.periodos.hoje.inicio?"Hoje":d.slice(8)+"/"+d.slice(5,7)}</option>`).join("")}</select>`;
-  return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><div class="tabs" id="tabsG"><button data-g="mes" class="${S.graf==="mes"?"on":""}" style="text-transform:none;padding:4px 12px">Mês</button><button data-g="dia" class="${S.graf==="dia"?"on":""}" style="text-transform:none;padding:4px 12px">Dia por hora</button></div>${S.graf==="dia"?sel:""}</div>
-  ${S.graf==="dia"?graficoDia(S.diaG):grafico()}`;
+// card com botão "Mês | Dia por hora" (geral ou de uma regional)
+function graficoCard(z){
+  z=z||serieGeral();const id=z.id,reg=id==="g"?null:id;
+  const dias=diasHist();if(!dias.length)return grafico(z);
+  S.grafs=S.grafs||{};S.dias=S.dias||{};const modo=S.grafs[id]||"mes";
+  if(!S.dias[id]||!dias.includes(S.dias[id]))S.dias[id]=dias[0];
+  const sel=`<select class="selDia" data-id="${id}" style="padding:4px 8px">${dias.map(d=>`<option value="${d}" ${d===S.dias[id]?"selected":""}>${d===D.periodos.hoje.inicio?"Hoje":d.slice(8)+"/"+d.slice(5,7)}</option>`).join("")}</select>`;
+  return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><div class="tabs tabsG" data-id="${id}"><button data-g="mes" class="${modo==="mes"?"on":""}" style="text-transform:none;padding:4px 12px">Mês</button><button data-g="dia" class="${modo==="dia"?"on":""}" style="text-transform:none;padding:4px 12px">Dia por hora</button></div>${modo==="dia"?sel:""}</div>
+  ${modo==="dia"?graficoDia(S.dias[id],reg,reg?z.nome:""):grafico(z)}`;
 }
-function ligaGraficoCard(){
-  ligaGrafico();ligaGraficoDia();
-  const t=$("#tabsG");if(t)t.onclick=e=>{const g=e.target.dataset.g;if(g){S.graf=g;render()}};
-  const sd=$("#selDia");if(sd)sd.onchange=e=>{S.diaG=e.target.value;render()};
+function ligaGraficoCard(series){
+  ligaGrafico(series);ligaGraficoDia();
+  document.querySelectorAll(".tabsG").forEach(t=>t.onclick=e=>{const g=e.target.dataset.g;if(g){S.grafs=S.grafs||{};S.grafs[t.dataset.id]=g;render()}});
+  document.querySelectorAll(".selDia").forEach(sd=>sd.onchange=e=>{S.dias=S.dias||{};S.dias[sd.dataset.id]=e.target.value;render()});
 }
 function serieGeral(){return {id:"g",titulo:"Acumulado dia a dia · todas as lojas",a:D.diario.atual,b:D.diario.anterior,M:D.diario.metaAtual||[]}}
 function grafico(S0){
@@ -326,11 +330,11 @@ function regionaisView(){
     <div class="nota">${mA[0].toUpperCase()+mA.slice(1)} até agora, ${mB} do dia 1 ao dia ${R.diaAnterior} e meta do dia 1 ao dia ${R.ateDia}.</div></div>
   <div class="card sec"><div class="tw"><table><thead><tr><th class="l">Regional</th><th>Venda ${mA3}</th><th>Meta até hoje</th><th>% meta</th><th>${mB3} até dia ${R.diaAnterior}</th><th>vs ${mB3}</th><th>Meta do mês</th><th>% do mês</th><th>Falta pro mês</th><th>${mB3} fechado</th></tr></thead>
   <tbody>${R.regionais.map(r=>linha(r)).join("")}${linha(R.rede,true)}</tbody></table></div></div>
-  ${seriesRegionais().map(z=>`<div class="card sec">${grafico(z)}</div>`).join("")}`;
+  ${seriesRegionais().map(z=>`<div class="card sec">${graficoCard(z)}</div>`).join("")}`;
 }
 function render(){
   if(!D)return;cabecalho();
-  if(S.per==="regionais"){if(D.regionaisComparativo){$("#app").innerHTML=regionaisView();ligaGrafico(seriesRegionais());return}S.per="mes"}
+  if(S.per==="regionais"){if(D.regionaisComparativo){$("#app").innerHTML=regionaisView();ligaGraficoCard(seriesRegionais());return}S.per="mes"}
   const p=D.periodos[S.per];
 
   const lojasOpt=Object.keys(D.lojas).filter(c=>(p.resumo?.lojas||[]).some(l=>l.cod===c&&(l.venda||l.meta))&&(!S.reg||regLoja(c)===S.reg)).sort((a,b)=>D.lojas[a].num-D.lojas[b].num);
