@@ -1,9 +1,10 @@
-// Analista de IA do painel: a cada ~30 min manda os números AGREGADOS (sem dado de cliente) pro GitHub Models
-// (grátis com o token do próprio Actions; não usa os dados pra treinar) e guarda a análise em dados.ia.
+// Analista de IA do painel: a cada ~30 min manda os números AGREGADOS (sem dado de cliente) pro Cloudflare Workers AI
+// (plano grátis; a Cloudflare não usa os dados pra treinar) e guarda a análise em dados.ia.
+// Precisa dos secrets CF_ACCOUNT_ID e CF_AI_TOKEN; sem eles, o painel usa o resumo automático.
 import fs from "node:fs";
 
 const CACHE = "saida/ia.json";
-const MODELOS = ["openai/gpt-4.1", "openai/gpt-4o-mini"];
+const MODELOS = ["@cf/openai/gpt-oss-120b", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"];
 const r0 = (x) => Math.round(x || 0);
 const p1 = (x) => Math.round((x || 0) * 1000) / 10;
 
@@ -68,8 +69,8 @@ Responda APENAS um JSON válido neste formato:
  "acoes": ["até 4 ações práticas e específicas para hoje/amanhã (quem deve fazer o quê)"]}`;
 
 export async function analiseIA(D) {
-  const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
-  if (!token) return null;
+  const { CF_ACCOUNT_ID, CF_AI_TOKEN } = process.env;
+  if (!CF_ACCOUNT_ID || !CF_AI_TOKEN) return null;
   let cache = null;
   try { cache = JSON.parse(fs.readFileSync(CACHE, "utf8")); } catch (e) {}
   // a cada 30 min (o limite grátis é por dia); reaproveita a última análise no meio-tempo
@@ -77,19 +78,20 @@ export async function analiseIA(D) {
   const ctx = JSON.stringify(contexto(D));
   for (const modelo of MODELOS) {
     try {
-      const r = await fetch("https://models.github.ai/inference/chat/completions", {
-        method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: modelo, temperature: 0.3, max_tokens: 1200, response_format: { type: "json_object" },
+      const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/v1/chat/completions`, {
+        method: "POST", headers: { Authorization: `Bearer ${CF_AI_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: modelo, temperature: 0.3, max_tokens: 2000,
           messages: [{ role: "system", content: INSTRUCOES }, { role: "user", content: ctx }] }),
-        signal: AbortSignal.timeout(90000),
+        signal: AbortSignal.timeout(120000),
       });
       if (!r.ok) { console.log(`⚠️ IA ${modelo}: HTTP ${r.status}`); continue; }
       const j = await r.json();
-      const out = JSON.parse(j.choices[0].message.content);
+      const txt = String(j.choices?.[0]?.message?.content || "");
+      const out = JSON.parse(txt.slice(txt.indexOf("{"), txt.lastIndexOf("}") + 1));
       if (!out.resumo) throw new Error("resposta sem resumo");
-      const res = { geradoEm: new Date().toISOString(), dia: D.periodos.hoje.inicio, modelo, ...out };
+      const res = { geradoEm: new Date().toISOString(), dia: D.periodos.hoje.inicio, modelo: modelo.split("/").pop(), ...out };
       fs.writeFileSync(CACHE, JSON.stringify(res));
-      console.log(`✅ Análise da IA atualizada (${modelo})`);
+      console.log(`✅ Análise da IA atualizada (${res.modelo})`);
       return res;
     } catch (e) { console.log(`⚠️ IA ${modelo}: ${String(e.message).slice(0, 100)}`); }
   }

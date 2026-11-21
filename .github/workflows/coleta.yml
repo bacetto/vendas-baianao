@@ -12,7 +12,6 @@ concurrency:
 permissions:
   contents: write
   actions: write
-  models: read
 jobs:
   coletar:
     runs-on: ubuntu-24.04
@@ -29,6 +28,8 @@ jobs:
           SENHA: ${{ secrets.PAINEL_SENHA }}
           ZEP_EMAIL: ${{ secrets.ZEP_EMAIL }}
           ZEP_SENHA: ${{ secrets.ZEP_SENHA }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_AI_TOKEN: ${{ secrets.CF_AI_TOKEN }}
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
