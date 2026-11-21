@@ -1,0 +1,196 @@
+name: Relatórios
+
+# Relatórios do WhatsApp (LÍDERES REGIONAL + acumulado do mês do Ednilson).
+# Repositório público = minutos grátis. Por isso NADA sensível aparece no registro:
+#   - a saída dos scripts vai pra um arquivo, e só linhas de status (✅ ⚠️ ▶ Erro) aparecem no registro;
+#   - o registro completo e os prints sobem CRIPTOGRAFADOS (senha = secret PAINEL_SENHA);
+#   - a sessão do WhatsApp fica no cache CRIPTOGRAFADA.
+# Quem decide O QUE mandar é relatorios/src/slot.js pelo horário de Salvador; gatilhos extras só pulam.
+#   07:00 mês (Ednilson) · 08:00 meta · 10h..20h parcial (2 em 2h) · 22:20 final do dia
+on:
+  push:
+    branches: [disparo]
+  schedule:
+    - cron: "2 10 * * *"        # 07:02 mês
+    - cron: "17 10 * * *"       # 07:17 mês (reserva)
+    - cron: "2 11 * * *"        # 08:02 meta
+    - cron: "17 11 * * *"       # 08:17 meta (reserva)
+    - cron: "2 13-23/2 * * *"   # 10:02 ... 20:02 parcial
+    - cron: "17 13-23/2 * * *"  # 10:17 ... 20:17 parcial (reserva)
+    - cron: "21 1 * * *"        # 22:21 final
+    - cron: "38 1 * * *"        # 22:38 final (reserva)
+  workflow_dispatch:
+    inputs:
+      acao:
+        description: "O que fazer (auto = o que for do horário)"
+        type: choice
+        options: [auto, enviar, meta, final, mes-enviar, ler-dados, mes-ler, conectar-whatsapp]
+        default: auto
+      destino:
+        description: "Grupo ou número (vazio = padrão)"
+        required: false
+        default: ""
+      tentativa:
+        description: "(uso interno)"
+        required: false
+        default: "0"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: whatsapp
+  cancel-in-progress: false
+
+jobs:
+  rodar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: relatorios
+    env:
+      ACAO: ${{ github.event.inputs.acao || 'auto' }}
+      SENHA: ${{ secrets.PAINEL_SENHA }}
+      EDNILSON_NUM: ${{ secrets.EDNILSON_NUM }}
+      LOG: ${{ github.workspace }}/log.txt
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ github.event_name == 'workflow_dispatch' && github.ref || 'main' }}" }
+
+      - name: Preparar
+        run: |
+          [ -n "$SENHA" ] || { echo "Falta o secret PAINEL_SENHA"; exit 1; }
+          : > "$LOG"
+          # roda um comando mandando a saída pro arquivo; no registro público só status, sem números
+          cat > "$RUNNER_TEMP/q.sh" <<'EOF'
+          set -o pipefail
+          "$@" 2>&1 | tee -a "$LOG" | { grep --line-buffered -E '^(✅|⚠️|❌|▶|Já enviado|Fora de|Esperando|Falhou|Faltou|Error|  CÓDIGO|  No celular|  Conectar aparelho)' || true; } | sed -E 's/(Grupos:|Contatos conhecidos).*//' | cut -c1-160
+          EOF
+          echo "Q=bash $RUNNER_TEMP/q.sh" >> "$GITHUB_ENV"
+
+      - name: Restaurar sessão do WhatsApp
+        uses: actions/cache/restore@v4
+        with:
+          path: relatorios/sessao.tar.enc
+          key: wa-${{ github.run_id }}
+          restore-keys: wa-
+      - name: Abrir sessão
+        run: |
+          if [ -f sessao.tar.enc ]; then
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:SENHA -in sessao.tar.enc | tar xzf - && echo "Sessão aberta" || echo "⚠️ não abriu a sessão"
+          else echo "Sem sessão salva"; fi
+
+      - name: O que mandar agora?
+        id: slot
+        if: env.ACAO != 'ler-dados' && env.ACAO != 'mes-ler' && env.ACAO != 'conectar-whatsapp'
+        env:
+          DESTINO_MANUAL: ${{ github.event.inputs.destino }}
+          TENTATIVA: ${{ github.event.inputs.tentativa || '0' }}
+        run: $Q node src/slot.js
+
+      - name: Seguir?
+        id: ok
+        run: echo "seguir=${{ steps.slot.outputs.pular != 'true' }}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        if: steps.ok.outputs.seguir == 'true'
+        with: { node-version: 22, cache: npm, cache-dependency-path: relatorios/package-lock.json }
+      - if: steps.ok.outputs.seguir == 'true'
+        run: npm ci --no-audit --no-fund >> "$LOG" 2>&1
+
+      - name: Conectar WhatsApp (mostra o código)
+        if: env.ACAO == 'conectar-whatsapp'
+        run: rm -rf sessao && $Q node src/conectar.js
+
+      - name: Tirar os prints do portal (até 3 tentativas)
+        id: prints
+        if: steps.ok.outputs.seguir == 'true' && env.ACAO != 'conectar-whatsapp' && steps.slot.outputs.desistiu != 'true'
+        env:
+          PORTAL_CPF: ${{ secrets.PORTAL_CPF }}
+          PORTAL_SENHA: ${{ secrets.PORTAL_SENHA }}
+          PAINEL_SENHA: ${{ secrets.PAINEL_SENHA }}
+          MODO: ${{ steps.slot.outputs.modo || (env.ACAO == 'mes-ler' && 'mes') || 'parcial' }}
+          PERIODO: ${{ (steps.slot.outputs.modo == 'mes' || env.ACAO == 'mes-ler') && 'mes' || '' }}
+        run: |
+          for t in 1 2 3; do
+            rm -rf saida
+            timeout 600 $Q node src/capturar.js && exit 0
+            echo "⚠️ Captura falhou (tentativa $t)"; sleep 30
+          done
+          exit 1
+
+      - name: Ranking (só leitura, vai pro registro criptografado)
+        if: env.ACAO == 'ler-dados' || env.ACAO == 'mes-ler'
+        env:
+          PERIODO: ${{ env.ACAO == 'mes-ler' && 'mes' || '' }}
+        run: |
+          { node src/ranking.js saida/regional.txt; echo ━━━━━━; node src/ranking.js saida/lojas.txt leads; } >> "$LOG" 2>&1
+          echo "✅ Ranking gravado no registro criptografado"
+
+      - name: Enviar no WhatsApp
+        id: envio
+        if: steps.ok.outputs.seguir == 'true' && steps.slot.outputs.modo != ''
+        env:
+          MODO: ${{ steps.slot.outputs.modo }}
+          DESTINO: ${{ steps.slot.outputs.destino }}
+          HORA: ${{ steps.slot.outputs.hora }}
+          CHAVE: ${{ steps.slot.outputs.chave }}
+        run: timeout 900 $Q node src/enviar.js
+
+      - name: Falhou → avisar e tentar de novo
+        if: failure() && steps.slot.outputs.chave != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHAVE: ${{ steps.slot.outputs.chave }}
+          T: ${{ github.event.inputs.tentativa || '0' }}
+          ETAPA: ${{ steps.prints.outcome == 'failure' && 'prints do portal' || 'envio no WhatsApp' }}
+          LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          N=$((T + 1))
+          if [ "$N" -le 6 ]; then
+            timeout 150 $Q node src/alerta.js "⚠️ *Relatório não saiu* ($CHAVE) — falhou em: $ETAPA. Já estou tentando de novo (tentativa $N de 6)." || true
+            sleep 60
+            gh workflow run relatorios.yml --repo "$GITHUB_REPOSITORY" --ref main -f acao=auto -f tentativa=$N
+          else
+            timeout 150 $Q node src/alerta.js "❌ *Relatório NÃO enviado* ($CHAVE) depois de 6 tentativas — falhou em: $ETAPA. Precisa olhar: $LINK" || true
+          fi
+
+      - name: Passou do horário → avisar
+        if: steps.slot.outputs.desistiu == 'true'
+        run: |
+          timeout 150 $Q node src/alerta.js "❌ *Relatório NÃO enviado*: as novas tentativas passaram do horário. Veja: ${{ github.server_url }}/${{ github.repository }}/actions" || true
+
+      - name: Resolvido → avisar
+        if: success() && github.event.inputs.tentativa != '' && github.event.inputs.tentativa != '0' && steps.envio.outcome == 'success'
+        run: |
+          timeout 150 $Q node src/alerta.js "✅ *Resolvido*: ${{ steps.slot.outputs.chave }} enviado na tentativa ${{ github.event.inputs.tentativa }}." || true
+
+      - name: Fechar sessão (criptografada)
+        id: fechar
+        if: always() && (steps.ok.outputs.seguir == 'true' || env.ACAO == 'conectar-whatsapp')
+        run: |
+          if [ -d sessao ]; then
+            tar czf - sessao | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:SENHA -out sessao.tar.enc && echo "ok=1" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Guardar sessão do WhatsApp
+        if: always() && steps.fechar.outputs.ok == '1'
+        uses: actions/cache/save@v4
+        with:
+          path: relatorios/sessao.tar.enc
+          key: wa-${{ github.run_id }}
+
+      - name: Registro e prints (criptografados)
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/priv" && cp "$LOG" "$RUNNER_TEMP/priv/" && { cp -r saida "$RUNNER_TEMP/priv/" 2>/dev/null || true; }
+          tar czf - -C "$RUNNER_TEMP" priv | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:SENHA -out "$RUNNER_TEMP/registro.tar.enc"
+          # abrir: openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass pass:SENHA -in registro.tar.enc | tar xzf -
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: registro-criptografado
+          path: ${{ runner.temp }}/registro.tar.enc
+          retention-days: 3
+          if-no-files-found: ignore

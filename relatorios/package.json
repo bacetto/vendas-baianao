@@ -1,0 +1,17 @@
+{
+  "name": "relatorios-baianao",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Envia os relatórios do Universo Baianão no WhatsApp de hora em hora",
+  "scripts": {
+    "capturar": "node src/capturar.js",
+    "enviar": "node src/enviar.js",
+    "conectar": "node src/conectar.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "pino": "^9.6.0",
+    "playwright": "1.56.1"
+  }
+}
