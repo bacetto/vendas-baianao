@@ -100,12 +100,12 @@ async function regional() {
 // 2) Painel Vendas Leads -> aba "Resumo por Loja"
 async function leads() {
   await page.goto(`${BASE}/portal/colaborador/bi/vendas/vendas-leads`, { waitUntil: "domcontentloaded" });
-  await page.getByText(/^LEADS CONTATADOS$/i).first().waitFor();
+  await page.getByText(/^LEADS CONTATADOS$/i).first().waitFor({ timeout: 120000 });
   await setarDatas(inicio, fim);
   await page.getByRole("button", { name: /^Filtrar$/i }).click();
   await page.waitForTimeout(5000);
   await page.getByText(/^Resumo por Loja$/).first().click();
-  await page.getByText(/^Total Geral$/i).last().waitFor();
+  await page.getByText(/^Total Geral$/i).last().waitFor({ timeout: 120000 });
   await page.waitForTimeout(1500);
   for (let i = 0; i < 10; i++) {
     const aberta = page.locator("tr", { hasText: /Subtotal R\d/ }).filter({ has: page.locator("svg.lucide-chevron-down") }).first();
@@ -234,7 +234,17 @@ try {
   await regional();
   // meta do dia só usa o print das regionais; nos outros, se o painel de leads ainda estiver vazio
   // (domingo cedo, por ex.) segue sem ele em vez de derrubar o envio inteiro
-  if (MODO !== "meta") await leads().catch((e) => console.log("⚠️ Print de leads falhou, seguindo sem ele:", e.message));
+  if (MODO !== "meta") {
+    // o portal às vezes demora a abrir os leads: até 3 tentativas antes de seguir sem eles
+    for (let t = 1; t <= 3; t++) {
+      try { await leads(); break; }
+      catch (e) {
+        console.log(`⚠️ Leads: tentativa ${t} falhou (${String(e.message).split("\n")[0].slice(0, 80)})`);
+        if (t === 3) console.log("⚠️ Print de leads falhou 3 vezes, seguindo sem ele");
+        else await page.waitForTimeout(15000);
+      }
+    }
+  }
   if (MODO !== "meta") await categoriasNetlify();
 } catch (e) {
   await page.screenshot({ path: "saida/erro.png", fullPage: true }).catch(() => {});

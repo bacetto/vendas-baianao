@@ -41,6 +41,21 @@ jobs:
               && git add dados.enc && git commit -qm "dados $(date -u +%FT%TZ)" \
               && git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${REPO}" dados)
           }
+          # disparador dos relatórios do WhatsApp: este job fica vivo o dia todo, então ele chama o relatorios.yml
+          # 4 min antes de cada horário (o slot.js espera o horário cravado e não duplica). Mais preciso que o agendamento do GitHub.
+          disparador() {
+            while :; do
+              dia=$(TZ=America/Bahia date +%F); agora=$((10#$(TZ=America/Bahia date +%H)*60 + 10#$(TZ=America/Bahia date +%M)))
+              for s in 402 476 596 716 836 956 1076 1196 1336; do   # 06:42 07:56 09:56 11:56 13:56 15:56 17:56 19:56 22:16
+                m="/tmp/disparo-$dia-$s"
+                if [ "$agora" -ge "$s" ] && [ "$agora" -lt $((s+25)) ] && [ ! -f "$m" ]; then
+                  gh workflow run relatorios.yml --ref main -R "$REPO" -f acao=auto >/dev/null 2>&1 && touch "$m" && echo "disparo relatórios $(TZ=America/Bahia date +%H:%M)"
+                fi
+              done
+              sleep 30
+            done
+          }
+          disparador &
           while :; do
             T0=$(date +%s); h=$(hora)
             if [ "$h" -ge 7 ] && [ "$h" -lt 22 ]; then
