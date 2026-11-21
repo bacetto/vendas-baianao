@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="dados" content="https://raw.githubusercontent.com/bacetto/vendas-baianao/dados/dados.enc,https://raw.githubusercontent.com/bacetto/vendas-baianao/main/dados.enc">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel de Gestão à Vista · Baianão (nova versão)</title>
+<style>
+:root{--bg:#f4f5f8;--card:#fff;--ink:#12172b;--mut:#6b7285;--line:#e4e6ee;--navy:#14246b;--red:#e02b2b;--ok:#0e9f6e;--bad:#d63b3b;--warn:#c98a00;--soft:#eef0f7;--meta:#1e88e5}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
+.wrap{max-width:1500px;margin:0 auto;padding:14px 18px 40px}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.logo{width:38px;height:38px;border-radius:10px;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:900;font-style:italic;font-size:22px;border-bottom:4px solid var(--red)}
+h1{font-size:18px;margin:0;font-weight:700}
+.quando{font-size:20px;font-weight:700;color:var(--ink)}
+.tabs{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--card)}
+.tabs button{border:0;background:none;padding:7px 14px;font:inherit;font-weight:600;color:var(--mut);cursor:pointer;text-transform:capitalize}
+.tabs button+button{border-left:1px solid var(--line)}
+.tabs button.on{background:var(--ink);color:#fff}
+.vivo{color:var(--mut);font-size:13px}.vivo i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:6px}
+.vivo.velho i{background:var(--warn)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.hero{display:grid;grid-template-columns:minmax(320px,440px) 1fr;gap:14px}
+.sub{color:var(--mut);font-size:13px}
+.big{font-size:54px;font-weight:900;letter-spacing:-1.5px;line-height:1.05;margin:4px 0 8px}
+.big small{font-size:24px;font-weight:700;margin-right:6px;letter-spacing:0}
+.linha{margin:5px 0;color:var(--mut)}.linha b{color:var(--ink)}
+.up{color:var(--ok);font-weight:700}.down{color:var(--bad);font-weight:700}
+.barra{height:8px;background:var(--soft);border-radius:9px;overflow:hidden;margin:8px 0 4px}.barra i{display:block;height:100%;background:var(--navy);border-radius:9px}
+.dest{font-size:17px;margin-top:10px}.dest b{color:var(--ok)}
+.grid{display:grid;gap:12px;margin-top:14px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.reg{cursor:pointer;border-top:3px solid var(--navy);transition:box-shadow .15s}
+.reg:hover{box-shadow:0 2px 10px #14246b22}.reg.on{outline:2px solid var(--navy)}
+.reg h3{margin:0;font-size:13px;font-weight:700}.reg .v{font-size:24px;font-weight:800;margin:4px 0}
+.cats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.cat .n{font-size:12px;color:var(--mut)}.cat .v{font-weight:800;font-size:16px}
+.mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.mini div b{display:block;font-size:17px}
+.sec{margin-top:16px}
+.ferr{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+input,select{font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+input[type=search]{min-width:230px}
+.tw{overflow:auto;max-height:72vh;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th{position:sticky;top:0;background:#f8f9fc;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);cursor:pointer;user-select:none;z-index:1}
+th.s::after{content:" ↓"}th.s.asc::after{content:" ↑"}
+td.l,th.l{text-align:left}td.nome{white-space:normal;min-width:180px;font-weight:600}
+tr:hover td{background:#fafbff}
+.pill{display:inline-block;padding:1px 7px;border-radius:9px;background:var(--soft);font-size:11px;font-weight:700;color:var(--navy)}
+.pb{display:inline-block;width:70px;height:6px;background:var(--soft);border-radius:6px;vertical-align:middle;margin-right:6px;overflow:hidden}.pb i{display:block;height:100%;border-radius:6px}
+.rk{color:var(--mut);width:34px}
+.nota{color:var(--mut);font-size:12px;margin-top:8px}
+svg text{font:11px system-ui,sans-serif;fill:var(--mut)}
+.leg{display:flex;gap:14px;font-size:12px;color:var(--mut);align-items:center}
+.leg i{display:inline-block;width:18px;height:0;border-top:2.5px solid var(--navy);vertical-align:middle;margin-right:5px}.leg i.d{border-top:2px dashed #9aa1b5}.leg i.m{border-top-color:var(--meta)}
+#tip{position:fixed;pointer-events:none;background:var(--ink);color:#fff;padding:6px 9px;border-radius:7px;font-size:12px;display:none;z-index:9}
+.secs button{text-transform:none}.secs button.on{background:var(--navy)}
+.kpi .kv{font-size:28px;font-weight:900;letter-spacing:-.5px;margin:4px 0}
+.ia{border:1px solid #c9d2f5;background:linear-gradient(135deg,#f5f7ff,#fff 60%)}.ia p{margin:8px 0 0;font-size:15px;line-height:1.55}.iat{font-weight:800;font-size:15px}
+.alertas{display:flex;flex-direction:column;gap:8px;margin-top:10px}.al{border-left:4px solid var(--line);padding:6px 10px;background:#fafbfe;border-radius:6px}
+.al.alto{border-left-color:var(--bad)}.al.medio{border-left-color:var(--warn)}.al.bom{border-left-color:var(--ok)}.al .sub{margin-top:3px}
+@media(max-width:900px){.hero{grid-template-columns:1fr}.g4{grid-template-columns:repeat(2,1fr)}.big{font-size:40px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="logo">B</div><h1>Painel de Gestão à Vista</h1><span class="quando" id="quando"></span>
+  <div class="tabs secs" id="secs"></div>
+  <div class="tabs" id="tabsP"></div>
+  <span class="vivo" id="vivo"></span>
+</header>
+<div id="app"><div class="card">Carregando dados…</div></div>
+</div>
+<div id="tip"></div>
+<script>
+const $=(s,e=document)=>e.querySelector(s);
+const brl=(v,d=0)=>(v<0?"-":"")+"R$ "+Math.abs(v||0).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const mil=v=>Math.abs(v)>=1e6?"R$ "+(v/1e6).toLocaleString("pt-BR",{maximumFractionDigits:2})+" mi":Math.abs(v)>=1e3?"R$ "+(v/1e3).toLocaleString("pt-BR",{maximumFractionDigits:1})+" mil":brl(v);
+const num=v=>(v||0).toLocaleString("pt-BR",{maximumFractionDigits:0});
+const pct=(v,d=1)=>((v||0)*100).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d})+"%";
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const delta=(a,b)=>{if(!b)return"";const d=a/b-1;return `<span class="${d>=0?"up":"down"}">${d>=0?"↑ +":"↓ "}${pct(d)}</span>`};
+const cor=p=>p>=1?"var(--ok)":p>=.8?"var(--warn)":"var(--bad)";
+const DIAS=["dom","seg","ter","qua","qui","sex","sáb"];
+let D=null,S={per:"hoje",aba:"loja",reg:"",loja:"",q:"",sort:{}};
+try{Object.assign(S,JSON.parse(localStorage.getItem("painel-baianao")||"{}"),{q:""})}catch(e){}
+const salva=()=>{try{localStorage.setItem("painel-baianao",JSON.stringify({per:S.per,aba:S.aba,sec:S.sec}))}catch(e){}};
+const nomeLoja=c=>{const l=D.lojas[c];return l?`${String(l.num).padStart(2,"0")} · ${l.nome||"Loja "+l.num}`:c};
+const regLoja=c=>D.lojas[c]?.regional||"Sem regional";
+
+const DADOS_URL=(document.querySelector('meta[name="dados"]')||{}).content||"";
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function abre(enc,senha){
+  const k0=await crypto.subtle.importKey("raw",new TextEncoder().encode(senha),"PBKDF2",false,["deriveKey"]);
+  const k=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(enc.salt),iterations:enc.iter,hash:"SHA-256"},k0,{name:"AES-GCM",length:256},false,["decrypt"]);
+  const zip=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(enc.iv)},k,b64(enc.dados));
+  const txt=await new Response(new Blob([zip]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+  return JSON.parse(txt);
+}
+function pedeSenha(enc,erro){
+  $("#app").innerHTML=`<div class="card" style="max-width:380px;margin:60px auto;text-align:center"><div class="logo" style="margin:0 auto 12px">B</div><b style="font-size:17px">Painel de vendas</b><p class="sub">Acesso restrito. Digite a senha.</p>
+  <form id="fS"><input type="password" id="iS" placeholder="Senha" autofocus style="width:100%;margin-bottom:10px"><button style="width:100%;padding:9px;border:0;border-radius:8px;background:var(--navy);color:#fff;font:inherit;font-weight:700;cursor:pointer">Entrar</button></form>
+  <p class="down" style="min-height:18px">${erro?"Senha incorreta.":""}</p></div>`;
+  $("#fS").onsubmit=async e=>{e.preventDefault();const s=$("#iS").value;try{D=await abre(enc,s);try{localStorage.setItem("painel-baianao-s",s)}catch(x){}render()}catch(x){pedeSenha(enc,true)}};
+}
+async function carrega(){
+  try{const r=await fetch("dados.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;D=await r.json();render();return}catch(e){}
+  try{let enc=null;for(const u of [...DADOS_URL.split(",").map(x=>x.trim()).filter(Boolean),"dados.enc"]){if(!u)continue;try{const r=await fetch(u+(u.includes("?")?"&":"?")+"t="+Date.now(),{cache:"no-store"});if(r.ok){enc=await r.json();break}}catch(x){}}if(!enc)throw 0;let s="";try{s=localStorage.getItem("painel-baianao-s")||""}catch(x){}
+    if(s){try{D=await abre(enc,s);render();return}catch(x){}}
+    if(!D)pedeSenha(enc)}
+  catch(e){if(!D)$("#app").innerHTML='<div class="card">Ainda sem dados. A primeira coleta do portal está a caminho.</div>'}
+}
+function cabecalho(){
+  const g=new Date(D.geradoEm),loc=new Date(g.getTime()-3*3600e3);
+  const hh=String(loc.getUTCHours()).padStart(2,"0")+":"+String(loc.getUTCMinutes()).padStart(2,"0");
+  $("#quando").textContent=`${DIAS[loc.getUTCDay()]} ${String(loc.getUTCDate()).padStart(2,"0")}/${String(loc.getUTCMonth()+1).padStart(2,"0")} · ${hh}`;
+  const min=Math.round((Date.now()-g)/6e4);
+  const hojeLoc=new Date(Date.now()-3*3600e3).toISOString().slice(0,10),diaDados=loc.toISOString().slice(0,10);
+  const outroDia=hojeLoc!==diaDados;
+  $("#vivo").className="vivo"+(min>45?" velho":"");
+  $("#vivo").innerHTML=outroDia?`<i></i><b style="color:var(--warn)">dados de ${String(loc.getUTCDate()).padStart(2,"0")}/${String(loc.getUTCMonth()+1).padStart(2,"0")} às ${hh}</b> · a leitura do dia começa às 7h`:`<i></i>${min>45?"última leitura":"ao vivo"} · dados de ${hh}`+(min>45?` (há ${min>=120?Math.round(min/60)+" h":min+" min"})`:"");
+  const P=D.periodos;
+  $("#tabsP").innerHTML=["hoje","ontem","mes","mesAnt"].map(k=>`<button data-p="${k}" class="${S.per===k?"on":""}">${k==="mes"?"Mês":P[k].label}</button>`).join("")+
+    (D.regionaisComparativo?`<button data-p="regionais" class="${S.per==="regionais"?"on":""}">Regionais</button>`:"");
+  $("#tabsP").onclick=e=>{const p=e.target.dataset.p;if(p){S.per=p;S.sort={};salva();render()}};
+}
+function diasHist(){return Object.keys(D.historicoHoras||{}).filter(k=>(D.historicoHoras[k]||[]).length).sort().reverse()}
+function mesAntDe(dia){const [y,m,d]=dia.split("-").map(Number);const dt=new Date(Date.UTC(y,m-2,1));const ult=new Date(Date.UTC(y,m-1,0)).getUTCDate();return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,"0")}-${String(Math.min(d,ult)).padStart(2,"0")}`}
+function metaDoDia(dia,reg){const M=(reg?D.diario.porRegional?.[reg]?.meta:D.diario.metaAtual)||[];if(!M.length||dia.slice(0,7)!==D.periodos.mes.inicio.slice(0,7))return 0;const i=Number(dia.slice(8))-1;return (M[i]||0)-(i?M[i-1]||0:0)}
+const fmtH=m=>`${Math.floor(m/60)}h${m%60?String(m%60).padStart(2,"0"):""}`;
+function colReg(reg){return reg?1+Number(reg.slice(1)):1}
+function graficoDia(dia,reg,nome){
+  const H0=420,H1=1320,W=900,H=250,L=52,R=78,T=14,Bm=26,hist=D.historicoHoras||{};
+  const k=colReg(reg),A=(hist[dia]||[]).map(p=>[p[0],p[k]||0]),ant=mesAntDe(dia),B=(hist[ant]||[]).map(p=>[p[0],p[k]||0]),md=metaDoDia(dia,reg);
+  // meta do dia distribuída por igual das 8h às 20h
+  const Mt=md?[[H0,0],[480,0],[1200,md],[H1,md]]:[];
+  const max=Math.max(...A.map(p=>p[1]),...B.map(p=>p[1]),md,1)*1.1;
+  const x=m=>L+(W-L-R)*((Math.min(H1,Math.max(H0,m))-H0)/(H1-H0)),y=v=>T+(H-T-Bm)*(1-v/max);
+  const path=arr=>arr.map((p,i)=>(i?"L":"M")+x(p[0]).toFixed(1)+" "+y(p[1]).toFixed(1)).join("");
+  const passo=max>6e5?1e5:max>3e5?5e4:max>1.2e5?25e3:1e4;let grade="";
+  for(let v=0;v<=max;v+=passo)grade+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#e9ebf2"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end">${(v/1e3).toLocaleString("pt-BR")}</text>`;
+  let eixo="";for(let h=7;h<=22;h++)eixo+=`<text x="${x(h*60)}" y="${H-6}" text-anchor="middle">${h}h</text>`;
+  const u=A[A.length-1],dd=s=>s.slice(8)+"/"+s.slice(5,7),q=md&&u?u[1]/md:0;
+  const ehHoje=dia===D.periodos.hoje.inicio;
+  return `<b>${ehHoje?"Hoje":dd(dia)} hora a hora · ${nome||"todas as lojas"}${md&&u?` <span style="font-weight:600;color:${cor(q)}">· ${pct(q)} da meta do dia</span>`:""}</b>
+  <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;margin-top:6px">${grade}${eixo}
+  ${B.length?`<path d="${path(B)}" fill="none" stroke="#9aa1b5" stroke-width="2" stroke-dasharray="5 4"/><text x="${x(B[B.length-1][0])+6}" y="${y(B[B.length-1][1])-6}">${dd(ant)} · ${mil(B[B.length-1][1])}</text>`:""}
+  ${Mt.length?`<path d="${path(Mt)}" fill="none" stroke="var(--meta)" stroke-width="2.5"/><text x="${W-R+6}" y="${y(md)-4}" style="fill:var(--meta)">meta do dia</text><text x="${W-R+6}" y="${y(md)+10}" style="font-weight:700;fill:var(--meta)">${mil(md)}</text>`:""}
+  ${A.length?`<path d="${path(A)}" fill="none" stroke="var(--navy)" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="${x(u[0])}" cy="${y(u[1])}" r="5" fill="var(--red)" stroke="#fff" stroke-width="2"/>
+  <text x="${x(u[0])+9}" y="${y(u[1])+14}" style="font-weight:700;fill:var(--ink)">${fmtH(u[0])} · ${mil(u[1])}</text>`:""}
+  <rect class="grafHitDia" data-dia="${dia}" data-reg="${reg||""}" data-nome="${esc(nome||"")}" x="${L}" y="${T}" width="${W-L-R}" height="${H-T-Bm}" fill="transparent"/></svg>
+  <div class="nota">Venda acumulada do dia, lida a cada 5 min${B.length?` · tracejado: ${dd(ant)} (mesmo dia do mês passado)`:` · o mesmo dia do mês passado aparece quando houver registro dele (começou em ${dd(diasHist().slice(-1)[0]||dia)})`}${md?" · meta do dia distribuída por igual das 8h às 20h":""}.</div>`;
+}
+function ligaGraficoDia(){
+  document.querySelectorAll(".grafHitDia").forEach(hit=>{const tip=$("#tip"),dia=hit.dataset.dia,reg=hit.dataset.reg||null,hist=D.historicoHoras||{},k=colReg(reg);
+  const A=(hist[dia]||[]).map(p=>[p[0],p[k]||0]),B=(hist[mesAntDe(dia)]||[]).map(p=>[p[0],p[k]||0]),md=metaDoDia(dia,reg);
+  const ate=(arr,m)=>{let r=null;for(const p of arr){if(p[0]<=m)r=p;else break}return r};
+  hit.onmousemove=e=>{const r=hit.getBoundingClientRect(),m=Math.round(420+(e.clientX-r.left)/r.width*900);
+    const a=ate(A,m),b=ate(B,m),mt=md?md*Math.min(1,Math.max(0,(m-480)/720)):0;
+    tip.style.display="block";tip.style.left=e.clientX+12+"px";tip.style.top=e.clientY+12+"px";
+    tip.innerHTML=`<b>${hit.dataset.nome?hit.dataset.nome+" · ":""}${fmtH(m)}</b><br>vendido: ${a?mil(a[1])+" (leitura das "+fmtH(a[0])+")":"—"}${B.length?`<br>mês passado: ${b?mil(b[1]):"—"}`:""}${md?`<br>meta até aqui: ${mil(mt)}`+(a&&mt?` · ${pct(a[1]/mt)}`:""):""}`};
+  hit.onmouseleave=()=>tip.style.display="none";});
+}
+// card com botão "Mês | Dia por hora" (geral ou de uma regional)
+function graficoCard(z){
+  z=z||serieGeral();const id=z.id,reg=id==="g"?null:id;
+  const dias=diasHist();if(!dias.length)return grafico(z);
+  S.grafs=S.grafs||{};S.dias=S.dias||{};const modo=S.grafs[id]||"mes";
+  if(!S.dias[id]||!dias.includes(S.dias[id]))S.dias[id]=dias[0];
+  const sel=`<select class="selDia" data-id="${id}" style="padding:4px 8px">${dias.map(d=>`<option value="${d}" ${d===S.dias[id]?"selected":""}>${d===D.periodos.hoje.inicio?"Hoje":d.slice(8)+"/"+d.slice(5,7)}</option>`).join("")}</select>`;
+  return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><div class="tabs tabsG" data-id="${id}"><button data-g="mes" class="${modo==="mes"?"on":""}" style="text-transform:none;padding:4px 12px">Mês</button><button data-g="dia" class="${modo==="dia"?"on":""}" style="text-transform:none;padding:4px 12px">Dia por hora</button></div>${modo==="dia"?sel:""}</div>
+  ${modo==="dia"?graficoDia(S.dias[id],reg,reg?z.nome:""):grafico(z)}`;
+}
+function ligaGraficoCard(series){
+  ligaGrafico(series);ligaGraficoDia();
+  document.querySelectorAll(".tabsG").forEach(t=>t.onclick=e=>{const g=e.target.dataset.g;if(g){S.grafs=S.grafs||{};S.grafs[t.dataset.id]=g;render()}});
+  document.querySelectorAll(".selDia").forEach(sd=>sd.onchange=e=>{S.dias=S.dias||{};S.dias[sd.dataset.id]=e.target.value;render()});
+}
+function serieGeral(){return {id:"g",titulo:"Acumulado dia a dia · todas as lojas",a:D.diario.atual,b:D.diario.anterior,M:D.diario.metaAtual||[]}}
+function grafico(S0){
+  S0=S0||serieGeral();const a=S0.a,b=S0.b,M=S0.M||[],hoje=Number(D.periodos.hoje.fim.slice(8));
+  const ac=x=>{let s=0;return x.map(v=>s+=v)};
+  const A=ac(a).slice(0,hoje),B=ac(b),n=Math.max(a.length,b.length),W=900,H=250,L=52,R=78,T=14,Bm=26;
+  const max=Math.max(A[A.length-1]||0,B[B.length-1]||0,M[M.length-1]||0,1)*1.08;
+  const x=i=>L+(W-L-R)*(i/(n-1)),y=v=>T+(H-T-Bm)*(1-v/max);
+  const path=arr=>arr.map((v,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1)).join("");
+  const passo=max>8e6?2e6:max>3e6?1e6:max>1.5e6?5e5:max>6e5?25e4:max>2e5?5e4:1e4;let grade="";
+  for(let v=0;v<=max;v+=passo)grade+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#e9ebf2"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end">${(v/1e3).toLocaleString("pt-BR")}</text>`;
+  let eixo="";for(const d of [1,5,10,15,20,25,n])eixo+=`<text x="${x(d-1)}" y="${H-6}" text-anchor="middle">${d===1?"dia 1":d}</text>`;
+  const ult=A.length-1,mA=D.periodos.mes.label.slice(0,3),mB=D.periodos.mesAnt.label.slice(0,3);
+  const q=M[ult]?A[ult]/M[ult]:0;
+  return `<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><b>${S0.titulo}${M[ult]?` <span style="font-weight:600;color:${cor(q)}">· ${pct(q)} da meta</span>`:""}</b><span class="leg"><span>R$ mil</span><span><i></i>${mA}</span><span><i class="d"></i>${mB}</span>${M.length?'<span><i class="m"></i>meta</span>':""}</span></div>
+  <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;margin-top:6px">${grade}${eixo}
+  <path d="${path(B)}" fill="none" stroke="#9aa1b5" stroke-width="2" stroke-dasharray="5 4"/>
+  ${M.length?`<path d="${path(M)}" fill="none" stroke="var(--meta)" stroke-width="2.5" stroke-linejoin="round"/>`:""}
+  <path d="${path(A)}" fill="none" stroke="var(--navy)" stroke-width="3" stroke-linejoin="round"/>
+  <line x1="${x(ult)}" x2="${x(ult)}" y1="${T}" y2="${H-Bm}" stroke="#c7cbda"/>
+  <circle cx="${x(ult)}" cy="${y(A[ult])}" r="5" fill="var(--red)" stroke="#fff" stroke-width="2"/>
+  <text x="${x(ult)+9}" y="${y(A[ult])+14}" style="font-weight:700;fill:var(--ink)">hoje · ${mil(A[ult])}</text>
+  ${(()=>{let yb=y(B[B.length-1]),ym=M.length?y(M[M.length-1]):-99;if(Math.abs(yb-ym)<30){if(ym<yb)yb=ym+30;else ym=yb+30}
+    return `<text x="${W-R+6}" y="${yb-4}">${mB} fechou</text><text x="${W-R+6}" y="${yb+10}" style="font-weight:700;fill:var(--ink)">${mil(B[B.length-1])}</text>`+
+    (M.length?`<text x="${W-R+6}" y="${ym-4}" style="fill:var(--meta)">meta ${mA}</text><text x="${W-R+6}" y="${ym+10}" style="font-weight:700;fill:var(--meta)">${mil(M[M.length-1])}</text>`:"")})()}
+  <rect class="grafHit" data-g="${S0.id}" x="${L}" y="${T}" width="${W-L-R}" height="${H-T-Bm}" fill="transparent"/></svg>
+  ${S0.id==="g"?`<div class="nota">Venda líquida (vendas − devoluções) somada dia a dia${M.length?" · linha azul: meta somada dia a dia":""}.</div>`:""}`;
+}
+function ligaGrafico(series){
+  series=series||[serieGeral()];const tip=$("#tip"),hoje=Number(D.periodos.hoje.fim.slice(8));
+  document.querySelectorAll(".grafHit").forEach(hit=>{
+    const S0=series.find(z=>z.id===hit.dataset.g);if(!S0)return;
+    const a=S0.a,b=S0.b,M=S0.M||[],n=Math.max(a.length,b.length);
+    const ac=x=>{let s=0;return x.map(v=>s+=v)};const A=ac(a),B=ac(b);
+    hit.onmousemove=e=>{const r=hit.getBoundingClientRect(),i=Math.max(0,Math.min(n-1,Math.round((e.clientX-r.left)/r.width*(n-1))));
+      tip.style.display="block";tip.style.left=e.clientX+12+"px";tip.style.top=e.clientY+12+"px";
+      tip.innerHTML=`<b>${S0.id==="g"?"":esc(S0.nome)+" · "}Dia ${i+1}</b><br>${D.periodos.mes.label}: ${i<hoje?brl(a[i])+" no dia · "+mil(A[i])+" acum.":"—"}<br>${D.periodos.mesAnt.label}: ${i<b.length?brl(b[i])+" no dia · "+mil(B[i])+" acum.":"—"}${i<M.length?`<br>meta: ${mil(M[i])} acum.`+(i<hoje&&M[i]?` · ${pct(A[i]/M[i])} atingido`:""):""}`};
+    hit.onmouseleave=()=>tip.style.display="none";
+  });
+}
+function seriesRegionais(){
+  const pr=D.diario.porRegional||{};
+  return Object.keys(pr).sort().map(k=>({id:k,nome:k+" · "+(pr[k].lider||""),titulo:`${k} · ${esc(pr[k].lider||"")} · acumulado dia a dia`,a:pr[k].atual,b:pr[k].anterior,M:pr[k].meta||[]}));
+}
+function hero(p){
+  const g=p.resumo?.geral||{},c=D.comparativos;let comp="";
+  if(S.per==="mes"&&c){comp=`<div class="linha">Até dia ${c.ateDia}: <b>${mil(c.atual.venda)}</b> · ${D.periodos.mesAnt.label} até dia ${c.ateDia}: <b>${mil(c.anterior.venda)}</b> ${delta(c.atual.venda,c.anterior.venda)}</div>
+    <div class="linha">Pedidos até dia ${c.ateDia}: <b>${num(c.atual.pedidos)}</b> · ${D.periodos.mesAnt.label.slice(0,3)} ${num(c.anterior.pedidos)} ${delta(c.atual.pedidos,c.anterior.pedidos)}</div>`}
+  if(S.per==="hoje"){const o=D.periodos.ontem.resumo?.geral;if(o)comp=`<div class="linha">Ontem fechou em <b>${mil(o.venda)}</b> · ${pct(o.pct)} da meta</div>`}
+  const tit={hoje:"Hoje",ontem:"Ontem",mes:`${p.label} até dia ${Number(p.fim.slice(8))}`,mesAnt:`${p.label} (mês fechado)`}[S.per];
+  return `<div class="card"><div class="sub" style="font-weight:700;color:var(--ink)">${tit[0].toUpperCase()+tit.slice(1)}</div>
+  <div class="big"><small>R$</small>${num(g.venda)}</div>
+  <div class="linha">Meta <b>${mil(g.meta)}</b> · <b style="color:${cor(g.pct)}">${pct(g.pct)}</b> atingido${g.meta>g.venda?` · faltam <b>${mil(g.meta-g.venda)}</b>`:""}</div>
+  <div class="barra"><i style="width:${Math.min(100,(g.pct||0)*100)}%;background:${cor(g.pct)}"></i></div>
+  ${comp}
+  <div class="linha"><b>${num(p.pedidos)}</b> pedidos · ticket médio <b>${brl(p.ticket)}</b> · devoluções <b>${mil(p.devolucoes)}</b></div>
+  <div class="dest">Lucro bruto <b>${mil(g.lucro)}</b> · ${pct(g.margem)}</div>
+  <div class="mini" style="margin-top:12px"><div><span class="sub">Sorte Dobrada</span><b>${num(g.sorteQtd)} · ${mil(g.sorteValor)}</b></div><div><span class="sub">Garantia</span><b>${mil(g.garantia)}</b></div><div><span class="sub">Pacote serviços</span><b>${mil(g.pacote)}</b></div></div>
+  </div>`;
+}
+function regionais(p){
+  return `<div class="grid g4">`+(p.resumo?.regionais||[]).map(r=>`<div class="card reg ${S.reg===r.reg?"on":""}" data-reg="${r.reg}">
+  <h3>${r.reg} · ${esc(r.lider)}</h3><div class="v">${mil(r.venda)}</div>
+  <div class="barra"><i style="width:${Math.min(100,r.pct*100)}%;background:${cor(r.pct)}"></i></div>
+  <div class="sub"><b style="color:${cor(r.pct)}">${pct(r.pct)}</b> da meta de ${mil(r.meta)}</div>
+  <div class="sub">lucro ${mil(r.lucro)} · ${pct(r.margem)}</div></div>`).join("")+`</div>`;
+}
+function categorias(p){
+  const cs=p.resumo?.categorias||[];if(!cs.length)return"";
+  return `<div class="card" style="margin-top:14px"><b>Por categoria</b><div class="cats" style="margin-top:10px">`+cs.map(c=>{const q=c.meta?c.venda/c.meta:0;return `<div class="cat"><div class="n">${esc(c.nome)}</div><div class="v">${mil(c.venda)}</div><div class="barra"><i style="width:${Math.min(100,q*100)}%;background:${cor(q)}"></i></div><div class="sub">${c.meta?pct(q)+" de "+mil(c.meta):"sem meta"}</div></div>`}).join("")+`</div></div>`;
+}
+function leads(){
+  const l=S.per==="hoje"?D.leads.hoje:S.per==="mes"?D.leads.mes:null;if(!l)return"";
+  return `<div class="card" style="margin-top:14px"><b>Leads (${S.per==="hoje"?"hoje":"mês"})</b><div class="mini" style="margin-top:10px">
+  <div><span class="sub">Contatos</span><b>${num(l.contatos)}</b></div><div><span class="sub">Leads</span><b>${num(l.leads)}</b></div><div><span class="sub">Convertidos</span><b>${num(l.leadsConvertidos)}</b></div>
+  <div><span class="sub">Conversão</span><b>${(l.taxaConversao||0).toLocaleString("pt-BR",{maximumFractionDigits:1})}%</b></div><div><span class="sub">Vendido</span><b>${mil(l.valorVendido)}</b></div><div><span class="sub">Ticket</span><b>${brl(l.ticketMedio)}</b></div></div>${leadsRegionais(l)}</div>`;
+}
+function leadsRegionais(l){
+  const m={};for(const x of l.porLoja||[]){const r=x.regional;if(!/^R[1-9]$/.test(r||""))continue;m[r]??={reg:r,lojas:0,contatos:0,convertidos:0,valor:0};const y=m[r];y.lojas++;y.contatos+=x.contatos||0;y.convertidos+=x.convertidos||0;y.valor+=x.valor||0}
+  const rs=Object.values(m).sort((a,b)=>a.reg.localeCompare(b.reg));if(!rs.length)return"";
+  const NOM={R1:"UARA",R2:"DIEGO",R3:"ALEXANDRE",R4:"MICHEL"},mx=Math.max(...rs.map(r=>r.contatos?r.convertidos/r.contatos:0),.0001);
+  return `<div class="tw" style="margin-top:14px"><table><thead><tr><th class="l">Regional</th><th>Contatos</th><th>Convertidos</th><th>Conversão</th><th>Vendido</th><th>Ticket</th></tr></thead><tbody>
+  ${rs.map(r=>{const q=r.contatos?r.convertidos/r.contatos:0;return `<tr><td class="l nome">${r.reg} · ${NOM[r.reg]||""}</td><td>${num(r.contatos)}</td><td>${num(r.convertidos)}</td>
+  <td><span class="pb"><i style="width:${q/mx*100}%;background:var(--navy)"></i></span><b>${pct(q)}</b></td><td><b>${brl(r.valor)}</b></td><td>${r.convertidos?brl(r.valor/r.convertidos):"—"}</td></tr>`}).join("")}
+  </tbody></table></div>`;
+}
+// ---------- tabelas ----------
+function linhas(p){
+  const okLoja=c=>(!S.reg||regLoja(c)===S.reg)&&(!S.loja||c===S.loja);
+  const q=S.q.trim().toLowerCase(),bate=t=>!q||t.toLowerCase().includes(q);
+  if(S.aba==="loja"){
+    const c=S.per==="mes"&&D.comparativos;
+    return (p.resumo?.lojas||[]).filter(l=>okLoja(l.cod)&&(l.venda||l.meta)&&bate(nomeLoja(l.cod))).map(l=>{const ped=p.pedidosPorLoja[l.cod]||0;
+      return {...l,nome:nomeLoja(l.cod),reg:regLoja(l.cod),ped,ticket:ped?l.venda/ped:0,ant:c?(c.lojasAnterior[l.cod]||0):0,atu:c?(c.lojasAtual[l.cod]||0):0}});
+  }
+  if(S.aba==="vend"){
+    const m={};for(const v of p.vendedores){if(!okLoja(v.loja))continue;const k=v.cod;m[k]??={cod:v.cod,nome:v.nome,lojas:new Set(),venda:0,pedidos:0,itens:0,devol:0};const x=m[k];x.lojas.add(v.loja);x.venda+=v.venda;x.pedidos+=v.pedidos;x.itens+=v.itens;x.devol+=v.devol}
+    return Object.values(m).map(x=>({...x,lojaTxt:[...x.lojas].map(nomeLoja).join(", "),reg:regLoja([...x.lojas][0]),ticket:x.pedidos?(x.venda-x.devol)/x.pedidos:0})).filter(x=>bate(x.nome+" "+x.lojaTxt+" "+x.cod));
+  }
+  const m={};for(const v of p.produtos){if(!okLoja(v.loja))continue;m[v.cod]??={cod:v.cod,nome:v.nome,grupo:v.grupo,marca:v.marca,qtd:0,valor:0,nl:0};const x=m[v.cod];x.qtd+=v.qtd;x.valor+=v.valor;x.nl++}
+  return Object.values(m).map(x=>({...x,pm:x.qtd>0?x.valor/x.qtd:0})).filter(x=>bate(x.nome+" "+x.grupo+" "+x.marca+" "+x.cod));
+}
+const COLS={
+  loja:[["nome","Loja","l"],["reg","Regional","l"],["venda","Venda"],["meta","Meta"],["pct","% Meta"],["lucro","Lucro"],["margem","Margem"],["ped","Pedidos"],["ticket","Ticket"],["sorteQtd","Sorte"],["garantia","Garantia"]],
+  vend:[["nome","Vendedor","l"],["lojaTxt","Loja","l"],["venda","Venda"],["pedidos","Pedidos"],["ticket","Ticket"],["itens","Itens"],["devol","Devoluções"]],
+  prod:[["nome","Produto","l"],["grupo","Grupo","l"],["marca","Marca","l"],["valor","Vendido"],["qtd","Qtd"],["pm","Preço médio"],["nl","Lojas"]]};
+function celula(k,r){const v=r[k];
+  if(k==="nome")return `<td class="l nome">${esc(v)}${S.aba!=="loja"?` <span class="sub" style="font-weight:400">${esc(r.cod)}</span>`:""}</td>`;
+  if(k==="reg")return `<td class="l"><span class="pill">${esc(v)}</span></td>`;
+  if(k==="lojaTxt"||k==="grupo"||k==="marca")return `<td class="l">${esc(v)}</td>`;
+  if(k==="pct")return `<td><span class="pb"><i style="width:${Math.min(100,v*100)}%;background:${cor(v)}"></i></span><b style="color:${cor(v)}">${pct(v)}</b></td>`;
+  if(k==="margem")return `<td style="color:${v<0?"var(--bad)":"inherit"}">${pct(v)}</td>`;
+  if(k==="vsAnt")return `<td>${r.ant?delta(r.atu,r.ant):"—"}</td>`;
+  if(["ped","pedidos","itens","qtd","sorteQtd","nl"].includes(k))return `<td>${num(v)}</td>`;
+  if(k==="venda"||k==="valor")return `<td><b>${brl(v)}</b></td>`;
+  return `<td>${brl(v)}</td>`}
+function tabela(p){
+  let cols=COLS[S.aba].slice();if(S.aba==="loja"&&S.per==="mes"&&D.comparativos)cols.splice(5,0,["vsAnt",`vs ${D.periodos.mesAnt.label.slice(0,3)} (até dia ${D.comparativos.ateDia})`]);
+  const pad={loja:"venda",vend:"venda",prod:"valor"}[S.aba],st=S.sort[S.aba]||{k:pad,asc:false};
+  let ls=linhas(p);const val=r=>st.k==="vsAnt"?(r.ant?r.atu/r.ant:-9):r[st.k];
+  ls.sort((a,b)=>{const x=val(a),y=val(b);return (typeof x==="string"?x.localeCompare(y,"pt-BR"):x-y)*(st.asc?1:-1)});
+  const tot=ls.reduce((s,r)=>s+(r[pad]||0),0),LIM=300,mostra=ls.slice(0,LIM);
+  return `<div class="tw"><table><thead><tr><th class="rk">#</th>${cols.map(c=>`<th data-k="${c[0]}" class="${c[2]||""} ${st.k===c[0]?"s"+(st.asc?" asc":""):""}">${c[1]}</th>`).join("")}</tr></thead><tbody>
+  ${mostra.map((r,i)=>`<tr><td class="rk">${i+1}</td>${cols.map(c=>celula(c[0],r)).join("")}</tr>`).join("")||`<tr><td colspan="${cols.length+1}" class="l">Nada por aqui neste período.</td></tr>`}</tbody></table></div>
+  <div class="nota">${num(ls.length)} ${{loja:"lojas",vend:"vendedores",prod:"produtos"}[S.aba]} · total ${brl(tot)}${ls.length>LIM?` · mostrando os ${LIM} primeiros (use a busca)`:""}${S.aba!=="loja"?" · valores já descontam devoluções":""}</div>`;
+}
+function regionaisView(){
+  const R=D.regionaisComparativo,mA=D.periodos.mes.label,mB=D.periodos.mesAnt.label,mA3=mA.slice(0,3),mB3=mB.slice(0,3);
+  const regs=R.regionais,W=900,H=300,L=56,Rm=10,T=24,Bm=46,gw=(W-L-Rm)/regs.length,bw=Math.min(46,gw/5);
+  const max=Math.max(...regs.flatMap(r=>[r.venda,r.anteriorMesmoPeriodo,r.metaAteHoje]),1)*1.15;
+  const y=v=>T+(H-T-Bm)*(1-v/max);
+  const passo=max>3e6?1e6:max>1.5e6?5e5:max>6e5?2e5:max>2e5?5e4:1e4;let grade="";
+  for(let v=0;v<=max;v+=passo)grade+=`<line x1="${L}" x2="${W-Rm}" y1="${y(v)}" y2="${y(v)}" stroke="#e9ebf2"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end">${(v/1e3).toLocaleString("pt-BR")}</text>`;
+  const series=[["venda","var(--navy)",`${mA3} até dia ${R.ateDia}`],["anteriorMesmoPeriodo","#9aa1b5",`${mB3} até dia ${R.diaAnterior}`],["metaAteHoje","var(--meta)",`meta até dia ${R.ateDia}`]];
+  let barras="";
+  regs.forEach((r,i)=>{const cx=L+gw*i+gw/2;
+    series.forEach(([k,c],j)=>{const x0=cx+(j-1.5)*bw+bw*.05,v=r[k]||0,yy=y(v);
+      barras+=`<rect x="${x0.toFixed(1)}" y="${yy.toFixed(1)}" width="${(bw*.9).toFixed(1)}" height="${(y(0)-yy).toFixed(1)}" fill="${c}" rx="3"><title>${esc(r.reg)} · ${series[j][2]}: ${brl(v)}</title></rect>
+      <text x="${(x0+bw*.45).toFixed(1)}" y="${(yy-5).toFixed(1)}" text-anchor="middle" style="font-size:10px;fill:var(--ink);font-weight:600">${(v/1e3).toLocaleString("pt-BR",{maximumFractionDigits:0})}</text>`});
+    const q=r.metaAteHoje?r.venda/r.metaAteHoje:0;
+    barras+=`<text x="${cx}" y="${H-24}" text-anchor="middle" style="font-weight:700;fill:var(--ink);font-size:12px">${esc(r.reg)} · ${esc(r.lider)}</text>
+      <text x="${cx}" y="${H-8}" text-anchor="middle" style="fill:${cor(q)};font-weight:700">${pct(q)} da meta</text>`});
+  const leg=series.map(([,c,t])=>`<span><i style="border-top:8px solid ${c};width:12px;border-radius:2px"></i>${t}</span>`).join("");
+  const linha=(r,rede)=>{const q=r.metaAteHoje?r.venda/r.metaAteHoje:0,qm=r.metaMes?r.venda/r.metaMes:0;
+    return `<tr${rede?' style="font-weight:700;background:#f8f9fc"':""}><td class="l nome">${rede?"Rede toda":esc(r.reg)+" · "+esc(r.lider)}</td>
+    <td><b>${brl(r.venda)}</b></td><td>${brl(r.metaAteHoje)}</td>
+    <td><span class="pb"><i style="width:${Math.min(100,q*100)}%;background:${cor(q)}"></i></span><b style="color:${cor(q)}">${pct(q)}</b></td>
+    <td>${brl(r.anteriorMesmoPeriodo)}</td><td>${delta(r.venda,r.anteriorMesmoPeriodo)||"—"}</td>
+    <td>${brl(r.metaMes)}</td><td>${pct(qm)}</td><td>${r.metaMes>r.venda?brl(r.metaMes-r.venda):"<span class='up'>batida</span>"}</td><td>${brl(r.anteriorFechado)}</td></tr>`};
+  return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <b>Venda por regional · ${mA} x ${mB} x meta</b><span class="leg"><span>R$ mil</span>${leg}</span></div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;margin-top:8px">${grade}${barras}</svg>
+    <div class="nota">${mA[0].toUpperCase()+mA.slice(1)} até agora, ${mB} do dia 1 ao dia ${R.diaAnterior} e meta do dia 1 ao dia ${R.ateDia}.</div></div>
+  <div class="card sec"><div class="tw"><table><thead><tr><th class="l">Regional</th><th>Venda ${mA3}</th><th>Meta até hoje</th><th>% meta</th><th>${mB3} até dia ${R.diaAnterior}</th><th>vs ${mB3}</th><th>Meta do mês</th><th>% do mês</th><th>Falta pro mês</th><th>${mB3} fechado</th></tr></thead>
+  <tbody>${R.regionais.map(r=>linha(r)).join("")}${linha(R.rede,true)}</tbody></table></div></div>
+  ${seriesRegionais().map(z=>`<div class="card sec">${graficoCard(z)}</div>`).join("")}`;
+}
+function renderUni(){
+  if(!D)return;cabecalho();
+  if(S.per==="regionais"){if(D.regionaisComparativo){$("#app").innerHTML=regionaisView();ligaGraficoCard(seriesRegionais());return}S.per="mes"}
+  const p=D.periodos[S.per];
+
+  const lojasOpt=Object.keys(D.lojas).filter(c=>(p.resumo?.lojas||[]).some(l=>l.cod===c&&(l.venda||l.meta))&&(!S.reg||regLoja(c)===S.reg)).sort((a,b)=>D.lojas[a].num-D.lojas[b].num);
+  if(S.loja&&!lojasOpt.includes(S.loja))S.loja="";
+  $("#app").innerHTML=`<div class="hero">${hero(p)}<div class="card">${graficoCard()}</div></div>${regionais(p)}${categorias(p)}${leads()}
+  <div class="card sec"><div class="ferr"><div class="tabs" id="tabsA">${[["loja","Por loja"],["vend","Por vendedor"],["prod","Por produto"]].map(a=>`<button data-a="${a[0]}" class="${S.aba===a[0]?"on":""}" style="text-transform:none">${a[1]}</button>`).join("")}</div>
+  <select id="fReg"><option value="">Todas as regionais</option>${(p.resumo?.regionais||[]).map(r=>`<option value="${r.reg}" ${S.reg===r.reg?"selected":""}>${r.reg} · ${esc(r.lider)}</option>`).join("")}</select>
+  <select id="fLoja"><option value="">Todas as lojas</option>${lojasOpt.map(c=>`<option value="${c}" ${S.loja===c?"selected":""}>${esc(nomeLoja(c))}</option>`).join("")}</select>
+  <input type="search" id="fQ" placeholder="Buscar loja, vendedor ou produto…" value="${esc(S.q)}"></div><div id="tab">${tabela(p)}</div></div>`;
+  ligaGraficoCard();
+  $("#tabsA").onclick=e=>{const a=e.target.dataset.a;if(a){S.aba=a;salva();render()}};
+  $("#fReg").onchange=e=>{S.reg=e.target.value;render()};$("#fLoja").onchange=e=>{S.loja=e.target.value;render()};
+  $("#fQ").oninput=e=>{S.q=e.target.value;$("#tab").innerHTML=tabela(p)};
+  document.querySelectorAll(".reg").forEach(el=>el.onclick=()=>{S.reg=S.reg===el.dataset.reg?"":el.dataset.reg;render()});
+  $("#tab").onclick=e=>{const th=e.target.closest("th[data-k]");if(!th)return;const k=th.dataset.k,cur=S.sort[S.aba];S.sort[S.aba]={k,asc:cur&&cur.k===k?!cur.asc:["nome","reg","lojaTxt","grupo","marca"].includes(k)};$("#tab").innerHTML=tabela(p)};
+}
+/* v2 */
+// ===== Painel v2: Visão geral (projeção, alertas, resumo), ZepSystem e Rede total =====
+const SECS=[["geral","Visão geral"],["uni","Universo Baianão"],["zep","ZepSystem"],["rede","Rede total"]];
+if(!SECS.some(s=>s[0]===S.sec))S.sec="geral";
+const salva2=()=>{try{localStorage.setItem("painel-baianao",JSON.stringify({per:S.per,aba:S.aba,sec:S.sec}))}catch(e){}};
+const soma=a=>(a||[]).reduce((s,x)=>s+(x||0),0);
+const hoje=()=>Number(D.periodos.hoje.fim.slice(8));
+const fmtPct=v=>pct(v,0);
+
+// ---------- motor de análise ----------
+function metaDias(M){return (M||[]).map((v,i)=>i?v-M[i-1]:v)}
+// fração do dia que normalmente já foi vendida até o minuto m (pela história das últimas semanas)
+function fracaoDoDia(m,col=1){
+  const H=D.historicoHoras||{},hojeISO=D.periodos.hoje.inicio,fr=[];
+  for(const dia of Object.keys(H)){if(dia===hojeISO)continue;const L=H[dia];if(!L||L.length<20)continue;const fim=L[L.length-1][col];if(!(fim>0))continue;
+    if(L[L.length-1][0]<20*60)continue;let v=0;for(const p of L){if(p[0]<=m)v=p[col];else break}fr.push(v/fim)}
+  if(fr.length<3)return null;fr.sort((a,b)=>a-b);return fr[Math.floor(fr.length/2)];
+}
+function minutoAgora(){const g=new Date(new Date(D.geradoEm).getTime()-3*3600e3);return g.getUTCHours()*60+g.getUTCMinutes()}
+// projeção de fechamento do mês: vendido até ontem + (meta dos dias que faltam × eficiência dos últimos 7 dias)
+function projecao(reg){
+  const d=hoje(),c=D.comparativos,rc=D.regionaisComparativo;if(!rc)return null;
+  const serie=reg?D.diario.porRegional?.[reg]:{atual:D.diario.atual,meta:D.diario.metaAtual};if(!serie||!serie.meta?.length)return null;
+  const md=metaDias(serie.meta),A=serie.atual;
+  // escala: o diário vem das linhas de produto; o oficial vem do resumo do portal
+  const k=c&&d>1&&soma(D.diario.atual.slice(0,d-1))?c.atual.venda/soma(D.diario.atual.slice(0,d-1)):1;
+  const ini=Math.max(0,d-8),fim=d-1;const v7=soma(A.slice(ini,fim))*k,m7=soma(md.slice(ini,fim));
+  const efic=m7?v7/m7:null;
+  const linha=reg?rc.regionais.find(x=>x.reg===reg):rc.rede;if(!linha)return null;
+  const ateOntem=d>1?soma(A.slice(0,d-1))*k:0,metaMes=linha.metaMes||serie.meta[serie.meta.length-1];
+  // hoje conta o que já vendeu (ou o ritmo, se ainda estiver abaixo); os dias seguintes, meta × eficiência
+  const hj=D.periodos.hoje.resumo,vendaHoje=(reg?hj?.regionais?.find(x=>x.reg===reg)?.venda:hj?.geral?.venda)||0;
+  const metaDepois=metaMes-serie.meta[Math.min(d,serie.meta.length)-1];
+  const proj=efic!=null?ateOntem+Math.max(vendaHoje,(md[d-1]||0)*efic)+metaDepois*efic:null;
+  const diasRest=serie.meta.length-d+1;
+  const porDia=diasRest>0?Math.max(0,metaMes-linha.venda)/diasRest:0;
+  // pelo ritmo do mês passado (comparando o mesmo número de dias)
+  const projAnt=linha.anteriorMesmoPeriodo?linha.anteriorFechado*(linha.venda/linha.anteriorMesmoPeriodo):null;
+  return {proj,efic,metaMes,venda:linha.venda,porDia,diasRest,projAnt,pctProj:proj&&metaMes?proj/metaMes:null,lider:linha.lider,reg:linha.reg};
+}
+function alertas(){
+  const A=[],P=D.periodos,m=P.mes,h=P.hoje,d=hoje();
+  // 1) ritmo de hoje x o normal pra esta hora
+  const g=h.resumo?.geral,mm=minutoAgora(),fr=fracaoDoDia(mm);
+  if(g&&g.meta&&fr&&fr>.05&&mm>=10*60&&mm<=21*60){const esp=g.meta*fr,r=g.venda/esp;
+    A.push({nivel:r<.85?"alto":r<1?"medio":"bom",t:r>=1?`Hoje a rede está <b>${fmtPct(r)}</b> do esperado pra este horário`:`Hoje a rede está em <b>${fmtPct(r)}</b> do que costuma ter vendido até agora`,
+      d:`Pelo histórico, até ${fmtH(mm)} já sai ${fmtPct(fr)} da venda do dia. Esperado agora: ${mil(esp)} · vendido: ${mil(g.venda)}.`});
+    (h.resumo.regionais||[]).forEach(x=>{const fx=fracaoDoDia(mm,colReg(x.reg));if(!fx||!x.meta)return;const rr=x.venda/(x.meta*fx);if(rr<.75)A.push({nivel:"alto",t:`${x.reg} · ${esc(x.lider)} abaixo do ritmo hoje: <b>${fmtPct(rr)}</b> do esperado`,d:`Vendeu ${mil(x.venda)}; pra este horário o normal seria ${mil(x.meta*fx)}.`})});
+  }
+  // 2) projeção do mês
+  const pr=projecao();if(pr&&pr.pctProj!=null){A.push({nivel:pr.pctProj<.95?"alto":pr.pctProj<1?"medio":"bom",t:`Projeção do mês: <b>${mil(pr.proj)}</b> (${fmtPct(pr.pctProj)} da meta de ${mil(pr.metaMes)})`,
+    d:`Faltam ${mil(Math.max(0,pr.metaMes-pr.venda))} em ${pr.diasRest} dias: precisa de <b>${mil(pr.porDia)}/dia</b>. Nos últimos 7 dias a rede fez ${fmtPct(pr.efic)} da meta diária.`})}
+  // 3) lojas fora do ritmo no mês
+  const lj=(m.resumo?.lojas||[]).filter(l=>l.meta>0);
+  const piores=lj.filter(l=>l.pct<.75).sort((a,b)=>a.pct-b.pct);
+  if(piores.length)A.push({nivel:"alto",t:`${piores.length} loja${piores.length>1?"s":""} abaixo de 75% da meta no mês`,d:piores.slice(0,6).map(l=>`${esc(nomeLoja(l.cod))} <b style="color:var(--bad)">${fmtPct(l.pct)}</b>`).join(" · ")});
+  const melhores=lj.filter(l=>l.pct>=1).sort((a,b)=>b.pct-a.pct);
+  if(melhores.length)A.push({nivel:"bom",t:`${melhores.length} loja${melhores.length>1?"s":""} acima da meta no mês`,d:melhores.slice(0,6).map(l=>`${esc(nomeLoja(l.cod))} <b style="color:var(--ok)">${fmtPct(l.pct)}</b>`).join(" · ")});
+  // 4) margem fora da curva
+  const mg=m.resumo?.geral?.margem;if(mg){const baixa=lj.filter(l=>l.venda>50000&&l.margem<mg-.06).sort((a,b)=>a.margem-b.margem);
+    if(baixa.length)A.push({nivel:"medio",t:`Margem baixa em ${baixa.length} loja${baixa.length>1?"s":""} (rede: ${pct(mg)})`,d:baixa.slice(0,5).map(l=>`${esc(nomeLoja(l.cod))} ${pct(l.margem)}`).join(" · ")})}
+  // 5) devoluções altas
+  const dv=(m.vendedores||[]).filter(v=>v.venda>30000&&-v.devol/v.venda>.2).sort((a,b)=>a.devol/a.venda-b.devol/b.venda);
+  if(dv.length)A.push({nivel:"medio",t:`${dv.length} vendedor${dv.length>1?"es":""} com devolução acima de 20% da venda`,d:dv.slice(0,5).map(v=>`${esc(v.nome)} (${esc(nomeLoja(v.loja))}) ${fmtPct(-v.devol/v.venda)}`).join(" · ")});
+  // 6) vendedores caindo em relação ao mês passado (ritmo por dia)
+  if(d>=7){const ant={};for(const v of P.mesAnt.vendedores||[])ant[v.cod+"|"+v.loja]=v;const nAnt=Number(P.mesAnt.fim.slice(8));
+    const nz=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim().toUpperCase();
+    const zv={};for(const v of D.zep?.periodos?.mes?.vendedores||[])zv[nz(v.nome)]=(zv[nz(v.nome)]||0)+v.venda;
+    const caindo=(m.vendedores||[]).map(v=>{const a=ant[v.cod+"|"+v.loja];if(!a||a.venda<40000)return null;const r=((v.venda+(zv[nz(v.nome)]||0))/d)/(a.venda/nAnt);return r<.6?{...v,r}:null}).filter(Boolean).sort((a,b)=>a.r-b.r);
+    if(caindo.length)A.push({nivel:"medio",t:`${caindo.length} vendedor${caindo.length>1?"es":""} vendendo bem menos que no mês passado`,d:caindo.slice(0,6).map(v=>`${esc(v.nome)} <b style="color:var(--bad)">${fmtPct(v.r-1)}</b>`).join(" · ")+` <span class="sub">(venda por dia no Universo + ZepSystem, este mês x ${P.mesAnt.label})</span>`})}
+  // 7) ZepSystem
+  const z=D.zep?.periodos?.mes;if(z&&z.pedidosTotal){if(z.taxaCancelamento>.3)A.push({nivel:"alto",t:`ZepSystem: <b>${fmtPct(z.taxaCancelamento)}</b> dos pedidos do mês foram cancelados`,d:`${num(z.pedidosCancelados)} cancelados (${mil(z.cancelado)}) de ${num(z.pedidosTotal)} pedidos. Vale entender o motivo: pagamento recusado, desistência ou erro de cadastro.`});
+    if(z.aguardando>0)A.push({nivel:"medio",t:`ZepSystem: ${num(z.pedidosAguardando)} pedidos aguardando (${mil(z.aguardando)})`,d:`Ainda não contam como venda. Cobrar a finalização com os vendedores.`})}
+  const ordem={alto:0,medio:1,bom:2};return A.sort((a,b)=>ordem[a.nivel]-ordem[b.nivel]);
+}
+// resumo escrito (regras; a fase 2 troca por IA generativa)
+function resumoTexto(){
+  const P=D.periodos,h=P.hoje.resumo?.geral,m=P.mes.resumo?.geral,o=P.ontem.resumo?.geral,pr=projecao(),z=D.zep?.periodos;
+  const f=[];
+  if(h)f.push(`Hoje a rede vendeu <b>${mil(h.venda+(z?.hoje?.vendido||0))}</b>${z?.hoje?.vendido?` (Universo ${mil(h.venda)} + ZepSystem ${mil(z.hoje.vendido)})`:""}, <b>${fmtPct(h.pct)}</b> da meta do dia no Universo.`);
+  if(o)f.push(`Ontem fechou em ${mil(o.venda)} (${fmtPct(o.pct)} da meta).`);
+  if(m&&pr)f.push(`No mês são <b>${mil(m.venda)}</b>, ${fmtPct(m.pct)} da meta até hoje. Mantido o ritmo dos últimos 7 dias, o mês fecha em <b>${mil(pr.proj)}</b> (${fmtPct(pr.pctProj)} da meta de ${mil(pr.metaMes)}).`);
+  const regs=(P.mes.resumo?.regionais||[]).slice().sort((a,b)=>b.pct-a.pct);if(regs.length>1)f.push(`Melhor regional no mês: <b>${regs[0].reg} · ${esc(regs[0].lider)}</b> (${fmtPct(regs[0].pct)}); a mais atrás: <b>${regs.at(-1).reg} · ${esc(regs.at(-1).lider)}</b> (${fmtPct(regs.at(-1).pct)}).`);
+  const lh=(P.hoje.resumo?.lojas||[]).filter(l=>l.venda>0).sort((a,b)=>b.venda-a.venda)[0];if(lh)f.push(`Loja que mais vendeu hoje: ${esc(nomeLoja(lh.cod))} (${mil(lh.venda)}).`);
+  const vh=(P.hoje.vendedores||[])[0];if(vh)f.push(`Vendedor destaque hoje: ${esc(vh.nome)} (${mil(vh.venda)}).`);
+  if(z?.mes?.vendido)f.push(`ZepSystem no mês: ${mil(z.mes.vendido)} vendidos em ${num(z.mes.pedidos)} pedidos (ticket ${brl(z.mes.ticket)}).`);
+  return f.join(" ");
+}
+
+// ---------- componentes ----------
+function kpi(t,v,sub){return `<div class="card kpi"><div class="sub">${t}</div><div class="kv">${v}</div>${sub?`<div class="sub">${sub}</div>`:""}</div>`}
+function barras(vals,labels,{alt=150,cor0="var(--navy)",fmt=mil,dest=-1}={}){
+  const W=Math.max(320,vals.length*26),H=alt,mx=Math.max(1,...vals),bw=W/vals.length;
+  return `<svg viewBox="0 0 ${W} ${H+18}" style="width:100%;height:${H+18}px" preserveAspectRatio="none">`+vals.map((v,i)=>{const h=(v/mx)*(H-14);return `<rect x="${i*bw+bw*.12}" y="${H-h}" width="${bw*.76}" height="${h}" rx="3" fill="${i===dest?"var(--red)":cor0}"><title>${esc(labels[i])}: ${fmt(v)}</title></rect>`+(vals.length<=31?`<text x="${i*bw+bw/2}" y="${H+13}" text-anchor="middle">${esc(labels[i])}</text>`:"")}).join("")+`</svg>`;
+}
+function tabelaSimples(cols,rows,{max=50}={}){
+  return `<div class="tw" style="max-height:60vh"><table><thead><tr>${cols.map(c=>`<th class="${c.l?"l":""}">${c.t}</th>`).join("")}</tr></thead><tbody>`+
+    rows.slice(0,max).map((r,i)=>`<tr>${cols.map(c=>`<td class="${c.l?"l":""}${c.n?" nome":""}">${c.f(r,i)}</td>`).join("")}</tr>`).join("")+`</tbody></table></div>`;
+}
+const pbar=(p)=>`<span class="pb"><i style="width:${Math.min(100,(p||0)*100)}%;background:${cor(p)}"></i></span>${fmtPct(p)}`;
+
+// ---------- seções ----------
+function secGeral(){
+  const P=D.periodos,h=P.hoje.resumo?.geral||{},m=P.mes.resumo?.geral||{},z=D.zep?.periodos,pr=projecao();
+  const A=alertas();
+  const ico={alto:"🔴",medio:"🟡",bom:"🟢"};
+  const regs=(D.regionaisComparativo?.regionais||[]).map(r=>({...r,p:projecao(r.reg)}));
+  return `<div class="card ia"><div class="iat">✨ Resumo do dia <span class="sub">· gerado automaticamente a cada atualização</span></div><p>${resumoTexto()}</p></div>
+  <div class="grid g4" style="margin-top:14px">
+    ${kpi("Hoje · rede (Universo + Zep)",mil((h.venda||0)+(z?.hoje?.vendido||0)),`Universo ${mil(h.venda)} · ${fmtPct(h.pct)} da meta`)}
+    ${kpi("Mês · rede (Universo + Zep)",mil((m.venda||0)+(z?.mes?.vendido||0)),`Universo ${fmtPct(m.pct)} da meta até hoje`)}
+    ${kpi("Projeção de fechamento",pr?.proj?mil(pr.proj):"—",pr?.pctProj?`<b style="color:${cor(pr.pctProj)}">${fmtPct(pr.pctProj)}</b> da meta de ${mil(pr.metaMes)}`:"")}
+    ${kpi("Precisa vender por dia",pr?mil(pr.porDia):"—",pr?`nos ${pr.diasRest} dias que faltam, pra bater a meta`:"")}
+  </div>
+  <div class="hero" style="margin-top:14px;grid-template-columns:1.1fr 1fr">
+    <div class="card"><b>Alertas e oportunidades</b><div class="alertas">${A.map(a=>`<div class="al ${a.nivel}"><div>${ico[a.nivel]} ${a.t}</div><div class="sub">${a.d}</div></div>`).join("")||'<div class="sub">Nada fora do normal agora.</div>'}</div></div>
+    <div class="card"><b>Projeção por regional</b>
+      ${tabelaSimples([{t:"Regional",l:1,f:r=>`<b>${r.reg}</b> · ${esc(r.lider)}`},{t:"Vendido",f:r=>mil(r.venda)},{t:"Meta mês",f:r=>mil(r.metaMes)},{t:"Projeção",f:r=>r.p?.proj?`<b>${mil(r.p.proj)}</b>`:"—"},{t:"% proj.",f:r=>r.p?.pctProj?`<b style="color:${cor(r.p.pctProj)}">${fmtPct(r.p.pctProj)}</b>`:"—"},{t:"Precisa/dia",f:r=>r.p?mil(r.p.porDia):"—"}],regs)}
+      <div class="nota">Projeção = vendido até ontem + meta dos dias que faltam × eficiência dos últimos 7 dias (respeita sábados, domingos e datas fortes, que já estão na meta diária).</div>
+    </div>
+  </div>
+  <div class="card sec"><b>Ritmo das lojas no mês</b> <span class="sub">· % da meta até hoje. Clique em "Universo Baianão" pra ver o detalhe.</span>
+    ${tabelaSimples([{t:"#",f:(r,i)=>i+1},{t:"Loja",l:1,n:1,f:r=>esc(nomeLoja(r.cod))},{t:"Regional",f:r=>esc(regLoja(r.cod))},{t:"Vendido",f:r=>mil(r.venda)},{t:"Meta até hoje",f:r=>mil(r.meta)},{t:"Ritmo",f:r=>pbar(r.pct)},{t:"Margem",f:r=>pct(r.margem)},{t:"+ ZepSystem",f:r=>{const x=z?.mes?.lojas?.find(l=>l.cod===r.cod);return x?mil(x.venda):"—"}}],
+      (P.mes.resumo?.lojas||[]).filter(l=>l.meta>0).sort((a,b)=>b.pct-a.pct),{max:60})}
+  </div>`;
+}
+function secZep(){
+  const z=D.zep;if(!z)return `<div class="card">O ZepSystem ainda não foi lido. A coleta dele entra na próxima atualização.</div>`;
+  const k=["hoje","ontem","mes","mesAnt"].includes(S.per)?S.per:"mes",p=z.periodos[k];
+  const st=Object.entries(p.status||{}).sort((a,b)=>b[1]-a[1]);
+  const labDia=p.porDia.map((_,i)=>String(i+1));
+  return `<div class="grid g4">
+    ${kpi("Vendido (confirmado)",mil(p.vendido),`${num(p.pedidos)} pedidos · ticket ${brl(p.ticket)}`)}
+    ${kpi("Aguardando",mil(p.aguardando),`${num(p.pedidosAguardando)} pedidos ainda não confirmados`)}
+    ${kpi("Cancelados",`<span style="color:var(--bad)">${mil(p.cancelado)}</span>`,`${num(p.pedidosCancelados)} pedidos · <b>${fmtPct(p.taxaCancelamento)}</b> do total`)}
+    ${kpi("Pedidos no período",num(p.pedidosTotal),st.map(([s,n])=>`${esc(s)} ${n}`).join(" · "))}
+  </div>
+  <div class="hero" style="margin-top:14px;grid-template-columns:1fr 1fr">
+    ${k.startsWith("mes")?`<div class="card"><b>Venda por dia</b>${barras(p.porDia,labDia,{dest:k==="mes"?hoje()-1:-1})}</div>`:""}
+    <div class="card"><b>Venda por hora</b>${barras(p.porHora.slice(7,23),[...Array(16)].map((_,i)=>i+7+"h"))}</div>
+    <div class="card"><b>Forma de pagamento</b>${tabelaSimples([{t:"Pagamento",l:1,f:r=>esc(r.nome)},{t:"Pedidos",f:r=>num(r.pedidos)},{t:"Valor",f:r=>mil(r.valor)},{t:"%",f:r=>fmtPct(p.vendido?r.valor/p.vendido:0)}],p.pagamentos)}</div>
+    <div class="card"><b>Por loja</b> <span class="sub">(pelo cadastro do vendedor no Universo)</span>${tabelaSimples([{t:"Loja",l:1,n:1,f:r=>esc(nomeLoja(r.cod))},{t:"Pedidos",f:r=>num(r.pedidos)},{t:"Vendido",f:r=>mil(r.venda)}],p.lojas)}${p.vendaSemLoja?`<div class="nota">${mil(p.vendaSemLoja)} de vendedores sem loja identificada.</div>`:""}</div>
+  </div>
+  <div class="card sec"><b>Vendedores</b>${tabelaSimples([{t:"#",f:(r,i)=>i+1},{t:"Vendedor",l:1,n:1,f:r=>esc(r.nome)},{t:"Loja",l:1,f:r=>r.loja?esc(nomeLoja(r.loja)):'<span class="sub">não identificada</span>'},{t:"Pedidos",f:r=>num(r.pedidos)},{t:"Vendido",f:r=>mil(r.venda)},{t:"Aguardando",f:r=>r.aguardando?mil(r.aguardando):"—"},{t:"Cancelados",f:r=>r.cancelados?`${r.cancelados} · ${mil(r.valorCancelado)}`:"—"}],p.vendedores.filter(v=>v.venda||v.aguardando||v.cancelados),{max:200})}</div>
+  <div class="card sec"><b>Produtos</b>${tabelaSimples([{t:"#",f:(r,i)=>i+1},{t:"Produto",l:1,n:1,f:r=>esc(r.nome)},{t:"SKU",f:r=>esc(r.sku)},{t:"Qtd",f:r=>num(r.qtd)},{t:"Valor",f:r=>mil(r.valor)}],p.produtos,{max:100})}</div>
+  <div class="nota">ZepSystem desde ${z.inicioPlataforma?z.inicioPlataforma.split("-").reverse().join("/"):"—"}. "Vendido" não conta pedidos aguardando nem cancelados.</div>`;
+}
+function secRede(){
+  const k=["hoje","ontem","mes","mesAnt"].includes(S.per)?S.per:"mes",u=D.periodos[k],z=D.zep?.periodos?.[k];
+  const L={};for(const l of u.resumo?.lojas||[]){L[l.cod]={cod:l.cod,uni:l.venda,meta:l.meta,zep:0}}
+  for(const l of z?.lojas||[]){L[l.cod]??={cod:l.cod,uni:0,meta:0,zep:0};L[l.cod].zep=l.venda}
+  const rows=Object.values(L).map(r=>({...r,tot:r.uni+r.zep,p:r.meta?(r.uni+r.zep)/r.meta:0})).filter(r=>r.tot||r.meta).sort((a,b)=>b.tot-a.tot);
+  const tu=u.resumo?.geral?.venda||0,tz=z?.vendido||0,meta=u.resumo?.geral?.meta||0;
+  const R={};for(const r of rows){const g=regLoja(r.cod);R[g]??={reg:g,uni:0,zep:0,meta:0};R[g].uni+=r.uni;R[g].zep+=r.zep;R[g].meta+=r.meta}
+  return `<div class="grid g4">${kpi("Total da rede",mil(tu+tz),meta?`<b style="color:${cor((tu+tz)/meta)}">${fmtPct((tu+tz)/meta)}</b> da meta (meta do Universo)`:"")}${kpi("Universo Baianão",mil(tu),fmtPct(tu+tz?tu/(tu+tz):0)+" do total")}${kpi("ZepSystem",mil(tz),fmtPct(tu+tz?tz/(tu+tz):0)+" do total")}${kpi("Sem loja identificada (Zep)",mil(z?.vendaSemLoja||0),"vendedores do Zep sem cadastro no Universo")}</div>
+  <div class="card sec"><b>Por regional</b>${tabelaSimples([{t:"Regional",l:1,f:r=>esc(r.reg)},{t:"Universo",f:r=>mil(r.uni)},{t:"ZepSystem",f:r=>mil(r.zep)},{t:"Total",f:r=>`<b>${mil(r.uni+r.zep)}</b>`},{t:"Meta",f:r=>mil(r.meta)},{t:"% meta",f:r=>r.meta?pbar((r.uni+r.zep)/r.meta):"—"}],Object.values(R).sort((a,b)=>a.reg.localeCompare(b.reg)))}</div>
+  <div class="card sec"><b>Por loja</b>${tabelaSimples([{t:"#",f:(r,i)=>i+1},{t:"Loja",l:1,n:1,f:r=>esc(nomeLoja(r.cod))},{t:"Regional",f:r=>esc(regLoja(r.cod))},{t:"Universo",f:r=>mil(r.uni)},{t:"ZepSystem",f:r=>r.zep?mil(r.zep):"—"},{t:"Total",f:r=>`<b>${mil(r.tot)}</b>`},{t:"% meta",f:r=>r.meta?pbar(r.p):"—"},{t:"Peso Zep",f:r=>r.tot?fmtPct(r.zep/r.tot):"—"}],rows,{max:80})}
+  <div class="nota">A meta é a do Universo Baianão; a venda do ZepSystem entra somada como bônus de cada loja.</div></div>`;
+}
+
+// ---------- roteador ----------
+function render(){
+  if(!D)return;
+  $("#secs").innerHTML=SECS.map(([k,t])=>`<button data-s="${k}" class="${S.sec===k?"on":""}">${t}</button>`).join("");
+  $("#secs").onclick=e=>{const s=e.target.dataset.s;if(s){S.sec=s;if(s!=="uni"&&S.per==="regionais")S.per="mes";salva2();render()}};
+  if(S.sec==="uni"){renderUni();$("#tabsP").style.display="";return}
+  cabecalho();
+  $("#tabsP").style.display=S.sec==="geral"?"none":"";
+  [...$("#tabsP").querySelectorAll("button")].forEach(b=>{if(b.dataset.p==="regionais")b.remove()});
+  if(S.per==="regionais")S.per="mes";
+  $("#tabsP").onclick=e=>{const p=e.target.dataset.p;if(p){S.per=p;salva2();render()}};
+  $("#app").innerHTML=S.sec==="geral"?secGeral():S.sec==="zep"?secZep():secRede();
+}
+
+carrega();setInterval(carrega,5*60*1000);setInterval(()=>D&&cabecalho(),60*1000);
+</script>
+</body>
+</html>
