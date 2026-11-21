@@ -556,7 +556,7 @@ const fR=x=>{const v=Math.round(x||0),a=Math.abs(v),f=(n,d)=>n.toLocaleString("p
 const fP=x=>`${(Math.round((x||0)*1000)/10).toLocaleString("pt-BR")}%`;
 function contextoChat(){
   const P=D.periodos,g=r=>r?{venda:fR(r.venda),meta:fR(r.meta),pctMeta:fP(r.pct),lucro:fR(r.lucro),margem:fP(r.margem)}:null;
-  const lojas=k=>(P[k].resumo?.lojas||[]).filter(l=>l.venda||l.meta).map(l=>({loja:nomeLoja(l.cod),regional:regLoja(l.cod),venda:fR(l.venda),meta:fR(l.meta),pctMeta:l.meta?fP(l.pct):"sem meta",margem:fP(l.margem),pedidos:P[k].pedidosPorLoja?.[l.cod]||0}));
+  const lojas=k=>(P[k].resumo?.lojas||[]).filter(l=>l.venda||l.meta).map(l=>({loja:nomeLoja(l.cod),regional:regLoja(l.cod),venda:fR(l.venda),[k==="mes"?"metaAteHoje":"meta"]:fR(l.meta),[k==="mes"?"pctDaMetaAteHoje":"pctMeta"]:l.meta?fP(l.pct):"sem meta",margem:fP(l.margem),pedidos:P[k].pedidosPorLoja?.[l.cod]||0}));
   const vend=(k,n)=>(P[k].vendedores||[]).slice(0,n).map(v=>({nome:v.nome,loja:nomeLoja(v.loja),venda:fR(v.venda),pedidos:v.pedidos,devolucao:fR(v.devol)}));
   const pr=projecao(),z=D.zep?.periodos,zp=x=>x?{vendido:fR(x.vendido),pedidos:x.pedidos,ticket:fR(x.ticket),aguardando:fR(x.aguardando),cancelado:fR(x.cancelado),taxaCancelamento:fP(x.taxaCancelamento),
     vendedores:x.vendedores.slice(0,25).map(v=>({nome:v.nome,loja:v.loja?nomeLoja(v.loja):"não identificada",venda:fR(v.venda),pedidos:v.pedidos,cancelados:v.cancelados})),
@@ -567,8 +567,8 @@ function contextoChat(){
     universo:{hoje:{geral:g(P.hoje.resumo?.geral),pedidos:P.hoje.pedidos,ticket:fR(P.hoje.ticket),regionais:(P.hoje.resumo?.regionais||[]).map(r=>({reg:r.reg,lider:r.lider,...g(r)})),lojas:lojas("hoje"),vendedores:vend("hoje",30)},
       ontem:{geral:g(P.ontem.resumo?.geral),regionais:(P.ontem.resumo?.regionais||[]).map(r=>({reg:r.reg,lider:r.lider,...g(r)}))},
       mes:{periodo:`${P.mes.label} até dia ${Number(P.mes.fim.slice(8))}`,geral:g(P.mes.resumo?.geral),pedidos:P.mes.pedidos,ticket:fR(P.mes.ticket),devolucoes:fR(P.mes.devolucoes),
-        projecao:pr?{fechamento:fR(pr.proj),pctMeta:fP(pr.pctProj),metaMes:fR(pr.metaMes),precisaPorDia:fR(pr.porDia),diasRestantes:pr.diasRest,eficiencia7dias:fP(pr.efic)}:null,
-        regionais:(D.regionaisComparativo?.regionais||[]).map(r=>{const p=projecao(r.reg);return {reg:r.reg,lider:r.lider,venda:fR(r.venda),metaAteHoje:fR(r.metaAteHoje),metaMes:fR(r.metaMes),mesPassadoMesmoPeriodo:fR(r.anteriorMesmoPeriodo),projecao:p?fR(p.proj):null,pctProjecao:p?fP(p.pctProj):null}}),
+        projecao:pr?{fechamento:fR(pr.proj),projecaoEmPctDaMetaDoMesInteiro:fP(pr.pctProj),metaDoMesInteiro:fR(pr.metaMes),precisaPorDia:fR(pr.porDia),diasRestantes:pr.diasRest,eficiencia7dias:fP(pr.efic)}:null,
+        regionais:(D.regionaisComparativo?.regionais||[]).map(r=>{const p=projecao(r.reg);return {reg:r.reg,lider:r.lider,vendaNoMesAteAgora:fR(r.venda),metaAteHoje:fR(r.metaAteHoje),pctDaMetaAteHoje:r.metaAteHoje?fP(r.venda/r.metaAteHoje):null,metaDoMesInteiro:fR(r.metaMes),mesPassadoMesmoPeriodo:fR(r.anteriorMesmoPeriodo),projecaoDeFechamento:p?fR(p.proj):null,projecaoEmPctDaMetaDoMesInteiro:p?fP(p.pctProj):null}}),
         categorias:(P.mes.resumo?.categorias||[]).map(c=>({nome:c.nome,venda:fR(c.venda),pctMeta:c.meta?fP(c.venda/c.meta):"sem meta"})),
         lojas:lojas("mes"),vendedores:vend("mes",40),
         grupos:(P.mes.grupos||[]).slice(0,12).map(x=>({nome:x.nome,valor:fR(x.valor)})),marcas:(P.mes.marcas||[]).slice(0,12).map(x=>({nome:x.nome,valor:fR(x.valor)})),
