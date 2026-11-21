@@ -387,8 +387,10 @@ function projecao(reg){
   const efic=m7?v7/m7:null;
   const linha=reg?rc.regionais.find(x=>x.reg===reg):rc.rede;if(!linha)return null;
   const ateOntem=d>1?soma(A.slice(0,d-1))*k:0,metaMes=linha.metaMes||serie.meta[serie.meta.length-1];
-  const metaRestante=metaMes-(d>1?serie.meta[d-2]:0);
-  const proj=efic!=null?ateOntem+metaRestante*efic:null;
+  // hoje conta o que já vendeu (ou o ritmo, se ainda estiver abaixo); os dias seguintes, meta × eficiência
+  const hj=D.periodos.hoje.resumo,vendaHoje=(reg?hj?.regionais?.find(x=>x.reg===reg)?.venda:hj?.geral?.venda)||0;
+  const metaDepois=metaMes-serie.meta[Math.min(d,serie.meta.length)-1];
+  const proj=efic!=null?ateOntem+Math.max(vendaHoje,(md[d-1]||0)*efic)+metaDepois*efic:null;
   const diasRest=serie.meta.length-d+1;
   const porDia=diasRest>0?Math.max(0,metaMes-linha.venda)/diasRest:0;
   // pelo ritmo do mês passado (comparando o mesmo número de dias)
@@ -417,12 +419,14 @@ function alertas(){
   const mg=m.resumo?.geral?.margem;if(mg){const baixa=lj.filter(l=>l.venda>50000&&l.margem<mg-.06).sort((a,b)=>a.margem-b.margem);
     if(baixa.length)A.push({nivel:"medio",t:`Margem baixa em ${baixa.length} loja${baixa.length>1?"s":""} (rede: ${pct(mg)})`,d:baixa.slice(0,5).map(l=>`${esc(nomeLoja(l.cod))} ${pct(l.margem)}`).join(" · ")})}
   // 5) devoluções altas
-  const dv=(m.vendedores||[]).filter(v=>v.venda>15000&&-v.devol/v.venda>.15).sort((a,b)=>a.devol/a.venda-b.devol/b.venda);
-  if(dv.length)A.push({nivel:"medio",t:`${dv.length} vendedor${dv.length>1?"es":""} com devolução acima de 15% da venda`,d:dv.slice(0,5).map(v=>`${esc(v.nome)} (${esc(nomeLoja(v.loja))}) ${fmtPct(-v.devol/v.venda)}`).join(" · ")});
+  const dv=(m.vendedores||[]).filter(v=>v.venda>30000&&-v.devol/v.venda>.2).sort((a,b)=>a.devol/a.venda-b.devol/b.venda);
+  if(dv.length)A.push({nivel:"medio",t:`${dv.length} vendedor${dv.length>1?"es":""} com devolução acima de 20% da venda`,d:dv.slice(0,5).map(v=>`${esc(v.nome)} (${esc(nomeLoja(v.loja))}) ${fmtPct(-v.devol/v.venda)}`).join(" · ")});
   // 6) vendedores caindo em relação ao mês passado (ritmo por dia)
   if(d>=7){const ant={};for(const v of P.mesAnt.vendedores||[])ant[v.cod+"|"+v.loja]=v;const nAnt=Number(P.mesAnt.fim.slice(8));
-    const caindo=(m.vendedores||[]).map(v=>{const a=ant[v.cod+"|"+v.loja];if(!a||a.venda<40000)return null;const r=(v.venda/d)/(a.venda/nAnt);return r<.6?{...v,r}:null}).filter(Boolean).sort((a,b)=>a.r-b.r);
-    if(caindo.length)A.push({nivel:"medio",t:`${caindo.length} vendedor${caindo.length>1?"es":""} vendendo bem menos que no mês passado`,d:caindo.slice(0,6).map(v=>`${esc(v.nome)} <b style="color:var(--bad)">${fmtPct(v.r-1)}</b>`).join(" · ")+` <span class="sub">(venda por dia, este mês x ${P.mesAnt.label})</span>`})}
+    const nz=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim().toUpperCase();
+    const zv={};for(const v of D.zep?.periodos?.mes?.vendedores||[])zv[nz(v.nome)]=(zv[nz(v.nome)]||0)+v.venda;
+    const caindo=(m.vendedores||[]).map(v=>{const a=ant[v.cod+"|"+v.loja];if(!a||a.venda<40000)return null;const r=((v.venda+(zv[nz(v.nome)]||0))/d)/(a.venda/nAnt);return r<.6?{...v,r}:null}).filter(Boolean).sort((a,b)=>a.r-b.r);
+    if(caindo.length)A.push({nivel:"medio",t:`${caindo.length} vendedor${caindo.length>1?"es":""} vendendo bem menos que no mês passado`,d:caindo.slice(0,6).map(v=>`${esc(v.nome)} <b style="color:var(--bad)">${fmtPct(v.r-1)}</b>`).join(" · ")+` <span class="sub">(venda por dia no Universo + ZepSystem, este mês x ${P.mesAnt.label})</span>`})}
   // 7) ZepSystem
   const z=D.zep?.periodos?.mes;if(z&&z.pedidosTotal){if(z.taxaCancelamento>.3)A.push({nivel:"alto",t:`ZepSystem: <b>${fmtPct(z.taxaCancelamento)}</b> dos pedidos do mês foram cancelados`,d:`${num(z.pedidosCancelados)} cancelados (${mil(z.cancelado)}) de ${num(z.pedidosTotal)} pedidos. Vale entender o motivo: pagamento recusado, desistência ou erro de cadastro.`});
     if(z.aguardando>0)A.push({nivel:"medio",t:`ZepSystem: ${num(z.pedidosAguardando)} pedidos aguardando (${mil(z.aguardando)})`,d:`Ainda não contam como venda. Cobrar a finalização com os vendedores.`})}
