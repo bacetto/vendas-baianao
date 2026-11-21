@@ -661,7 +661,7 @@ const textoErros = (erros) => erros.map((e) => `- Trecho: "${e.linha.slice(0, 22
 function limpar(texto, erros) {
   let t = String(texto);
   for (const e of erros) t = t.split(e.linha).join("");
-  return t.replace(/\n{3,}/g, "\n\n").trim();
+  return t.split("\n").filter((l) => !/^\s*(\d+[.)]|[-•*]|\|[\s|:-]*)\s*$/.test(l)).join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 // ---------- "Pergunte ao painel" (IA) ----------
@@ -713,7 +713,7 @@ async function perguntar(q){
       j=await pede(`Sua resposta tem números que NÃO batem com os dados:\n${textoErros(erros)}\nReescreva a resposta INTEIRA para a pergunta "${q}", corrigindo esses pontos e usando somente números do JSON, cada um ligado à loja/regional/vendedor certo.`,[...HIST,{role:"user",content:q},{role:"assistant",content:resp}]);
       resp=j.resposta;erros=verificar(resp,ctx,idx)}
     if(erros.length)resp=limpar(resp,erros);
-    w.className="m a";w.innerHTML=md(resp)+`<span class="mod">IA · ${esc(j.modelo||"")} · dados de ${esc(ctx.dadosDe.slice(0,5))} · ${erros.length?`⚠️ ${erros.length} trecho(s) removido(s) por não bater com os dados`:"✔ números conferidos com os dados"}</span>`;
+    w.className="m a";w.innerHTML=md(resp)+`<span class="mod">IA · ${esc(j.modelo||"")} · dados de ${esc(ctx.dadosDe.slice(0,5))} · ✔ números conferidos com os dados${erros.length?` (${erros.length} trecho(s) sem base nos dados foram retirados)`:""}</span>`;
     HIST.push({role:"user",content:q},{role:"assistant",content:resp});
   }catch(e){w.className="m a";w.innerHTML=`Não consegui responder agora (${esc(e.message)}). Tente de novo em instantes.`}
   $("#msgs").scrollTop=1e9;

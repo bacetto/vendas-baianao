@@ -109,5 +109,5 @@ export const textoErros = (erros) => erros.map((e) => `- Trecho: "${e.linha.slic
 export function limpar(texto, erros) {
   let t = String(texto);
   for (const e of erros) t = t.split(e.linha).join("");
-  return t.replace(/\n{3,}/g, "\n\n").trim();
+  return t.split("\n").filter((l) => !/^\s*(\d+[.)]|[-•*]|\|[\s|:-]*)\s*$/.test(l)).join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }

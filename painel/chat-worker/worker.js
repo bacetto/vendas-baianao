@@ -10,6 +10,7 @@ Se a resposta não estiver nos dados, diga claramente que o painel não tem essa
 Responda em português do Brasil, direto e profissional: comece pela resposta, depois os números que sustentam, e quando fizer sentido uma sugestão prática.
 Use listas curtas quando ajudar. Pode usar **negrito** para números importantes. Tabela só se for pequena (até 6 linhas).
 Nunca crie números que não estão nos dados (nada de "R$ 30 mil/dia" ou "10% de desconto" inventados). Se precisar de uma conta simples (soma, diferença), mostre de onde veio e diga que é estimativa.
+Não proponha metas, objetivos ou previsões com números novos (ex.: "elevar o ticket para R$ 1,2 mil", "chegar a 70%"): descreva a ação e cite só números que já estão nos dados.
 Sugestões práticas devem citar quem faz (líder da regional, gerente da loja X) e se apoiar em um número dos dados.`;
 
 const cors = (origin) => ({
