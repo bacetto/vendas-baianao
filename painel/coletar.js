@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { agregarPainel, periodosPainel } = require("./agregar.cjs");
 const { coletarRawPainel } = require("./coleta-pagina.cjs");
+import { coletarZep } from "./zep.mjs";
 
 const BASE = "https://universobaianao.com.br";
 const { PORTAL_CPF, PORTAL_SENHA } = process.env;
@@ -84,9 +85,12 @@ try {
   if (Array.isArray(raw.metasDia) && !raw.metasDia.includes(null)) fs.writeFileSync(CACHE, JSON.stringify({ dia: P.hoje.inicio, metas: raw.metasDia }));
   const dados = agregarPainel(raw);
   dados.historicoHoras = await historicoHoras(dados);
+  // ZepSystem (outra plataforma de vendas): se falhar, o painel do Universo segue normal
+  try { const z = await coletarZep(browser, dados); if (z) dados.zep = z; } catch (e) { console.log("⚠️ ZepSystem não lido:", String(e.message).slice(0, 120)); }
   fs.writeFileSync("saida/dados.json", JSON.stringify(dados));
   const m = dados.periodos.mes, h = dados.periodos.hoje;
-  console.log(`✅ dados.json: ${(fs.statSync("saida/dados.json").size / 1024).toFixed(0)} KB | hoje R$ ${h.resumo?.geral.venda} | mês R$ ${m.resumo?.geral.venda} | ${m.vendedores.length} vendedores | ${m.produtos.length} produtos`);
+  // registro público: sem valores de venda
+  console.log(`✅ dados.json: ${(fs.statSync("saida/dados.json").size / 1024).toFixed(0)} KB | ${m.vendedores.length} vendedores | ${m.produtos.length} produtos${dados.zep ? " | ZepSystem ok" : ""}`);
 } catch (e) {
   await page.screenshot({ path: "saida/erro-painel.png", fullPage: true }).catch(() => {});
   throw e;

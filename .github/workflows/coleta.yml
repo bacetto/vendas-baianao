@@ -26,6 +26,8 @@ jobs:
           PORTAL_CPF: ${{ secrets.PORTAL_CPF }}
           PORTAL_SENHA: ${{ secrets.PORTAL_SENHA }}
           SENHA: ${{ secrets.PAINEL_SENHA }}
+          ZEP_EMAIL: ${{ secrets.ZEP_EMAIL }}
+          ZEP_SENHA: ${{ secrets.ZEP_SENHA }}
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
