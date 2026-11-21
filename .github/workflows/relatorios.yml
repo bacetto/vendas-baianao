@@ -66,7 +66,7 @@ jobs:
           # roda um comando mandando a saída pro arquivo; no registro público só status, sem números
           cat > "$RUNNER_TEMP/q.sh" <<'EOF'
           set -o pipefail
-          "$@" 2>&1 | tee -a "$LOG" | { grep --line-buffered -E '^(✅|⚠️|❌|▶|Já enviado|Fora de|Esperando|Falhou|Faltou|Error|  CÓDIGO|  No celular|  Conectar aparelho)' || true; } | sed -E 's/(Grupos:|Contatos conhecidos).*//' | cut -c1-160
+          "$@" 2>&1 | tee -a "$LOG" | { grep --line-buffered -E '^(✅|⚠️|❌|▶|Já enviado|Fora de|Esperando|Falhou|Faltou|Error|  CÓDIGO|  No celular|  Conectar aparelho)' || true; } | sed -u -E 's/(Grupos:|Contatos conhecidos).*//; s/^(.{160}).*/\1/'
           EOF
           echo "Q=bash $RUNNER_TEMP/q.sh" >> "$GITHUB_ENV"
 
