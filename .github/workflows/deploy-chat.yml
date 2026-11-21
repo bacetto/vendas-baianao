@@ -1,0 +1,48 @@
+name: Publicar chat IA
+# Publica o "Pergunte ao painel" no Cloudflare Workers (plano grátis).
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["painel/chat-worker/**", ".github/workflows/deploy-chat.yml"]
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: painel/chat-worker
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_AI_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Garantir subdomínio workers.dev
+        run: |
+          API="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain"
+          sub=$(curl -s "$API" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).result?.subdomain||"")}catch(e){console.log("")}})')
+          if [ -z "$sub" ]; then
+            curl -s -X PUT "$API" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" -d '{"subdomain":"baianao-painel"}' | head -c 300; echo
+          else echo "subdomínio: $sub"; fi
+      - name: Publicar
+        run: npx -y wrangler@4 deploy 2>&1 | grep -E "Uploaded|Deployed|https://|ERROR|✘" || true
+      - name: Segredos do worker
+        env:
+          SENHA: ${{ secrets.PAINEL_SENHA }}
+          CF_AI_TOKEN: ${{ secrets.CF_AI_TOKEN }}
+        run: |
+          printf '%s' "$SENHA" | sha256sum | cut -d' ' -f1 | tr -d '\n' | npx -y wrangler@4 secret put CHAVE >/dev/null && echo "CHAVE ok"
+          printf '%s' "$CLOUDFLARE_ACCOUNT_ID" | npx -y wrangler@4 secret put CF_ACCOUNT_ID >/dev/null && echo "CF_ACCOUNT_ID ok"
+          printf '%s' "$CF_AI_TOKEN" | npx -y wrangler@4 secret put CF_AI_TOKEN >/dev/null && echo "CF_AI_TOKEN ok"
+      - name: Testar
+        env:
+          SENHA: ${{ secrets.PAINEL_SENHA }}
+        run: |
+          sub=$(curl -s "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).result?.subdomain||""))')
+          URL="https://painel-baianao-chat.$sub.workers.dev"; echo "URL: $URL"
+          H=$(printf '%s' "$SENHA" | sha256sum | cut -d' ' -f1)
+          sleep 5
+          curl -s -X POST "$URL" -H "Origin: https://bacetto.github.io" -H "Content-Type: application/json" -H "X-Chave: $H" -d '{"pergunta":"Responda só: funcionando","contexto":{}}' | head -c 200; echo

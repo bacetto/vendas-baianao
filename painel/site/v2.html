@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow">
 <meta name="dados" content="https://raw.githubusercontent.com/bacetto/vendas-baianao/dados/dados.enc,https://raw.githubusercontent.com/bacetto/vendas-baianao/main/dados.enc">
+<meta name="chat" content="">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Painel de Gestão à Vista · Baianão (nova versão)</title>
 <style>
@@ -66,6 +67,16 @@ svg text{font:11px system-ui,sans-serif;fill:var(--mut)}
 .ialst{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px}.ialst ul{margin:6px 0 0;padding-left:18px}.ialst li{margin:4px 0}
 .ialst.ok{border-top:3px solid var(--ok)}.ialst.at{border-top:3px solid var(--warn)}.ialst.ac{border-top:3px solid var(--navy)}
 @media(max-width:900px){.iagrid{grid-template-columns:1fr}}
+#chatBtn{position:fixed;right:22px;bottom:22px;z-index:20;border:0;border-radius:30px;padding:13px 20px;font:inherit;font-weight:800;color:#fff;background:linear-gradient(135deg,#14246b,#4f46e5);box-shadow:0 8px 24px #14246b55;cursor:pointer}
+#chat{position:fixed;right:22px;bottom:84px;width:min(440px,calc(100vw - 30px));height:min(640px,calc(100vh - 120px));z-index:21;display:none;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 50px #12172b40;overflow:hidden}
+#chat.on{display:flex}#chat header{margin:0;padding:12px 16px;background:linear-gradient(135deg,#14246b,#4f46e5);color:#fff;display:flex;justify-content:space-between;align-items:center}
+#chat header b{font-size:15px}#chat header button{background:none;border:0;color:#fff;font-size:20px;cursor:pointer}
+#msgs{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:#f7f8fc}
+.m{max-width:88%;padding:9px 12px;border-radius:12px;line-height:1.45;font-size:14px;white-space:normal}.m ul{margin:4px 0;padding-left:18px}
+.m.u{align-self:flex-end;background:var(--navy);color:#fff;border-bottom-right-radius:4px}.m.a{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
+.m.a .mod{display:block;margin-top:6px;font-size:11px;color:var(--mut)}.m.p{color:var(--mut);font-style:italic}
+.sug{display:flex;flex-wrap:wrap;gap:6px}.sug button{border:1px solid #c9d2f5;background:#fff;color:var(--navy);border-radius:16px;padding:6px 10px;font:inherit;font-size:12.5px;cursor:pointer}
+#chatF{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}#chatF input{flex:1}#chatF button{border:0;border-radius:8px;background:var(--navy);color:#fff;font:inherit;font-weight:700;padding:0 14px;cursor:pointer}
 .al.alto{border-left-color:var(--bad)}.al.medio{border-left-color:var(--warn)}.al.bom{border-left-color:var(--ok)}.al .sub{margin-top:3px}
 @media(max-width:900px){.hero{grid-template-columns:1fr}.g4{grid-template-columns:repeat(2,1fr)}.big{font-size:40px}}
 </style>
@@ -81,6 +92,9 @@ svg text{font:11px system-ui,sans-serif;fill:var(--mut)}
 <div id="app"><div class="card">Carregando dados…</div></div>
 </div>
 <div id="tip"></div>
+<button id="chatBtn" style="display:none">✨ Pergunte ao painel</button>
+<div id="chat"><header><b>✨ Pergunte ao painel</b><button id="chatX" title="Fechar">×</button></header><div id="msgs"></div>
+<form id="chatF"><input id="chatI" placeholder="Ex.: quais lojas da R2 estão mais atrás no mês?" autocomplete="off"><button>Enviar</button></form></div>
 <script>
 const $=(s,e=document)=>e.querySelector(s);
 const brl=(v,d=0)=>(v<0?"-":"")+"R$ "+Math.abs(v||0).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -534,9 +548,62 @@ function secRede(){
   <div class="nota">A meta é a do Universo Baianão; a venda do ZepSystem entra somada como bônus de cada loja.</div></div>`;
 }
 
+
+// ---------- "Pergunte ao painel" (IA) ----------
+const CHAT_URL=(document.querySelector('meta[name="chat"]')||{}).content||"";
+const HIST=[];
+const fR=x=>{const v=Math.round(x||0),a=Math.abs(v),f=(n,d)=>n.toLocaleString("pt-BR",{maximumFractionDigits:d});return (v<0?"-":"")+(a>=1e6?`R$ ${f(a/1e6,2)} mi`:a>=1e3?`R$ ${f(a/1e3,1)} mil`:`R$ ${f(a,0)}`)};
+const fP=x=>`${(Math.round((x||0)*1000)/10).toLocaleString("pt-BR")}%`;
+function contextoChat(){
+  const P=D.periodos,g=r=>r?{venda:fR(r.venda),meta:fR(r.meta),pctMeta:fP(r.pct),lucro:fR(r.lucro),margem:fP(r.margem)}:null;
+  const lojas=k=>(P[k].resumo?.lojas||[]).filter(l=>l.venda||l.meta).map(l=>({loja:nomeLoja(l.cod),regional:regLoja(l.cod),venda:fR(l.venda),meta:fR(l.meta),pctMeta:l.meta?fP(l.pct):"sem meta",margem:fP(l.margem),pedidos:P[k].pedidosPorLoja?.[l.cod]||0}));
+  const vend=(k,n)=>(P[k].vendedores||[]).slice(0,n).map(v=>({nome:v.nome,loja:nomeLoja(v.loja),venda:fR(v.venda),pedidos:v.pedidos,devolucao:fR(v.devol)}));
+  const pr=projecao(),z=D.zep?.periodos,zp=x=>x?{vendido:fR(x.vendido),pedidos:x.pedidos,ticket:fR(x.ticket),aguardando:fR(x.aguardando),cancelado:fR(x.cancelado),taxaCancelamento:fP(x.taxaCancelamento),
+    vendedores:x.vendedores.slice(0,25).map(v=>({nome:v.nome,loja:v.loja?nomeLoja(v.loja):"não identificada",venda:fR(v.venda),pedidos:v.pedidos,cancelados:v.cancelados})),
+    lojas:x.lojas.map(l=>({loja:nomeLoja(l.cod),venda:fR(l.venda),pedidos:l.pedidos})),pagamentos:x.pagamentos.map(p=>({nome:p.nome,valor:fR(p.valor),pedidos:p.pedidos})),
+    produtos:x.produtos.slice(0,15).map(p=>({nome:p.nome,qtd:p.qtd,valor:fR(p.valor)}))}:null;
+  const loc=new Date(new Date(D.geradoEm).getTime()-3*3600e3);
+  return {dadosDe:`${String(loc.getUTCHours()).padStart(2,"0")}:${String(loc.getUTCMinutes()).padStart(2,"0")} de ${P.hoje.inicio.split("-").reverse().join("/")}`,
+    universo:{hoje:{geral:g(P.hoje.resumo?.geral),pedidos:P.hoje.pedidos,ticket:fR(P.hoje.ticket),regionais:(P.hoje.resumo?.regionais||[]).map(r=>({reg:r.reg,lider:r.lider,...g(r)})),lojas:lojas("hoje"),vendedores:vend("hoje",30)},
+      ontem:{geral:g(P.ontem.resumo?.geral),regionais:(P.ontem.resumo?.regionais||[]).map(r=>({reg:r.reg,lider:r.lider,...g(r)}))},
+      mes:{periodo:`${P.mes.label} até dia ${Number(P.mes.fim.slice(8))}`,geral:g(P.mes.resumo?.geral),pedidos:P.mes.pedidos,ticket:fR(P.mes.ticket),devolucoes:fR(P.mes.devolucoes),
+        projecao:pr?{fechamento:fR(pr.proj),pctMeta:fP(pr.pctProj),metaMes:fR(pr.metaMes),precisaPorDia:fR(pr.porDia),diasRestantes:pr.diasRest,eficiencia7dias:fP(pr.efic)}:null,
+        regionais:(D.regionaisComparativo?.regionais||[]).map(r=>{const p=projecao(r.reg);return {reg:r.reg,lider:r.lider,venda:fR(r.venda),metaAteHoje:fR(r.metaAteHoje),metaMes:fR(r.metaMes),mesPassadoMesmoPeriodo:fR(r.anteriorMesmoPeriodo),projecao:p?fR(p.proj):null,pctProjecao:p?fP(p.pctProj):null}}),
+        categorias:(P.mes.resumo?.categorias||[]).map(c=>({nome:c.nome,venda:fR(c.venda),pctMeta:c.meta?fP(c.venda/c.meta):"sem meta"})),
+        lojas:lojas("mes"),vendedores:vend("mes",40),
+        grupos:(P.mes.grupos||[]).slice(0,12).map(x=>({nome:x.nome,valor:fR(x.valor)})),marcas:(P.mes.marcas||[]).slice(0,12).map(x=>({nome:x.nome,valor:fR(x.valor)})),
+        servicos:P.mes.resumo?.geral?{garantia:fR(P.mes.resumo.geral.garantia),pacote:fR(P.mes.resumo.geral.pacote),sorteDobradaQtd:P.mes.resumo.geral.sorteQtd,sorteDobradaValor:fR(P.mes.resumo.geral.sorteValor)}:null},
+      mesPassado:{periodo:P.mesAnt.label,geral:g(P.mesAnt.resumo?.geral)},
+      leads:{hoje:D.leads?.hoje?{contatos:D.leads.hoje.contatos,leads:D.leads.hoje.leads,convertidos:D.leads.hoje.leadsConvertidos,conversao:fP((D.leads.hoje.taxaConversao||0)/100),vendido:fR(D.leads.hoje.valorVendido)}:null,
+        mes:D.leads?.mes?{contatos:D.leads.mes.contatos,convertidos:D.leads.mes.leadsConvertidos,conversao:fP((D.leads.mes.taxaConversao||0)/100),vendido:fR(D.leads.mes.valorVendido),
+          porLoja:(D.leads.mes.porLoja||[]).map(l=>({loja:l.nome,contatos:l.contatos,convertidos:l.convertidos,taxa:l.taxa}))}:null}},
+    zepSystem:z?{hoje:zp(z.hoje),mes:zp(z.mes),inicio:D.zep.inicioPlataforma}:null,
+    alertasDoPainel:alertas().map(a=>a.t.replace(/<[^>]+>/g,""))};
+}
+const md=t=>esc(t).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/^#{1,4}\s*(.+)$/gm,"<b>$1</b>").replace(/(^|\n)\s*[-•*]\s+(.+)/g,"$1<li>$2</li>").replace(/(<li>.*<\/li>)(?!\s*<li>)/gs,"<ul>$1</ul>").replace(/\n/g,"<br>").replace(/<\/li><br>/g,"</li>").replace(/<ul><br>/g,"<ul>");
+const addMsg=(c,h)=>{const d=document.createElement("div");d.className="m "+c;d.innerHTML=h;$("#msgs").appendChild(d);$("#msgs").scrollTop=1e9;return d};
+async function chave(){const s=localStorage.getItem("painel-baianao-s")||"";const h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,"0")).join("")}
+async function perguntar(q){
+  q=q.trim();if(!q)return;$(".sug")?.remove();addMsg("u",esc(q));const w=addMsg("a p","Analisando os números…");
+  try{const r=await fetch(CHAT_URL,{method:"POST",headers:{"Content-Type":"application/json","X-Chave":await chave()},body:JSON.stringify({pergunta:q,contexto:contextoChat(),historico:HIST})});
+    const j=await r.json();if(!r.ok||!j.resposta)throw new Error(j.erro||"erro");
+    w.className="m a";w.innerHTML=md(j.resposta)+`<span class="mod">IA · ${esc(j.modelo||"")} · dados de ${esc(contextoChat().dadosDe.slice(0,5))}</span>`;
+    HIST.push({role:"user",content:q},{role:"assistant",content:j.resposta});
+  }catch(e){w.className="m a";w.innerHTML=`Não consegui responder agora (${esc(e.message)}). Tente de novo em instantes.`}
+  $("#msgs").scrollTop=1e9;
+}
+function ligaChat(){
+  if(!CHAT_URL||$("#chatBtn").dataset.ok)return;$("#chatBtn").dataset.ok=1;$("#chatBtn").style.display="";
+  const SUG=["Como está o dia até agora?","Vamos bater a meta do mês?","Quais lojas precisam de atenção?","Quem são os melhores vendedores do mês?","Compare as regionais","Como está o ZepSystem?"];
+  $("#chatBtn").onclick=()=>{$("#chat").classList.toggle("on");if(!$("#msgs").children.length){addMsg("a","Olá! Pergunte o que quiser sobre as vendas: lojas, regionais, vendedores, metas, produtos, leads ou ZepSystem. Respondo com os números de agora.");
+    const s=document.createElement("div");s.className="sug";s.innerHTML=SUG.map(x=>`<button>${esc(x)}</button>`).join("");s.onclick=e=>{if(e.target.tagName==="BUTTON")perguntar(e.target.textContent)};$("#msgs").appendChild(s)}$("#chatI").focus()};
+  $("#chatX").onclick=()=>$("#chat").classList.remove("on");
+  $("#chatF").onsubmit=e=>{e.preventDefault();const q=$("#chatI").value;$("#chatI").value="";perguntar(q)};
+}
+
 // ---------- roteador ----------
 function render(){
-  if(!D)return;
+  if(!D)return;ligaChat();
   $("#secs").innerHTML=SECS.map(([k,t])=>`<button data-s="${k}" class="${S.sec===k?"on":""}">${t}</button>`).join("");
   $("#secs").onclick=e=>{const s=e.target.dataset.s;if(s){S.sec=s;if(s!=="uni"&&S.per==="regionais")S.per="mes";salva2();render()}};
   if(S.sec==="uni"){renderUni();$("#tabsP").style.display="";return}
