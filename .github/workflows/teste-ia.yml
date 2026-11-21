@@ -1,0 +1,18 @@
+name: Teste IA
+on: workflow_dispatch
+permissions:
+  models: read
+  contents: read
+jobs:
+  t:
+    runs-on: ubuntu-24.04
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for m in openai/gpt-4.1 openai/gpt-4o-mini meta/Llama-3.3-70B-Instruct; do
+            code=$(curl -s -o r.json -w "%{http_code}" https://models.github.ai/inference/chat/completions \
+              -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" \
+              -d "{\"model\":\"$m\",\"messages\":[{\"role\":\"user\",\"content\":\"Responda só: ok\"}],\"max_tokens\":5}")
+            echo "$m -> $code $(head -c 160 r.json | tr -d '\n')"
+          done
