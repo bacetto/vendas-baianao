@@ -49,4 +49,22 @@ async function coletarRawPainel(P) {
     leads: { hoje: lH, mes: lM },
   };
 }
-if (typeof module !== "undefined") module.exports = { coletarRawPainel };
+// Leitura LEVE (a cada ~2 min): só o que muda durante o dia (resumo de hoje e do mês, linhas de hoje, leads de hoje)
+async function coletarRawLeve(P) {
+  let req;
+  self.webpackChunk_N_E.push([[Symbol()], {}, (r) => { req = r; }]);
+  let api = null;
+  try { if (req(64665)?.x1?.get) api = req(64665).x1; } catch (e) {}
+  if (!api) for (const m of Object.values(req.c || {})) { const x = m?.exports?.x1; if (x?.get && x?.post) { api = x; break; } }
+  if (!api) throw new Error("cliente de API do portal não encontrado");
+  const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+  const get = async (u) => { for (let t = 0; ; t++) { try { return await api.get(u); } catch (e) { if (t >= 3) throw e; await espera(3000 * (t + 1)); } } };
+  const q = (o) => new URLSearchParams(o).toString();
+  const resumo = (x) => get(`/vendas-lojas/resumo?${q({ dataInicio: x.inicio, dataFim: x.fim })}`);
+  const [rH, rM] = await Promise.all([resumo(P.hoje), resumo(P.mes)]);
+  const linhas = await get(`/analise-dinamica-produto/dados?${q({ dataInicio: P.hoje.inicio, dataFim: P.hoje.fim })}`).then((r) => r.linhas || []);
+  const lH = await get(`/vendas-leads?${q({ dataInicio: P.hoje.inicio, dataFim: P.hoje.fim, janelaDias: 15 })}`).catch(() => null);
+  const enxuga = (ls) => ls.map((l) => ({ grupo: l.grupo, subgrupo: l.subgrupo, produto: l.produto, loja: l.loja, data: l.data, vendedor: l.vendedor, pedido: l.pedido, tipo: l.tipo, marca: l.marca, quantidade: l.quantidade, valorTotal: l.valorTotal }));
+  return { agora: new Date().toISOString(), resumoHoje: rH, resumoMes: rM, linhasHoje: enxuga(linhas), leadsHoje: lH };
+}
+if (typeof module !== "undefined") module.exports = { coletarRawPainel, coletarRawLeve };

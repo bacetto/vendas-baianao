@@ -4,7 +4,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { agregarPainel, periodosPainel } = require("./agregar.cjs");
-const { coletarRawPainel } = require("./coleta-pagina.cjs");
+const { coletarRawPainel, coletarRawLeve } = require("./coleta-pagina.cjs");
 import { coletarZep } from "./zep.mjs";
 import { analiseIA } from "./ia.mjs";
 
@@ -14,7 +14,10 @@ if (!PORTAL_CPF || !PORTAL_SENHA) throw new Error("Faltam os secrets PORTAL_CPF 
 fs.mkdirSync("saida", { recursive: true });
 
 const browser = await chromium.launch({ channel: process.env.CHROME_CANAL || "chrome" });
-const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 }, locale: "pt-BR", timezoneId: "America/Bahia" });
+// reaproveita a sessão do portal entre as leituras (não precisa logar a cada 2 min)
+const ESTADO = "saida/sessao-portal.json";
+const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 }, locale: "pt-BR", timezoneId: "America/Bahia",
+  ...(fs.existsSync(ESTADO) ? { storageState: ESTADO } : {}) });
 const page = await ctx.newPage();
 page.setDefaultTimeout(60000);
 
@@ -64,7 +67,7 @@ async function historicoHoras(dados) {
     const loc = new Date(Date.now() - 3 * 3600e3), min = loc.getUTCHours() * 60 + loc.getUTCMinutes();
     const ponto = [min, g.venda, ...["R1", "R2", "R3", "R4"].map((r) => h.resumo.regionais.find((x) => x.reg === r)?.venda || 0)];
     const lista = (hist[h.inicio] ||= []);
-    if (!lista.length || lista[lista.length - 1][0] !== min) lista.push(ponto);
+    if (!lista.length || min - lista[lista.length - 1][0] >= 4 || min < lista[lista.length - 1][0]) lista.push(ponto); // um ponto a cada ~5 min basta pro gráfico
   }
   const corte = new Date(Date.now() - 62 * 864e5).toISOString().slice(0, 10);
   for (const dia of Object.keys(hist)) if (dia < corte) delete hist[dia];
@@ -73,8 +76,14 @@ async function historicoHoras(dados) {
 }
 
 try {
-  await login();
-  await page.goto(`${BASE}/portal/colaborador/bi/vendas/vendas-lojas`, { waitUntil: "domcontentloaded" });
+  // tenta com a sessão guardada; se o portal pedir login, entra de novo
+  let logado = false;
+  if (fs.existsSync(ESTADO)) {
+    await page.goto(`${BASE}/portal/colaborador/bi/vendas/vendas-lojas`, { waitUntil: "domcontentloaded" }).catch(() => {});
+    await page.waitForTimeout(2500);
+    logado = !/\/login/.test(page.url());
+  }
+  if (!logado) { await login(); await page.goto(`${BASE}/portal/colaborador/bi/vendas/vendas-lojas`, { waitUntil: "domcontentloaded" }); }
   // só espera o portal carregar o cliente de API; a tela pode demorar e não é usada
   await page.waitForFunction(() => !!self.webpackChunk_N_E, null, { timeout: 90000 });
   await page.getByText(/^Total Geral$/i).first().waitFor({ timeout: 30000 }).catch(() => {});
@@ -82,18 +91,38 @@ try {
   // meta de cada dia: lê do portal uma vez por dia e guarda
   const CACHE = "saida/metas-dia-v2.json";
   try { const c = JSON.parse(fs.readFileSync(CACHE, "utf8")); if (c.dia === P.hoje.inicio && !c.metas.includes(null)) P.metasDia = c.metas; } catch (e) {}
-  const raw = await page.evaluate(coletarRawPainel, P);
-  if (Array.isArray(raw.metasDia) && !raw.metasDia.includes(null)) fs.writeFileSync(CACHE, JSON.stringify({ dia: P.hoje.inicio, metas: raw.metasDia }));
+  // leitura completa a cada ~10 min (ou se a base for de outro dia); no meio, só o que muda durante o dia
+  const RAW = "saida/raw.json";
+  let base = null;
+  try { base = JSON.parse(fs.readFileSync(RAW, "utf8")); } catch (e) {}
+  const leve = process.env.LEVE === "1" && base && base.periodos?.hoje?.inicio === P.hoje.inicio;
+  let raw;
+  if (leve) {
+    const l = await page.evaluate(coletarRawLeve, P);
+    raw = base;
+    raw.agora = l.agora;
+    raw.resumo.hoje = l.resumoHoje; raw.resumo.mes = l.resumoMes;
+    raw.dados.atual = raw.dados.atual.filter((x) => !String(x.data).startsWith(P.hoje.inicio)).concat(l.linhasHoje);
+    if (l.leadsHoje) raw.leads.hoje = l.leadsHoje;
+  } else {
+    raw = await page.evaluate(coletarRawPainel, P);
+    if (Array.isArray(raw.metasDia) && !raw.metasDia.includes(null)) fs.writeFileSync(CACHE, JSON.stringify({ dia: P.hoje.inicio, metas: raw.metasDia }));
+  }
+  fs.writeFileSync(RAW, JSON.stringify(raw));
+  await ctx.storageState({ path: ESTADO }).catch(() => {});
   const dados = agregarPainel(raw);
   dados.historicoHoras = await historicoHoras(dados);
   // ZepSystem (outra plataforma de vendas): se falhar, o painel do Universo segue normal
-  try { const z = await coletarZep(browser, dados); if (z) dados.zep = z; } catch (e) { console.log("⚠️ ZepSystem não lido:", String(e.message).slice(0, 120)); }
+  // ZepSystem: nas leituras completas; nas leves, reaproveita a última
+  const ZULT = "saida/zep-ult.json";
+  if (!leve) { try { const z = await coletarZep(browser, dados); if (z) { dados.zep = z; fs.writeFileSync(ZULT, JSON.stringify(z)); } } catch (e) { console.log("⚠️ ZepSystem não lido:", String(e.message).slice(0, 120)); } }
+  if (!dados.zep) { try { const z = JSON.parse(fs.readFileSync(ZULT, "utf8")); if (z?.periodos?.hoje?.inicio === P.hoje.inicio) dados.zep = z; } catch (e) {} }
   // analista de IA (GitHub Models, grátis): a cada 30 min; se falhar, o painel usa o resumo automático
   try { const ia = await analiseIA(dados); if (ia) dados.ia = ia; } catch (e) { console.log("⚠️ IA:", String(e.message).slice(0, 120)); }
   fs.writeFileSync("saida/dados.json", JSON.stringify(dados));
   const m = dados.periodos.mes, h = dados.periodos.hoje;
   // registro público: sem valores de venda
-  console.log(`✅ dados.json: ${(fs.statSync("saida/dados.json").size / 1024).toFixed(0)} KB | ${m.vendedores.length} vendedores | ${m.produtos.length} produtos${dados.zep ? " | ZepSystem ok" : ""}`);
+  console.log(`✅ dados.json (${leve ? "leve" : "completa"}): ${(fs.statSync("saida/dados.json").size / 1024).toFixed(0)} KB | ${m.vendedores.length} vendedores | ${m.produtos.length} produtos${dados.zep ? " | ZepSystem ok" : ""}`);
 } catch (e) {
   await page.screenshot({ path: "saida/erro-painel.png", fullPage: true }).catch(() => {});
   throw e;
