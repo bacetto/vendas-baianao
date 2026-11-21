@@ -12,6 +12,7 @@ concurrency:
 permissions:
   contents: write
   actions: write
+  models: read
 jobs:
   coletar:
     runs-on: ubuntu-24.04

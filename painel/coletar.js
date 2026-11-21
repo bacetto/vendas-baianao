@@ -6,6 +6,7 @@ const require = createRequire(import.meta.url);
 const { agregarPainel, periodosPainel } = require("./agregar.cjs");
 const { coletarRawPainel } = require("./coleta-pagina.cjs");
 import { coletarZep } from "./zep.mjs";
+import { analiseIA } from "./ia.mjs";
 
 const BASE = "https://universobaianao.com.br";
 const { PORTAL_CPF, PORTAL_SENHA } = process.env;
@@ -87,6 +88,8 @@ try {
   dados.historicoHoras = await historicoHoras(dados);
   // ZepSystem (outra plataforma de vendas): se falhar, o painel do Universo segue normal
   try { const z = await coletarZep(browser, dados); if (z) dados.zep = z; } catch (e) { console.log("⚠️ ZepSystem não lido:", String(e.message).slice(0, 120)); }
+  // analista de IA (GitHub Models, grátis): a cada 30 min; se falhar, o painel usa o resumo automático
+  try { const ia = await analiseIA(dados); if (ia) dados.ia = ia; } catch (e) { console.log("⚠️ IA:", String(e.message).slice(0, 120)); }
   fs.writeFileSync("saida/dados.json", JSON.stringify(dados));
   const m = dados.periodos.mes, h = dados.periodos.hoje;
   // registro público: sem valores de venda
