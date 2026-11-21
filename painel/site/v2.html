@@ -116,7 +116,7 @@ async function carrega(){
   try{const r=await fetch("dados.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;D=await r.json();render();return}catch(e){}
   try{let enc=null;
     // versão mais nova sem esperar o cache de 5 min: pega o commit atual do ramo "dados" e baixa por ele
-    try{const c=await fetch("https://api.github.com/repos/bacetto/vendas-baianao/commits/dados",{cache:"no-store",headers:{Accept:"application/vnd.github+json"}});
+    try{const c=await fetch("https://api.github.com/repos/bacetto/vendas-baianao/commits/dados",{cache:"no-cache",headers:{Accept:"application/vnd.github+json"}});
       if(c.ok){const sha=(await c.json()).sha;if(sha&&sha===window.__sha&&D)return;const r=await fetch(`https://raw.githubusercontent.com/bacetto/vendas-baianao/${sha}/dados.enc`);if(r.ok){enc=await r.json();window.__sha=sha}}}catch(x){}
     for(const u of enc?[]:[...DADOS_URL.split(",").map(x=>x.trim()).filter(Boolean),"dados.enc"]){if(!u)continue;try{const r=await fetch(u+(u.includes("?")?"&":"?")+"t="+Date.now(),{cache:"no-store"});if(r.ok){enc=await r.json();break}}catch(x){}}if(!enc)throw 0;let s="";try{s=localStorage.getItem("painel-baianao-s")||""}catch(x){}
     if(s){try{D=await abre(enc,s);render();return}catch(x){}}
@@ -548,7 +548,7 @@ function render(){
   $("#app").innerHTML=S.sec==="geral"?secGeral():S.sec==="zep"?secZep():secRede();
 }
 
-carrega();setInterval(carrega,90*1000);setInterval(()=>D&&cabecalho(),60*1000);
+carrega();setInterval(carrega,20*1000); // sem dado novo o GitHub responde 304 (não conta no limite)setInterval(()=>D&&cabecalho(),60*1000);
 </script>
 </body>
 </html>

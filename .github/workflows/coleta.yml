@@ -61,7 +61,7 @@ jobs:
           while :; do
             T0=$(date +%s); h=$(hora)
             if [ "$h" -ge 7 ] && [ "$h" -lt 22 ]; then
-              N=$((N+1)); if [ $((N % 5)) -eq 1 ]; then export LEVE=0; else export LEVE=1; fi   # completa a cada ~10 min
+              N=$((N+1)); if [ $((N % 10)) -eq 1 ]; then export LEVE=0; else export LEVE=1; fi   # completa a cada ~10 min
               for t in 1 2 3; do
                 rm -f saida/dados.json
                 [ "$t" -gt 1 ] && export LEVE=0
@@ -72,5 +72,5 @@ jobs:
             if [ $(( $(date +%s) - INICIO )) -gt 19500 ]; then
               gh workflow run coleta.yml --ref main -R "$REPO"; exit 0
             fi
-            DORME=$(( 120 - ($(date +%s) - T0) )); [ $DORME -gt 0 ] && sleep $DORME   # ciclo de ~2 min
+            DORME=$(( 60 - ($(date +%s) - T0) )); [ $DORME -gt 0 ] && sleep $DORME   # ciclo de ~1 min (leitura leve: 4 consultas ao portal)
           done
