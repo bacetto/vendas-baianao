@@ -580,7 +580,11 @@ function contextoChat(){
     zepSystem:z?{hoje:zp(z.hoje),mes:zp(z.mes),inicio:D.zep.inicioPlataforma}:null,
     alertasDoPainel:alertas().map(a=>a.t.replace(/<[^>]+>/g,""))};
 }
-const md=t=>esc(t).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/^#{1,4}\s*(.+)$/gm,"<b>$1</b>").replace(/(^|\n)\s*[-•*]\s+(.+)/g,"$1<li>$2</li>").replace(/(<li>.*<\/li>)(?!\s*<li>)/gs,"<ul>$1</ul>").replace(/\n/g,"<br>").replace(/<\/li><br>/g,"</li>").replace(/<ul><br>/g,"<ul>");
+const tabMd=t=>t.replace(/((?:^\|.*\|\s*$\n?){2,})/gm,b=>{const L=b.trim().split("\n").filter(l=>!/^\|\s*:?-{2,}/.test(l));const cel=l=>l.replace(/^\||\|$/g,"").split("|").map(c=>c.trim());
+  return "\n@@T"+btoa(unescape(encodeURIComponent(JSON.stringify(L.map(cel)))))+"@@\n"});
+const md0=t=>esc(t).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/^#{1,4}\s*(.+)$/gm,"<b>$1</b>").replace(/(^|\n)\s*[-•*]\s+(.+)/g,"$1<li>$2</li>").replace(/(<li>.*<\/li>)(?!\s*<li>)/gs,"<ul>$1</ul>").replace(/\n/g,"<br>").replace(/<\/li><br>/g,"</li>").replace(/<ul><br>/g,"<ul>");
+const md=t=>md0(tabMd(t)).replace(/@@T([A-Za-z0-9+/=]+)@@/g,(_,x)=>{const R=JSON.parse(decodeURIComponent(escape(atob(x))));
+  return `<div class="tw" style="max-height:none;margin:6px 0"><table><thead><tr>${R[0].map(c=>`<th class="l">${md0(c)}</th>`).join("")}</tr></thead><tbody>${R.slice(1).map(r=>`<tr>${r.map(c=>`<td class="l" style="white-space:normal">${md0(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`}).replace(/<br>\s*<div class="tw"/g,'<div class="tw"').replace(/(<\/div>)<br>/g,"$1");
 const addMsg=(c,h)=>{const d=document.createElement("div");d.className="m "+c;d.innerHTML=h;$("#msgs").appendChild(d);$("#msgs").scrollTop=1e9;return d};
 async function chave(){const s=localStorage.getItem("painel-baianao-s")||"";const h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,"0")).join("")}
 async function perguntar(q){
