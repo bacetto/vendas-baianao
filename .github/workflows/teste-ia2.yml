@@ -10,10 +10,6 @@ jobs:
       - env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          B='{"model":"MODEL","messages":[{"role":"user","content":"Diga apenas a palavra banana"}],"max_tokens":10}'
-          for url in https://models.github.ai/inference/chat/completions https://models.inference.ai.azure.com/chat/completions; do
-            for m in openai/gpt-4.1 gpt-4.1 gpt-4o-mini; do
-              code=$(curl -s -o r.json -w "%{http_code}" "$url" -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" -d "${B/MODEL/$m}")
-              echo "RES $url $m -> $code $(head -c 220 r.json | tr -d '\n')"
-            done
-          done
+          curl -s -i https://models.github.ai/inference/chat/completions -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" \
+            -d '{"model":"openai/gpt-4.1","messages":[{"role":"user","content":"Diga apenas a palavra banana"}],"max_tokens":10}' | head -c 1500 | sed 's/^/RES /'
+          echo; curl -s https://models.github.ai/catalog/models -H "Authorization: Bearer $GH_TOKEN" | head -c 300 | sed 's/^/CAT /'
