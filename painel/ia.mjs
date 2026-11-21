@@ -2,6 +2,7 @@
 // (plano grátis; a Cloudflare não usa os dados pra treinar) e guarda a análise em dados.ia.
 // Precisa dos secrets CF_ACCOUNT_ID e CF_AI_TOKEN; sem eles, o painel usa o resumo automático.
 import fs from "node:fs";
+import { verificar, indice, textoErros, limpar } from "./verificador.js";
 
 const CACHE = "saida/ia.json";
 const MODELOS = ["@cf/openai/gpt-oss-120b", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"];
@@ -79,25 +80,43 @@ export async function analiseIA(D) {
   try { cache = JSON.parse(fs.readFileSync(CACHE, "utf8")); } catch (e) {}
   // a cada 30 min (o limite grátis é por dia); reaproveita a última análise no meio-tempo
   if (cache?.geradoEm && Date.now() - new Date(cache.geradoEm).getTime() < 29 * 60e3 && cache.dia === D.periodos.hoje.inicio) return cache;
-  const ctx = JSON.stringify(contexto(D));
+  const obj = contexto(D), ctx = JSON.stringify(obj), idx = indice(obj);
+  const chamar = async (modelo, mensagens) => {
+    const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/v1/chat/completions`, {
+      method: "POST", headers: { Authorization: `Bearer ${CF_AI_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: modelo, temperature: 0.2, max_tokens: 6000, reasoning_effort: "low", messages: mensagens }),
+      signal: AbortSignal.timeout(120000),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const j = await r.json(), msg = j.choices?.[0]?.message || {};
+    const txt = String(msg.content || msg.reasoning_content || "");
+    if (!txt.includes("{")) throw new Error(`sem JSON na resposta (${j.choices?.[0]?.finish_reason || "?"})`);
+    return { txt, out: JSON.parse(txt.slice(txt.indexOf("{"), txt.lastIndexOf("}") + 1)) };
+  };
+  const textoDe = (o) => [o.manchete, o.resumo, ...(o.destaques || []), ...(o.atencao || []), ...(o.acoes || [])].filter(Boolean).join("\n");
   for (const modelo of MODELOS) {
     try {
-      const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/v1/chat/completions`, {
-        method: "POST", headers: { Authorization: `Bearer ${CF_AI_TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: modelo, temperature: 0.2, max_tokens: 6000, reasoning_effort: "low",
-          messages: [{ role: "system", content: INSTRUCOES }, { role: "user", content: ctx }] }),
-        signal: AbortSignal.timeout(120000),
-      });
-      if (!r.ok) { console.log(`⚠️ IA ${modelo}: HTTP ${r.status}`); continue; }
-      const j = await r.json();
-      const msg = j.choices?.[0]?.message || {};
-      const txt = String(msg.content || msg.reasoning_content || "");
-      if (!txt.includes("{")) throw new Error(`sem JSON na resposta (${j.choices?.[0]?.finish_reason || "?"})`);
-      const out = JSON.parse(txt.slice(txt.indexOf("{"), txt.lastIndexOf("}") + 1));
+      const msgs = [{ role: "system", content: INSTRUCOES }, { role: "user", content: ctx }];
+      let { txt, out } = await chamar(modelo, msgs);
       if (!out.resumo) throw new Error("resposta sem resumo");
-      const res = { geradoEm: new Date().toISOString(), dia: D.periodos.hoje.inicio, modelo: modelo.split("/").pop(), ...out };
+      // conferência: cada número tem que bater com os dados e com a loja/regional/vendedor citado
+      let erros = verificar(textoDe(out), obj, idx);
+      if (erros.length) {
+        try {
+          const c = await chamar(modelo, [...msgs, { role: "assistant", content: txt }, { role: "user", content: `Estes números NÃO batem com os dados:\n${textoErros(erros)}\nDevolva o JSON inteiro corrigido, só com números do JSON, cada um ligado ao item certo.` }]);
+          if (c.out.resumo) { out = c.out; erros = verificar(textoDe(out), obj, idx); }
+        } catch (e) {}
+      }
+      if (erros.length) {
+        // última defesa: tira os trechos que ainda não batem
+        const ok = (t) => !verificar(t, obj, idx).length;
+        out.manchete = ok(out.manchete || "") ? out.manchete : "";
+        out.resumo = limpar(out.resumo, verificar(out.resumo, obj, idx));
+        for (const k of ["destaques", "atencao", "acoes"]) out[k] = (out[k] || []).filter(ok);
+      }
+      const res = { geradoEm: new Date().toISOString(), dia: D.periodos.hoje.inicio, modelo: modelo.split("/").pop(), conferido: true, removidos: erros.length, ...out };
       fs.writeFileSync(CACHE, JSON.stringify(res));
-      console.log(`✅ Análise da IA atualizada (${res.modelo})`);
+      console.log(`✅ Análise da IA atualizada (${res.modelo}${erros.length ? `, ${erros.length} trecho(s) removido(s)` : ", números conferidos"})`);
       return res;
     } catch (e) { console.log(`⚠️ IA ${modelo}: ${String(e.message).slice(0, 100)}`); }
   }

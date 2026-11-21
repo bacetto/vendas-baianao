@@ -485,7 +485,7 @@ function cardIA(){
   if(!ia||ia.dia!==D.periodos.hoje.inicio||!ia.resumo)return `<div class="card ia"><div class="iat">✨ Resumo do dia <span class="sub">· automático</span></div><p>${resumoTexto()}</p></div>`;
   const g=new Date(new Date(ia.geradoEm).getTime()-3*3600e3),hh=String(g.getUTCHours()).padStart(2,"0")+":"+String(g.getUTCMinutes()).padStart(2,"0");
   const lst=(t,a,c)=>a&&a.length?`<div class="ialst ${c}"><b>${t}</b><ul>${a.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:"";
-  return `<div class="card ia"><div class="iat">✨ Análise da IA <span class="sub">· ${esc((ia.modelo||"").split("/").pop().toUpperCase())} · atualizada às ${hh} · a cada 30 min</span></div>
+  return `<div class="card ia"><div class="iat">✨ Análise da IA <span class="sub">· ${esc((ia.modelo||"").split("/").pop().toUpperCase())} · atualizada às ${hh} · a cada 30 min${ia.conferido?" · ✔ números conferidos com os dados":""}</span></div>
   ${ia.manchete?`<div class="iam">${esc(ia.manchete)}</div>`:""}<p>${esc(ia.resumo)}</p>
   <div class="iagrid">${lst("👍 Destaques",ia.destaques,"ok")}${lst("⚠️ Atenção",ia.atencao,"at")}${lst("🎯 O que fazer",ia.acoes,"ac")}</div></div>`;
 }
@@ -549,6 +549,101 @@ function secRede(){
 }
 
 
+// ---------- verificador de números (mesmo código de painel/verificador.js) ----------
+// Verificador de respostas da IA: confere cada número do texto contra os dados enviados.
+// Erro = número que não existe nos dados, ou que existe mas é de outra loja/regional/vendedor
+// diferente do citado na mesma frase. Usado pelo chat (Worker) e pela análise automática.
+const normV = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+
+// números com unidade: R$ (com mil/mi) e %
+function numeros(txt) {
+  const t = String(txt).replace(/ /g, " "), out = [];
+  for (const m of t.matchAll(/R\$\s*(-?\s*[\d.]+(?:,\d+)?)\s*(milh(?:[õo]es|[ãa]o)|mil|mi)?\b/gi)) {
+    let v = parseFloat(m[1].replace(/\s/g, "").replace(/\./g, "").replace(",", "."));
+    const u = (m[2] || "").toLowerCase();
+    if (u === "mil") v *= 1e3; else if (u.startsWith("mi")) v *= 1e6;
+    if (!isNaN(v)) out.push({ t: "R", v, raw: m[0].trim() });
+  }
+  for (const m of t.matchAll(/(-?\d+(?:[.,]\d+)?)\s*%/g)) {
+    const v = parseFloat(m[1].replace(",", "."));
+    if (!isNaN(v)) out.push({ t: "P", v, raw: m[0].trim() });
+  }
+  return out;
+}
+const igual = (a, b) => a.t === b.t && (a.t === "P" ? Math.abs(a.v - b.v) <= 0.6 : Math.abs(a.v - b.v) <= Math.max(600, Math.abs(b.v) * 0.025));
+
+// índice: entidade -> valores; entidade "REDE" = números gerais (sem loja/regional/vendedor)
+function indice(ctx) {
+  const ents = new Map();
+  const ent = (id, nome, aliases, global = false) => { if (!ents.has(id)) ents.set(id, { id, nome, aliases, global, vals: [] }); return ents.get(id); };
+  ent("REDE", "a rede inteira", {}, true);
+  const GLOBAIS = ["categorias", "categoriasMes", "grupos", "marcas", "pagamentos", "produtos", "servicos", "servicosMes"];
+  const lojaDe = (s) => {
+    const n = normV(s), m = n.match(/^(\d{1,3})\s*[·.\-]?\s*(.*)$/), num = m ? String(Number(m[1])) : "", nome = (m ? m[2] : n).trim();
+    return ent("LOJA:" + (num || nome), s, { num, nome });
+  };
+  const walk = (o, dono, chave = "") => {
+    if (Array.isArray(o)) return o.forEach((x) => walk(x, dono, chave));
+    if (!o || typeof o !== "object") return;
+    let e = dono;
+    if (GLOBAIS.includes(chave)) e = ent("GLOBAL:" + chave + ":" + normV(o.nome || chave), `${o.nome || chave} (número da rede inteira)`, {}, true);
+    else if (typeof o.loja === "string" && !o.nome) e = lojaDe(o.loja);
+    else if (typeof o.nome === "string" && (o.venda !== undefined || o.pedidos !== undefined) && o.nome.split(" ").length >= 2 && !/^R\d$/.test(o.nome)) {
+      const w = normV(o.nome).split(" ").filter((x) => x.length > 2);
+      e = ent("VEND:" + normV(o.nome), o.nome, { vend: [w.slice(0, 2).join(" "), w.length > 2 ? `${w[0]} ${w[w.length - 1]}` : ""].filter(Boolean) });
+    } else if (typeof o.reg === "string" && /^R\d$/.test(o.reg)) e = ent("REG:" + o.reg, o.reg, { reg: o.reg, lider: normV(o.lider || "") });
+    for (const [k, v] of Object.entries(o)) {
+      if (typeof v === "string") e.vals.push(...numeros(v));
+      else if (v && typeof v === "object") walk(v, e, k);
+    }
+  };
+  walk(ctx, ents.get("REDE"));
+  return [...ents.values()];
+}
+
+function citadas(linha, ents) {
+  const L = " " + normV(linha).replace(/[·\-–—()]/g, " ") + " ";
+  return ents.filter((e) => {
+    const a = e.aliases;
+    if (a.reg) return new RegExp(`\\b${a.reg}\\b`).test(L) || (a.lider && L.includes(" " + a.lider + " "));
+    if (a.vend) return a.vend.some((x) => L.includes(" " + x + " ") || L.includes(" " + x));
+    if (!a || e.global) return false;
+    if (a.nome !== undefined) return (a.nome && a.nome.length > 3 && L.includes(" " + a.nome)) || (a.num && new RegExp(`\\bLOJA\\s*0*${a.num}\\b|\\b0*${a.num}\\s+${a.nome.split(" ")[0]}`).test(L));
+    return false;
+  });
+}
+
+// devolve a lista de erros (vazia = tudo confere)
+function verificar(texto, ctx, idx = indice(ctx)) {
+  const erros = [];
+  const linhas = String(texto).split(/\n|(?<=[.;!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9*•-])/).map((l) => l.trim()).filter(Boolean);
+  for (const linha of linhas) {
+    const ns = numeros(linha);
+    if (!ns.length) continue;
+    const est = /estimativ|aproximad|cerca de|≈|~/i.test(linha);
+    const E = citadas(linha, idx);
+    const falaDaRede = /\b(rede|geral|todas as lojas|total|consolidad|empresa|categoria|grupo|marca)\b/i.test(linha);
+    for (const n of ns) {
+      const donos = idx.filter((e) => e.vals.some((v) => igual(n, v)));
+      if (!donos.length) { if (!est) erros.push({ linha, valor: n.raw, motivo: "esse valor não existe nos dados" }); continue; }
+      if (E.length && !donos.some((d) => E.includes(d)) && donos.every((d) => d.global) && !falaDaRede)
+        erros.push({ linha, valor: n.raw, motivo: `é número da rede inteira (${donos.slice(0, 2).map((d) => d.nome).join(" / ")}), não de ${E.map((e) => e.nome).join(" / ")}` });
+      else if (E.length && !donos.some((d) => E.includes(d) || d.global))
+        erros.push({ linha, valor: n.raw, motivo: `não é de ${E.map((e) => e.nome).join(" / ")}; nos dados esse valor é de ${donos.slice(0, 3).map((d) => d.nome).join(" / ")}` });
+    }
+  }
+  return erros;
+}
+
+const textoErros = (erros) => erros.map((e) => `- Trecho: "${e.linha.slice(0, 220)}" → o valor ${e.valor} ${e.motivo}.`).join("\n");
+
+// remove as frases com número errado (última linha de defesa)
+function limpar(texto, erros) {
+  let t = String(texto);
+  for (const e of erros) t = t.split(e.linha).join("");
+  return t.replace(/\n{3,}/g, "\n\n").trim();
+}
+
 // ---------- "Pergunte ao painel" (IA) ----------
 const CHAT_URL=(document.querySelector('meta[name="chat"]')||{}).content||"";
 const HIST=[];
@@ -589,10 +684,17 @@ const addMsg=(c,h)=>{const d=document.createElement("div");d.className="m "+c;d.
 async function chave(){const s=localStorage.getItem("painel-baianao-s")||"";const h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,"0")).join("")}
 async function perguntar(q){
   q=q.trim();if(!q)return;$(".sug")?.remove();addMsg("u",esc(q));const w=addMsg("a p","Analisando os números…");
-  try{const r=await fetch(CHAT_URL,{method:"POST",headers:{"Content-Type":"application/json","X-Chave":await chave()},body:JSON.stringify({pergunta:q,contexto:contextoChat(),historico:HIST})});
-    const j=await r.json();if(!r.ok||!j.resposta)throw new Error(j.erro||"erro");
-    w.className="m a";w.innerHTML=md(j.resposta)+`<span class="mod">IA · ${esc(j.modelo||"")} · dados de ${esc(contextoChat().dadosDe.slice(0,5))}</span>`;
-    HIST.push({role:"user",content:q},{role:"assistant",content:j.resposta});
+  try{const ctx=contextoChat(),k=await chave(),idx=indice(ctx);
+    const pede=async(pergunta,hist)=>{const r=await fetch(CHAT_URL,{method:"POST",headers:{"Content-Type":"application/json","X-Chave":k},body:JSON.stringify({pergunta,contexto:ctx,historico:hist})});
+      const j=await r.json();if(!r.ok||!j.resposta)throw new Error(j.erro||"erro");return j};
+    let j=await pede(q,HIST),resp=j.resposta,erros=verificar(resp,ctx,idx),rodadas=0;
+    // conferência automática: número que não bate com os dados volta pra IA corrigir (até 2 vezes)
+    while(erros.length&&rodadas<2){rodadas++;w.innerHTML=`Conferindo os números com os dados… (correção ${rodadas})`;
+      j=await pede(`Sua resposta tem números que NÃO batem com os dados:\n${textoErros(erros)}\nReescreva a resposta INTEIRA para a pergunta "${q}", corrigindo esses pontos e usando somente números do JSON, cada um ligado à loja/regional/vendedor certo.`,[...HIST,{role:"user",content:q},{role:"assistant",content:resp}]);
+      resp=j.resposta;erros=verificar(resp,ctx,idx)}
+    if(erros.length)resp=limpar(resp,erros);
+    w.className="m a";w.innerHTML=md(resp)+`<span class="mod">IA · ${esc(j.modelo||"")} · dados de ${esc(ctx.dadosDe.slice(0,5))} · ${erros.length?`⚠️ ${erros.length} trecho(s) removido(s) por não bater com os dados`:"✔ números conferidos com os dados"}</span>`;
+    HIST.push({role:"user",content:q},{role:"assistant",content:resp});
   }catch(e){w.className="m a";w.innerHTML=`Não consegui responder agora (${esc(e.message)}). Tente de novo em instantes.`}
   $("#msgs").scrollTop=1e9;
 }
