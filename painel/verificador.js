@@ -65,11 +65,14 @@ function citadas(linha, ents) {
 export function verificar(texto, ctx, idx = indice(ctx)) {
   const erros = [];
   const linhas = String(texto).split(/\n|(?<=[.;!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9*•-])/).map((l) => l.trim()).filter(Boolean);
+  let assunto = []; // linhas sem nome (ex.: linhas de tabela) herdam a loja/regional/vendedor do assunto anterior
   for (const linha of linhas) {
+    const citou = citadas(linha, idx);
+    if (citou.length) assunto = citou;
     const ns = numeros(linha);
     if (!ns.length) continue;
     const est = /estimativ|aproximad|cerca de|≈|~/i.test(linha);
-    const E = citadas(linha, idx);
+    const E = citou.length ? citou : assunto;
     const falaDaRede = /\b(rede|geral|todas as lojas|total|consolidad|empresa|categoria|grupo|marca)\b/i.test(linha);
     for (const n of ns) {
       const donos = idx.filter((e) => e.vals.some((v) => igual(n, v)));
