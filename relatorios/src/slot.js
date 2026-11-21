@@ -1,6 +1,6 @@
 // Decide O QUE mandar agora (e se já foi mandado). Sem dependências: roda antes do npm ci.
 // Horários (Salvador):
-//   07:00  mes     -> acumulado do mês até ontem (Ednilson)
+//   06:50  mes     -> acumulado do mês até ontem (Ednilson), chega antes das 7h
 //   08:00  meta    -> meta do dia (grupo)
 //   10..20 parcial -> parcial do dia de 2 em 2h + categorias (grupo)
 //   22:20  final   -> resultado final do dia + categorias (grupo)
@@ -11,7 +11,7 @@ import fs from "node:fs";
 const GRUPO = "LÍDERES REGIONAL";
 const EDNILSON = (process.env.EDNILSON_NUM || "");
 const SLOTS = [
-  { modo: "mes", h: 7, m: 0, janela: 180, destino: EDNILSON },
+  { modo: "mes", h: 6, m: 50, janela: 190, destino: EDNILSON },
   { modo: "meta", h: 8, m: 0, janela: 90, destino: GRUPO },
   ...[10, 12, 14, 16, 18, 20].map((h) => ({ modo: "parcial", h, m: 0, janela: 50, destino: GRUPO })),
   { modo: "final", h: 22, m: 20, janela: 99, destino: GRUPO },

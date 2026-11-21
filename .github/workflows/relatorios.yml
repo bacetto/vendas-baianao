@@ -6,13 +6,13 @@ name: Relatórios
 #   - o registro completo e os prints sobem CRIPTOGRAFADOS (senha = secret PAINEL_SENHA);
 #   - a sessão do WhatsApp fica no cache CRIPTOGRAFADA.
 # Quem decide O QUE mandar é relatorios/src/slot.js pelo horário de Salvador; gatilhos extras só pulam.
-#   07:00 mês (Ednilson) · 08:00 meta · 10h..20h parcial (2 em 2h) · 22:20 final do dia
+#   06:50 mês (Ednilson) · 08:00 meta · 10h..20h parcial (2 em 2h) · 22:20 final do dia
 on:
   push:
     branches: [disparo]
   schedule:
-    - cron: "2 10 * * *"        # 07:02 mês
-    - cron: "17 10 * * *"       # 07:17 mês (reserva)
+    - cron: "41 9 * * *"        # 06:41 mês (espera até 06:50 e manda)
+    - cron: "56 9 * * *"        # 06:56 mês (reserva; pula se já foi)
     - cron: "2 11 * * *"        # 08:02 meta
     - cron: "17 11 * * *"       # 08:17 meta (reserva)
     - cron: "2 13-23/2 * * *"   # 10:02 ... 20:02 parcial
