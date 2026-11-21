@@ -18,6 +18,11 @@ export function numeros(txt) {
   }
   return out;
 }
+// período de um trecho de texto (ou do nome de um campo dos dados)
+const PER = [["mesPassado", /\b(m[eê]s passado|m[eê]s anterior|outubro|setembro|agosto|julho|junho|maio|abril|mar[cç]o|fevereiro|janeiro|dezembro)\b/i],
+  ["ontem", /\bontem\b/i], ["hoje", /\b(hoje|do dia|no dia|agora)\b/i], ["mes", /\b(m[eê]s|mensal|acumulad|novembro)\b/i]];
+export const periodoTexto = (t) => { for (const [p, re] of PER) if (re.test(t)) return p; return ""; };
+const periodoChave = (k) => ({ hoje: "hoje", ontem: "ontem", mes: "mes", mesAteHoje: "mes", mesPassado: "mesPassado", mesAnt: "mesPassado" })[k] || "";
 const igual = (a, b) => a.t === b.t && (a.t === "P" ? Math.abs(a.v - b.v) <= 0.6 : Math.abs(a.v - b.v) <= Math.max(600, Math.abs(b.v) * 0.025));
 
 // índice: entidade -> valores; entidade "REDE" = números gerais (sem loja/regional/vendedor)
@@ -30,8 +35,9 @@ export function indice(ctx) {
     const n = norm(s), m = n.match(/^(\d{1,3})\s*[·.\-]?\s*(.*)$/), num = m ? String(Number(m[1])) : "", nome = (m ? m[2] : n).trim();
     return ent("LOJA:" + (num || nome), s, { num, nome });
   };
-  const walk = (o, dono, chave = "") => {
-    if (Array.isArray(o)) return o.forEach((x) => walk(x, dono, chave));
+  const walk = (o, dono, chave = "", per = "") => {
+    per = periodoChave(chave) || per;
+    if (Array.isArray(o)) return o.forEach((x) => walk(x, dono, chave, per));
     if (!o || typeof o !== "object") return;
     let e = dono;
     if (GLOBAIS.includes(chave)) e = ent("GLOBAL:" + chave + ":" + norm(o.nome || chave), `${o.nome || chave} (número da rede inteira)`, {}, true);
@@ -41,8 +47,8 @@ export function indice(ctx) {
       e = ent("VEND:" + norm(o.nome), o.nome, { vend: [w.slice(0, 2).join(" "), w.length > 2 ? `${w[0]} ${w[w.length - 1]}` : ""].filter(Boolean) });
     } else if (typeof o.reg === "string" && /^R\d$/.test(o.reg)) e = ent("REG:" + o.reg, o.reg, { reg: o.reg, lider: norm(o.lider || "") });
     for (const [k, v] of Object.entries(o)) {
-      if (typeof v === "string") e.vals.push(...numeros(v));
-      else if (v && typeof v === "object") walk(v, e, k);
+      if (typeof v === "string") e.vals.push(...numeros(v).map((n) => ({ ...n, per })));
+      else if (v && typeof v === "object") walk(v, e, k, per);
     }
   };
   walk(ctx, ents.get("REDE"));
@@ -65,10 +71,13 @@ function citadas(linha, ents) {
 export function verificar(texto, ctx, idx = indice(ctx)) {
   const erros = [];
   const linhas = String(texto).split(/\n|(?<=[.;!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9*•-])/).map((l) => l.trim()).filter(Boolean);
-  let assunto = []; // linhas sem nome (ex.: linhas de tabela) herdam a loja/regional/vendedor do assunto anterior
+  let assunto = [], perAssunto = ""; // linhas sem nome/período (ex.: linhas de tabela) herdam os do assunto anterior
   for (const linha of linhas) {
     const citou = citadas(linha, idx);
     if (citou.length) assunto = citou;
+    const perLinha = periodoTexto(linha);
+    if (perLinha) perAssunto = perLinha;
+    const P = perLinha || perAssunto;
     const ns = numeros(linha);
     if (!ns.length) continue;
     const est = /estimativ|aproximad|cerca de|≈|~/i.test(linha);
@@ -77,6 +86,14 @@ export function verificar(texto, ctx, idx = indice(ctx)) {
     for (const n of ns) {
       const donos = idx.filter((e) => e.vals.some((v) => igual(n, v)));
       if (!donos.length) { if (!est) erros.push({ linha, valor: n.raw, motivo: "esse valor não existe nos dados" }); continue; }
+      // mesmo dono, período errado (ex.: meta de HOJE apresentada como do MÊS)
+      if (P && E.length) {
+        const dele = E.flatMap((d) => d.vals.filter((v) => igual(n, v)));
+        if (dele.length && dele.every((v) => v.per && v.per !== P)) {
+          erros.push({ linha, valor: n.raw, motivo: `é número de ${dele[0].per === "mes" ? "o mês" : dele[0].per === "mesPassado" ? "o mês passado" : dele[0].per} de ${E.map((e) => e.nome).join(" / ")}, não de ${P === "mes" ? "o mês" : P === "mesPassado" ? "o mês passado" : P}` });
+          continue;
+        }
+      }
       if (E.length && !donos.some((d) => E.includes(d)) && donos.every((d) => d.global) && !falaDaRede)
         erros.push({ linha, valor: n.raw, motivo: `é número da rede inteira (${donos.slice(0, 2).map((d) => d.nome).join(" / ")}), não de ${E.map((e) => e.nome).join(" / ")}` });
       else if (E.length && !donos.some((d) => E.includes(d) || d.global))
