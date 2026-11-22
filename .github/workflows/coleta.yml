@@ -60,7 +60,7 @@ jobs:
           disparador &
           while :; do
             T0=$(date +%s); h=$(hora)
-            if [ "$h" -ge 7 ] && [ "$h" -lt 22 ]; then
+            if [ "$h" -ge 7 ] && [ "$h" -lt 23 ]; then   # até 23h: pega o fechamento das lojas de shopping (22h) e os lançamentos finais
               N=$((N+1)); if [ $((N % 10)) -eq 1 ]; then export LEVE=0; else export LEVE=1; fi   # completa a cada ~10 min
               for t in 1 2 3; do
                 rm -f saida/dados.json
