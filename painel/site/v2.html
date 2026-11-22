@@ -520,8 +520,8 @@ function secZep(){
   const st=Object.entries(p.status||{}).sort((a,b)=>b[1]-a[1]);
   const labDia=p.porDia.map((_,i)=>String(i+1));
   return `<div class="grid g4">
-    ${kpi("Vendido (confirmado)",mil(p.vendido),`${num(p.pedidos)} pedidos · ticket ${brl(p.ticket)}`)}
-    ${kpi("Aguardando",mil(p.aguardando),`${num(p.pedidosAguardando)} pedidos ainda não confirmados`)}
+    ${kpi("Vendas realizadas",mil(p.vendido),`${num(p.pedidos)} pedidos · ticket ${brl(p.ticket)} · mesmo critério do ZepSystem`)}
+    ${kpi("Desses, aguardando",mil(p.aguardando),`${num(p.pedidosAguardando)} pedidos ainda não confirmados (já incluídos nas vendas)`)}
     ${kpi("Cancelados",`<span style="color:var(--bad)">${mil(p.cancelado)}</span>`,`${num(p.pedidosCancelados)} pedidos · <b>${fmtPct(p.taxaCancelamento)}</b> do total`)}
     ${kpi("Pedidos no período",num(p.pedidosTotal),st.map(([s,n])=>`${esc(s)} ${n}`).join(" · "))}
   </div>
@@ -533,7 +533,7 @@ function secZep(){
   </div>
   <div class="card sec"><b>Vendedores</b>${tabelaSimples([{t:"#",f:(r,i)=>i+1},{t:"Vendedor",l:1,n:1,f:r=>esc(r.nome)},{t:"Loja",l:1,f:r=>r.loja?esc(nomeLoja(r.loja)):'<span class="sub">não identificada</span>'},{t:"Pedidos",f:r=>num(r.pedidos)},{t:"Vendido",f:r=>mil(r.venda)},{t:"Aguardando",f:r=>r.aguardando?mil(r.aguardando):"—"},{t:"Cancelados",f:r=>r.cancelados?`${r.cancelados} · ${mil(r.valorCancelado)}`:"—"}],p.vendedores.filter(v=>v.venda||v.aguardando||v.cancelados),{max:200})}</div>
   <div class="card sec"><b>Produtos</b>${tabelaSimples([{t:"#",f:(r,i)=>i+1},{t:"Produto",l:1,n:1,f:r=>esc(r.nome)},{t:"SKU",f:r=>esc(r.sku)},{t:"Qtd",f:r=>num(r.qtd)},{t:"Valor",f:r=>mil(r.valor)}],p.produtos,{max:100})}</div>
-  <div class="nota">ZepSystem desde ${z.inicioPlataforma?z.inicioPlataforma.split("-").reverse().join("/"):"—"}. "Vendido" não conta pedidos aguardando nem cancelados.</div>`;
+  <div class="nota">ZepSystem desde ${z.inicioPlataforma?z.inicioPlataforma.split("-").reverse().join("/"):"—"}. "Vendas realizadas" segue o ZepSystem: todos os pedidos não cancelados (inclui os aguardando). No ZepSystem, "Últimos 30 dias" = este mês, porque a plataforma começou em ${z.inicioPlataforma?z.inicioPlataforma.split("-").reverse().join("/"):"—"}.</div>`;
 }
 function regZep(k){const R={};for(const l of D.zep?.periodos?.[k]?.lojas||[]){const g=regLoja(l.cod);if(/^R\d$/.test(g))R[g]=(R[g]||0)+l.venda}return R}
 function barrasReg(rows){

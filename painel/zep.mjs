@@ -124,8 +124,9 @@ export function agregarZep(pedidos, itens, dados) {
       const kv = norm(p.vendedor) || "LOJA (SEM VENDEDOR)";
       vend[kv] ??= { nome: p.vendedor || "Loja (sem vendedor)", loja, pedidos: 0, venda: 0, aguardando: 0, cancelados: 0, valorCancelado: 0 };
       if (c) { cancelado += p.total; nCanc++; vend[kv].cancelados++; vend[kv].valorCancelado += p.total; continue; }
+      // mesmo critério do ZepSystem ("vendas realizadas"): tudo que não foi cancelado; "aguardando" fica destacado à parte
       if (a) { aguardando += p.total; nAg++; vend[kv].aguardando += p.total; }
-      else { vendido += p.total; nVal++; vend[kv].pedidos++; vend[kv].venda += p.total;
+      { vendido += p.total; nVal++; vend[kv].pedidos++; vend[kv].venda += p.total;
         pag[p.pagamento] ??= { nome: p.pagamento, pedidos: 0, valor: 0 }; pag[p.pagamento].pedidos++; pag[p.pagamento].valor += p.total;
         porHora[p.hora] += p.total;
         const d = Number(p.data.slice(8)) - 1; if (k.startsWith("mes") && d >= 0 && d < porDia.length) { porDia[d] += p.total; pedDia[d]++; }
@@ -141,7 +142,7 @@ export function agregarZep(pedidos, itens, dados) {
     const semLoja = Object.values(vend).filter((v) => !v.loja && v.venda > 0).reduce((s, v) => s + v.venda, 0);
     return {
       label: P[k].label, inicio, fim,
-      vendido: r2(vendido), aguardando: r2(aguardando), cancelado: r2(cancelado),
+      vendido: r2(vendido), confirmado: r2(vendido - aguardando), aguardando: r2(aguardando), cancelado: r2(cancelado),
       pedidos: nVal, pedidosAguardando: nAg, pedidosCancelados: nCanc, pedidosTotal: sel.length,
       ticket: nVal ? r2(vendido / nVal) : 0, taxaCancelamento: sel.length ? nCanc / sel.length : 0,
       status, pagamentos: Object.values(pag).map((x) => ({ ...x, valor: r2(x.valor) })).sort((a, b) => b.valor - a.valor),
