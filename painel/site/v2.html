@@ -381,7 +381,7 @@ function renderUni(){
 }
 /* v2 */
 // ===== Painel v2: Visão geral (projeção, alertas, resumo), ZepSystem e Rede total =====
-const SECS=[["geral","Visão geral"],["uni","Universo Baianão"],["zep","ZepSystem"],["rede","Rede total"]];
+const SECS=[["geral","Visão geral"],["uni","Universo Baianão"],["zep","BaianãoEletro"],["rede","Rede total"]];
 if(!SECS.some(s=>s[0]===S.sec))S.sec="geral";
 const salva2=()=>{try{localStorage.setItem("painel-baianao",JSON.stringify({per:S.per,aba:S.aba,sec:S.sec}))}catch(e){}};
 const soma=a=>(a||[]).reduce((s,x)=>s+(x||0),0);
@@ -515,7 +515,7 @@ function secGeral(){
   </div>`;
 }
 function secZep(){
-  const z=D.zep;if(!z)return `<div class="card">O ZepSystem ainda não foi lido. A coleta dele entra na próxima atualização.</div>`;
+  const z=D.zep;if(!z)return `<div class="card">O BaianãoEletro (ZepSystem) ainda não foi lido. A coleta dele entra na próxima atualização.</div>`;
   const k=["hoje","ontem","mes","mesAnt"].includes(S.per)?S.per:"mes",p=z.periodos[k];
   const st=Object.entries(p.status||{}).sort((a,b)=>b[1]-a[1]);
   const labDia=p.porDia.map((_,i)=>String(i+1));
@@ -535,20 +535,32 @@ function secZep(){
   <div class="card sec"><b>Produtos</b>${tabelaSimples([{t:"#",f:(r,i)=>i+1},{t:"Produto",l:1,n:1,f:r=>esc(r.nome)},{t:"SKU",f:r=>esc(r.sku)},{t:"Qtd",f:r=>num(r.qtd)},{t:"Valor",f:r=>mil(r.valor)}],p.produtos,{max:100})}</div>
   <div class="nota">ZepSystem desde ${z.inicioPlataforma?z.inicioPlataforma.split("-").reverse().join("/"):"—"}. "Vendido" não conta pedidos aguardando nem cancelados.</div>`;
 }
+function regZep(k){const R={};for(const l of D.zep?.periodos?.[k]?.lojas||[]){const g=regLoja(l.cod);if(/^R\d$/.test(g))R[g]=(R[g]||0)+l.venda}return R}
+function barrasReg(rows){
+  const W=1000,H=300,top=30,bot=60,mx=Math.max(1,...rows.flatMap(r=>[r.tot,r.meta]))*1.08,gw=W/rows.length,bw=gw*.16;
+  const y=v=>top+(H-top-bot)*(1-v/mx),cores=[["uni","var(--navy)","Universo"],["zep","#f97316","BaianãoEletro"],["tot","#0e9f6e","Total"],["meta","var(--meta)","Meta"]];
+  let g="";rows.forEach((r,i)=>{const x0=i*gw+gw*.12;cores.forEach(([k,c,n],j)=>{const v=r[k]||0,x=x0+j*(bw+4);g+=`<rect x="${x}" y="${y(v)}" width="${bw}" height="${Math.max(0,y(0)-y(v))}" rx="3" fill="${c}"><title>${esc(r.reg)} · ${n}: ${brl(v)}</title></rect><text x="${x+bw/2}" y="${y(v)-5}" text-anchor="middle" style="font-size:11px;fill:var(--ink);font-weight:700">${(v/1e3).toLocaleString("pt-BR",{maximumFractionDigits:0})}</text>`});
+    g+=`<text x="${i*gw+gw/2}" y="${H-bot+22}" text-anchor="middle" style="font-size:15px;font-weight:800;fill:var(--ink)">${esc(r.reg)}${r.lider?" · "+esc(r.lider):""}</text><text x="${i*gw+gw/2}" y="${H-bot+42}" text-anchor="middle" style="font-size:14px;font-weight:700;fill:${cor(r.meta?r.tot/r.meta:0)}">${r.meta?fmtPct(r.tot/r.meta)+" da meta":""}</text>`});
+  return `<div class="leg" style="justify-content:flex-end">R$ mil ${cores.map(([k,c,n])=>`<span><i style="border-top:8px solid ${c};width:12px"></i>${n}</span>`).join("")}</div><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${g}<line x1="0" x2="${W}" y1="${y(0)}" y2="${y(0)}" stroke="var(--line)"/></svg>`;
+}
 function secRede(){
   const k=["hoje","ontem","mes","mesAnt"].includes(S.per)?S.per:"mes",u=D.periodos[k],z=D.zep?.periodos?.[k];
   const L={};for(const l of u.resumo?.lojas||[]){L[l.cod]={cod:l.cod,uni:l.venda,meta:l.meta,zep:0}}
   for(const l of z?.lojas||[]){L[l.cod]??={cod:l.cod,uni:0,meta:0,zep:0};L[l.cod].zep=l.venda}
   const rows=Object.values(L).map(r=>({...r,tot:r.uni+r.zep,p:r.meta?(r.uni+r.zep)/r.meta:0})).filter(r=>r.tot||r.meta).sort((a,b)=>b.tot-a.tot);
   const tu=u.resumo?.geral?.venda||0,tz=z?.vendido||0,meta=u.resumo?.geral?.meta||0;
-  const R={};for(const r of rows){const g=regLoja(r.cod);R[g]??={reg:g,uni:0,zep:0,meta:0};R[g].uni+=r.uni;R[g].zep+=r.zep;R[g].meta+=r.meta}
-  return `<div class="grid g4">${kpi("Total da rede",mil(tu+tz),meta?`<b style="color:${cor((tu+tz)/meta)}">${fmtPct((tu+tz)/meta)}</b> da meta (meta do Universo)`:"")}${kpi("Universo Baianão",mil(tu),fmtPct(tu+tz?tu/(tu+tz):0)+" do total")}${kpi("ZepSystem",mil(tz),fmtPct(tu+tz?tz/(tu+tz):0)+" do total")}${kpi("Sem loja identificada (Zep)",mil(z?.vendaSemLoja||0),"vendedores do Zep sem cadastro no Universo")}</div>
-  <div class="card sec"><b>Por regional</b>${tabelaSimples([{t:"Regional",l:1,f:r=>esc(r.reg)},{t:"Universo",f:r=>mil(r.uni)},{t:"ZepSystem",f:r=>mil(r.zep)},{t:"Total",f:r=>`<b>${mil(r.uni+r.zep)}</b>`},{t:"Meta",f:r=>mil(r.meta)},{t:"% meta",f:r=>r.meta?pbar((r.uni+r.zep)/r.meta):"—"}],Object.values(R).sort((a,b)=>a.reg.localeCompare(b.reg)))}</div>
-  <div class="card sec"><b>Por loja</b>${tabelaSimples([{t:"#",f:(r,i)=>i+1},{t:"Loja",l:1,n:1,f:r=>esc(nomeLoja(r.cod))},{t:"Regional",f:r=>esc(regLoja(r.cod))},{t:"Universo",f:r=>mil(r.uni)},{t:"ZepSystem",f:r=>r.zep?mil(r.zep):"—"},{t:"Total",f:r=>`<b>${mil(r.tot)}</b>`},{t:"% meta",f:r=>r.meta?pbar(r.p):"—"},{t:"Peso Zep",f:r=>r.tot?fmtPct(r.zep/r.tot):"—"}],rows,{max:80})}
-  <div class="nota">A meta é a do Universo Baianão; a venda do ZepSystem entra somada como bônus de cada loja.</div></div>`;
+  // regionais: Universo (resumo oficial do portal) + BaianãoEletro (vendas do Zep pela loja do vendedor)
+  const zr=regZep(k),rc=k==="mes"?D.regionaisComparativo:null;
+  const regs=(u.resumo?.regionais||[]).map(r=>{const c=rc?.regionais?.find(x=>x.reg===r.reg)||{};return {reg:r.reg,lider:r.lider,uni:r.venda,zep:zr[r.reg]||0,tot:r.venda+(zr[r.reg]||0),meta:r.meta,metaMes:c.metaMes||0,ant:c.anteriorMesmoPeriodo||0}});
+  const tR={reg:"Rede toda",lider:"",uni:regs.reduce((s,r)=>s+r.uni,0),zep:regs.reduce((s,r)=>s+r.zep,0),meta:regs.reduce((s,r)=>s+r.meta,0),metaMes:rc?.rede?.metaMes||0,ant:rc?.rede?.anteriorMesmoPeriodo||0};tR.tot=tR.uni+tR.zep;
+  const cols=[{t:"Regional",l:1,f:r=>`<b>${esc(r.reg)}</b>${r.lider?" · "+esc(r.lider):""}`},{t:"Universo",f:r=>mil(r.uni)},{t:"BaianãoEletro",f:r=>r.zep?mil(r.zep):"—"},{t:"Total",f:r=>`<b>${mil(r.tot)}</b>`},{t:k==="mes"?"Meta até hoje":"Meta",f:r=>mil(r.meta)},{t:"% meta (total)",f:r=>r.meta?pbar(r.tot/r.meta):"—"}];
+  if(k==="mes")cols.push({t:`${D.periodos.mesAnt.label.slice(0,3)} até dia ${hoje()}`,f:r=>mil(r.ant)},{t:"vs mês passado",f:r=>r.ant?delta(r.tot,r.ant):"—"},{t:"Meta do mês",f:r=>mil(r.metaMes)},{t:"% do mês",f:r=>r.metaMes?fmtPct(r.tot/r.metaMes):"—"},{t:"Falta pro mês",f:r=>r.metaMes?mil(Math.max(0,r.metaMes-r.tot)):"—"});
+  return `<div class="grid g4">${kpi("Total da rede",mil(tu+tz),meta?`<b style="color:${cor((tu+tz)/meta)}">${fmtPct((tu+tz)/meta)}</b> da meta`:"")}${kpi("Universo Baianão",mil(tu),fmtPct(tu+tz?tu/(tu+tz):0)+" do total")}${kpi("BaianãoEletro (ZepSystem)",mil(tz),fmtPct(tu+tz?tz/(tu+tz):0)+" do total")}${kpi("BaianãoEletro sem loja identificada",mil(z?.vendaSemLoja||0),"vendedor do Zep sem cadastro no Universo")}</div>
+  <div class="card sec"><b>Venda por regional · Universo + BaianãoEletro x meta</b> <span class="sub">(${k==="mes"?`${u.label} até dia ${hoje()}`:u.label})</span>${barrasReg(regs)}</div>
+  <div class="card sec"><b>Regionais</b>${tabelaSimples(cols,[...regs,tR])}
+  <div class="nota">A meta é a do Universo Baianão; a venda do BaianãoEletro entra somada em cada regional pela loja do vendedor.${k==="mes"?" A comparação com o mês passado usa o mesmo período (só Universo no mês passado, porque o BaianãoEletro começou em "+(D.zep?.inicioPlataforma||"").split("-").reverse().join("/")+").":""}</div></div>
+  <div class="card sec"><b>Por loja</b>${tabelaSimples([{t:"#",f:(r,i)=>i+1},{t:"Loja",l:1,n:1,f:r=>esc(nomeLoja(r.cod))},{t:"Regional",f:r=>esc(regLoja(r.cod))},{t:"Universo",f:r=>mil(r.uni)},{t:"BaianãoEletro",f:r=>r.zep?mil(r.zep):"—"},{t:"Total",f:r=>`<b>${mil(r.tot)}</b>`},{t:"% meta",f:r=>r.meta?pbar(r.p):"—"},{t:"Peso BaianãoEletro",f:r=>r.tot?fmtPct(r.zep/r.tot):"—"}],rows,{max:80})}</div>`;
 }
-
-
 // ---------- verificador de números (mesmo código de painel/verificador.js) ----------
 // Verificador de respostas da IA: confere cada número do texto contra os dados enviados.
 // Erro = número que não existe nos dados, ou que existe mas é de outra loja/regional/vendedor

@@ -115,7 +115,7 @@ export function agregarZep(pedidos, itens, dados) {
   function periodo(k) {
     const { inicio, fim } = P[k];
     const sel = pedidos.filter((p) => p.data >= inicio && p.data <= fim);
-    const status = {}, pag = {}, vend = {}, lojas = {}, prods = {}, porHora = Array(24).fill(0), porDia = Array(nDias(k)).fill(0), pedDia = Array(nDias(k)).fill(0);
+    const status = {}, pag = {}, vend = {}, lojas = {}, prods = {}, porHora = Array(24).fill(0), porDia = Array(nDias(k)).fill(0), pedDia = Array(nDias(k)).fill(0), porDiaReg = {};
     let vendido = 0, aguardando = 0, cancelado = 0, nVal = 0, nCanc = 0, nAg = 0;
     for (const p of sel) {
       status[p.status] = (status[p.status] || 0) + 1;
@@ -129,7 +129,8 @@ export function agregarZep(pedidos, itens, dados) {
         pag[p.pagamento] ??= { nome: p.pagamento, pedidos: 0, valor: 0 }; pag[p.pagamento].pedidos++; pag[p.pagamento].valor += p.total;
         porHora[p.hora] += p.total;
         const d = Number(p.data.slice(8)) - 1; if (k.startsWith("mes") && d >= 0 && d < porDia.length) { porDia[d] += p.total; pedDia[d]++; }
-        if (loja) { lojas[loja] ??= { cod: loja, venda: 0, pedidos: 0 }; lojas[loja].venda += p.total; lojas[loja].pedidos++; }
+        if (loja) { lojas[loja] ??= { cod: loja, venda: 0, pedidos: 0 }; lojas[loja].venda += p.total; lojas[loja].pedidos++;
+          const rg = dados.lojas?.[loja]?.regional; if (/^R\d$/.test(rg || "") && k.startsWith("mes") && d >= 0 && d < porDia.length) { porDiaReg[rg] ??= Array(porDia.length).fill(0); porDiaReg[rg][d] += p.total; } }
         for (const it of itens[p.id] || []) {
           const kp = it.sku || norm(it.nome);
           prods[kp] ??= { sku: it.sku, nome: it.nome, qtd: 0, valor: 0, pedidos: 0 };
@@ -149,6 +150,7 @@ export function agregarZep(pedidos, itens, dados) {
       vendaSemLoja: r2(semLoja),
       produtos: Object.values(prods).map((x) => ({ ...x, valor: r2(x.valor) })).sort((a, b) => b.valor - a.valor).slice(0, 300),
       porHora: porHora.map(r2), porDia: porDia.map(r2), pedidosPorDia: pedDia,
+      porDiaRegional: Object.fromEntries(Object.entries(porDiaReg).map(([r, a]) => [r, a.map(r2)])),
     };
   }
   return {
