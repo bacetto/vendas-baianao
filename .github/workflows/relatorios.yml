@@ -24,10 +24,14 @@ on:
       acao:
         description: "O que fazer (auto = o que for do horário)"
         type: choice
-        options: [auto, enviar, meta, final, mes-enviar, ler-dados, mes-ler, conectar-whatsapp]
+        options: [auto, enviar, meta, final, mes-enviar, ler-dados, mes-ler, conectar-whatsapp, alerta]
         default: auto
       destino:
         description: "Grupo ou número (vazio = padrão)"
+        required: false
+        default: ""
+      texto:
+        description: "Texto do aviso (só pra acao=alerta)"
         required: false
         default: ""
       tentativa:
@@ -84,7 +88,7 @@ jobs:
 
       - name: O que mandar agora?
         id: slot
-        if: env.ACAO != 'ler-dados' && env.ACAO != 'mes-ler' && env.ACAO != 'conectar-whatsapp'
+        if: env.ACAO != 'ler-dados' && env.ACAO != 'mes-ler' && env.ACAO != 'conectar-whatsapp' && env.ACAO != 'alerta'
         env:
           DESTINO_MANUAL: ${{ github.event.inputs.destino }}
           TENTATIVA: ${{ github.event.inputs.tentativa || '0' }}
@@ -104,9 +108,15 @@ jobs:
         if: env.ACAO == 'conectar-whatsapp'
         run: rm -rf sessao && $Q node src/conectar.js
 
+      - name: Aviso do vigia
+        if: env.ACAO == 'alerta' && github.event.inputs.texto != ''
+        env:
+          TEXTO: ${{ github.event.inputs.texto }}
+        run: timeout 150 $Q node src/alerta.js "$TEXTO"
+
       - name: Tirar os prints do portal (até 3 tentativas)
         id: prints
-        if: steps.ok.outputs.seguir == 'true' && env.ACAO != 'conectar-whatsapp' && steps.slot.outputs.desistiu != 'true'
+        if: steps.ok.outputs.seguir == 'true' && env.ACAO != 'conectar-whatsapp' && env.ACAO != 'alerta' && steps.slot.outputs.desistiu != 'true'
         env:
           PORTAL_CPF: ${{ secrets.PORTAL_CPF }}
           PORTAL_SENHA: ${{ secrets.PORTAL_SENHA }}

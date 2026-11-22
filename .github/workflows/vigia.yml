@@ -1,0 +1,78 @@
+name: Vigia do painel
+
+# Confere a cada 15 min (07h–23h de Salvador) se o painel está recebendo dados.
+# - Coleta parada → religa na hora.
+# - Dados velhos (> 15 min) → religa se preciso e avisa o Gabriel no WhatsApp (no máximo 1 aviso por hora).
+# Roda 100% no GitHub (minutos grátis, repositório público). Nenhum valor de venda aparece no registro.
+on:
+  schedule:
+    - cron: "7,22,37,52 10-23,0-2 * * *"   # 07:07 ... 23:52 de Salvador (UTC-3)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: vigia
+  cancel-in-progress: true
+
+jobs:
+  vigiar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Conferir frescor e coleta
+        id: v
+        run: |
+          H=$((10#$(TZ=America/Bahia date +%H))); M=$((10#$(TZ=America/Bahia date +%M))); AGORA=$((H*60+M))
+          if [ "$AGORA" -lt 430 ] || [ "$AGORA" -ge 1380 ]; then echo "Fora do horário do painel"; exit 0; fi   # 07:10–23:00
+          ULT=$(gh api "repos/$REPO/commits/dados" --jq .commit.committer.date)
+          IDADE=$(( ( $(date +%s) - $(date -d "$ULT" +%s) ) / 60 ))
+          HORA_DADOS=$(TZ=America/Bahia date -d "$ULT" +%H:%M)
+          VIVA=$(gh run list -R "$REPO" -w coleta.yml -L 10 --json status --jq '[.[]|select(.status=="in_progress" or .status=="queued" or .status=="pending" or .status=="waiting")]|length')
+          echo "Dados de $HORA_DADOS ($IDADE min) · coletas vivas: $VIVA"
+          RELIGOU=0
+          if [ "$VIVA" = "0" ]; then
+            gh workflow run coleta.yml -R "$REPO" --ref main && RELIGOU=1 && echo "▶ Coleta religada"
+          fi
+          if [ "$IDADE" -gt 15 ]; then
+            echo "⚠️ Painel parado"
+            echo "alertar=1" >> "$GITHUB_OUTPUT"
+            if [ "$RELIGOU" = "1" ]; then ACAO="A coleta tinha parado e já foi religada."; else ACAO="A coleta está rodando, mas não está conseguindo atualizar (portal fora do ar, login ou erro). Precisa olhar."; fi
+            echo "texto=⚠️ *Painel Vendas ao vivo parado*: últimos dados às $HORA_DADOS ($IDADE min atrás). $ACAO" >> "$GITHUB_OUTPUT"
+            echo "chave=vigia-$(TZ=America/Bahia date +%F-%H)" >> "$GITHUB_OUTPUT"
+          else
+            echo "✅ Painel ok (dados de $HORA_DADOS)"
+          fi
+
+      - name: Já avisou nesta hora?
+        id: marca
+        if: steps.v.outputs.alertar == '1'
+        uses: actions/cache/restore@v4
+        with:
+          path: marca-vigia
+          key: ${{ steps.v.outputs.chave }}
+          lookup-only: true
+
+      - name: Avisar no WhatsApp
+        id: aviso
+        if: steps.v.outputs.alertar == '1' && steps.marca.outputs.cache-hit != 'true'
+        env:
+          TEXTO: ${{ steps.v.outputs.texto }}
+        run: |
+          # não atrapalhar relatório em andamento: o grupo "whatsapp" só guarda 1 execução na fila
+          OCUP=$(gh run list -R "$REPO" -w relatorios.yml -L 10 --json status --jq '[.[]|select(.status!="completed")]|length')
+          if [ "$OCUP" != "0" ]; then echo "Relatório em andamento; aviso fica pro próximo ciclo"; exit 0; fi
+          gh workflow run relatorios.yml -R "$REPO" --ref main -f acao=alerta -f texto="$TEXTO" && echo "ok=1" >> "$GITHUB_OUTPUT" && echo "✅ Aviso pedido"
+          mkdir -p marca-vigia && date > marca-vigia/ok
+
+      - name: Marcar aviso da hora
+        if: steps.aviso.outputs.ok == '1'
+        uses: actions/cache/save@v4
+        with:
+          path: marca-vigia
+          key: ${{ steps.v.outputs.chave }}
