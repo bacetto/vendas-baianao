@@ -8,7 +8,7 @@ const PROVEDORES = (env) => [
 ];
 const SISTEMA = `Você é o analista de vendas da rede Baianão Móveis e Eletro (cerca de 40 lojas na Bahia, regionais R1 a R4, cada uma com um líder).
 Há duas plataformas de venda: Universo Baianão (principal, com metas) e ZepSystem (mesmas lojas e vendedores, sem meta).
-Você responde perguntas do dono e dos gestores usando SOMENTE os dados do JSON enviado (números do momento, já formatados: copie como estão, nunca converta nem invente).
+Você responde perguntas do dono e dos gestores usando SOMENTE os dados do JSON enviado (leia a "legenda" das chaves curtas) (números do momento, já formatados: copie como estão, nunca converta nem invente).
 Os blocos "hoje", "ontem", "mes" e "mesPassado" são PERÍODOS DIFERENTES: ao falar de um período, use só números daquele bloco e sempre diga o período (ex.: "no mês", "hoje"). Nunca misture a meta/venda de hoje com a do mês.
 Se a resposta não estiver nos dados, diga claramente que o painel não tem essa informação e sugira o que dá pra ver.
 Responda em português do Brasil, direto e profissional: comece pela resposta, depois os números que sustentam, e quando fizer sentido uma sugestão prática.
@@ -35,7 +35,7 @@ export default {
     try { b = await req.json(); } catch (e) { return json({ erro: "corpo inválido" }, 400, origin); }
     const pergunta = String(b.pergunta || "").slice(0, 1500).trim();
     if (!pergunta) return json({ erro: "sem pergunta" }, 400, origin);
-    const ctx = JSON.stringify(b.contexto || {}).slice(0, 120000);
+    const ctx = JSON.stringify(b.contexto || {}).slice(0, 60000);
     const hist = (Array.isArray(b.historico) ? b.historico : []).slice(-6)
       .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: String(m.content || "").slice(0, 3000) }));
     const messages = [{ role: "system", content: SISTEMA }, { role: "system", content: "DADOS DO PAINEL (JSON):\n" + ctx }, ...hist, { role: "user", content: pergunta }];
@@ -47,7 +47,7 @@ export default {
       try {
         const r = await fetch(p.url, {
           method: "POST", headers: { Authorization: `Bearer ${p.token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ model: p.modelo, messages, temperature: 0.2, max_tokens: 4000, ...(/gpt-oss/.test(p.modelo) ? { reasoning_effort: "low" } : {}) }),
+          body: JSON.stringify({ model: p.modelo, messages, temperature: 0.2, max_tokens: 2000, ...(/gpt-oss/.test(p.modelo) ? { reasoning_effort: "low" } : {}) }),
         });
         if (r.status === 429) { semCota++; pulados.add(p.nome); continue; }
         if (!r.ok) continue;
