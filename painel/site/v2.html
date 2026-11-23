@@ -77,6 +77,7 @@ svg text{font:11px system-ui,sans-serif;fill:var(--mut)}
 .m.a .mod{display:block;margin-top:6px;font-size:11px;color:var(--mut)}.m.p{color:var(--mut);font-style:italic}
 .sug{display:flex;flex-wrap:wrap;gap:6px}.sug button{border:1px solid #c9d2f5;background:#fff;color:var(--navy);border-radius:16px;padding:6px 10px;font:inherit;font-size:12.5px;cursor:pointer}
 #chatF{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}#chatF input{flex:1}#chatF button{border:0;border-radius:8px;background:var(--navy);color:#fff;font:inherit;font-weight:700;padding:0 14px;cursor:pointer}
+.btia{margin-left:10px;border:0;border-radius:16px;padding:5px 12px;font:inherit;font-size:12.5px;font-weight:700;color:#fff;background:linear-gradient(135deg,#14246b,#4f46e5);cursor:pointer}.btia:disabled{opacity:.6;cursor:wait}
 .al.alto{border-left-color:var(--bad)}.al.medio{border-left-color:var(--warn)}.al.bom{border-left-color:var(--ok)}.al .sub{margin-top:3px}
 @media(max-width:900px){.hero{grid-template-columns:1fr}.g4{grid-template-columns:repeat(2,1fr)}.big{font-size:40px}}
 </style>
@@ -381,8 +382,9 @@ function renderUni(){
 }
 /* v2 */
 // ===== Painel v2: Visão geral (projeção, alertas, resumo), ZepSystem e Rede total =====
-const SECS=[["geral","Visão geral"],["uni","Universo Baianão"],["zep","BaianãoEletro"],["rede","Rede total"]];
+const SECS=[["geral","Visão geral"],["regs","Regionais"],["uni","Universo Baianão"],["zep","BaianãoEletro"],["rede","Rede total"]];
 if(!SECS.some(s=>s[0]===S.sec))S.sec="geral";
+try{S.reg2=localStorage.getItem("painel-reg2")||"R1"}catch(e){S.reg2="R1"}
 const salva2=()=>{try{localStorage.setItem("painel-baianao",JSON.stringify({per:S.per,aba:S.aba,sec:S.sec}))}catch(e){}};
 const soma=a=>(a||[]).reduce((s,x)=>s+(x||0),0);
 const hoje=()=>Number(D.periodos.hoje.fim.slice(8));
@@ -739,6 +741,80 @@ function ligaChat(){
   $("#chatF").onsubmit=e=>{e.preventDefault();const q=$("#chatI").value;$("#chatI").value="";perguntar(q)};
 }
 
+
+// ---------- aba Regionais: visão geral de cada regional ----------
+const REGS=()=>(D.periodos.mes.resumo?.regionais||[]).map(r=>r.reg);
+const lojasDaReg=(reg,k)=>(D.periodos[k].resumo?.lojas||[]).filter(l=>regLoja(l.cod)===reg);
+const zepLoja=(k)=>{const m={};for(const l of D.zep?.periodos?.[k]?.lojas||[])m[l.cod]=l.venda;return m};
+function regInfo(reg){
+  const P=D.periodos,rH=P.hoje.resumo?.regionais?.find(x=>x.reg===reg)||{},rM=P.mes.resumo?.regionais?.find(x=>x.reg===reg)||{},rO=P.ontem.resumo?.regionais?.find(x=>x.reg===reg)||{};
+  const zH=regZep("hoje")[reg]||0,zM=regZep("mes")[reg]||0,rc=D.regionaisComparativo?.regionais?.find(x=>x.reg===reg)||{};
+  return {reg,lider:rM.lider||rH.lider||"",hoje:rH,mes:rM,ontem:rO,zH,zM,rc,pr:projecao(reg)};
+}
+function alertasReg(reg){
+  const A=[],P=D.periodos,d=hoje(),mm=minutoAgora();
+  const h=P.hoje.resumo?.regionais?.find(x=>x.reg===reg),fx=fracaoDoDia(mm,colReg(reg));
+  if(h&&h.meta&&fx&&fx>.05&&mm>=10*60&&mm<=21*60){const r=h.venda/(h.meta*fx);A.push({nivel:r<.85?"alto":r<1?"medio":"bom",t:`Hoje a ${reg} está em <b>${fmtPct(r)}</b> do que costuma ter vendido até ${fmtH(mm)}`,d:`Vendido ${mil(h.venda)}; esperado pra este horário ${mil(h.meta*fx)}.`})}
+  const pr=projecao(reg);if(pr&&pr.pctProj!=null)A.push({nivel:pr.pctProj<.95?"alto":pr.pctProj<1?"medio":"bom",t:`Projeção do mês: <b>${mil(pr.proj)}</b> (${fmtPct(pr.pctProj)} da meta de ${mil(pr.metaMes)})`,d:`Precisa de <b>${mil(pr.porDia)}/dia</b> nos ${pr.diasRest} dias que faltam. Últimos 7 dias: ${fmtPct(pr.efic)} da meta diária.`});
+  const lj=lojasDaReg(reg,"mes").filter(l=>l.meta>0);
+  const piores=lj.filter(l=>l.pct<.75).sort((a,b)=>a.pct-b.pct);if(piores.length)A.push({nivel:"alto",t:`${piores.length} loja${piores.length>1?"s":""} abaixo de 75% da meta no mês`,d:piores.map(l=>`${esc(nomeLoja(l.cod))} <b style="color:var(--bad)">${fmtPct(l.pct)}</b>`).join(" · ")});
+  const boas=lj.filter(l=>l.pct>=.95).sort((a,b)=>b.pct-a.pct);if(boas.length)A.push({nivel:"bom",t:`${boas.length} loja${boas.length>1?"s":""} no ritmo da meta (95% ou mais)`,d:boas.map(l=>`${esc(nomeLoja(l.cod))} <b style="color:var(--ok)">${fmtPct(l.pct)}</b>`).join(" · ")});
+  const hj=lojasDaReg(reg,"hoje").filter(l=>l.meta>0&&mm>=12*60),fr=fracaoDoDia(mm);
+  if(fr){const fracas=hj.filter(l=>l.venda/(l.meta*fr)<.5).sort((a,b)=>a.venda/a.meta-b.venda/b.meta);if(fracas.length)A.push({nivel:"medio",t:`${fracas.length} loja${fracas.length>1?"s":""} com o dia fraco até agora`,d:fracas.map(l=>`${esc(nomeLoja(l.cod))} ${mil(l.venda)} (${fmtPct(l.pct)} da meta do dia)`).join(" · ")})}
+  const mg=P.mes.resumo?.geral?.margem;if(mg){const b=lj.filter(l=>l.venda>50000&&l.margem<mg-.06);if(b.length)A.push({nivel:"medio",t:`Margem baixa (rede: ${pct(mg)})`,d:b.map(l=>`${esc(nomeLoja(l.cod))} ${pct(l.margem)}`).join(" · ")})}
+  const cods=new Set(lj.map(l=>l.cod));const dv=(P.mes.vendedores||[]).filter(v=>cods.has(v.loja)&&v.venda>30000&&-v.devol/v.venda>.2);
+  if(dv.length)A.push({nivel:"medio",t:`${dv.length} vendedor${dv.length>1?"es":""} com devolução acima de 20%`,d:dv.slice(0,6).map(v=>`${esc(v.nome)} (${esc(nomeLoja(v.loja))}) ${fmtPct(-v.devol/v.venda)}`).join(" · ")});
+  const ordem={alto:0,medio:1,bom:2};return A.sort((a,b)=>ordem[a.nivel]-ordem[b.nivel]);
+}
+function resumoReg(i){
+  const f=[],lj=lojasDaReg(i.reg,"mes").filter(l=>l.meta>0).sort((a,b)=>b.pct-a.pct),lh=lojasDaReg(i.reg,"hoje").filter(l=>l.venda>0).sort((a,b)=>b.venda-a.venda);
+  if(i.hoje.meta)f.push(`Hoje a <b>${i.reg} · ${esc(i.lider)}</b> vendeu <b>${mil((i.hoje.venda||0)+i.zH)}</b>${i.zH?` (Universo ${mil(i.hoje.venda)} + BaianãoEletro ${mil(i.zH)})`:""}, ${fmtPct(i.hoje.pct)} da meta do dia no Universo.`);
+  if(i.ontem.meta)f.push(`Ontem fechou em ${mil(i.ontem.venda)} (${fmtPct(i.ontem.pct)}).`);
+  if(i.mes.meta)f.push(`No mês: <b>${mil((i.mes.venda||0)+i.zM)}</b>, ${fmtPct(i.mes.pct)} da meta até hoje no Universo${i.rc.anteriorMesmoPeriodo?` (${delta(i.mes.venda,i.rc.anteriorMesmoPeriodo)} vs ${D.periodos.mesAnt.label} no mesmo período)`:""}.`);
+  if(i.pr?.proj)f.push(`Projeção de fechamento: <b>${mil(i.pr.proj)}</b>, ${fmtPct(i.pr.pctProj)} da meta de ${mil(i.pr.metaMes)}.`);
+  if(lj.length>1)f.push(`Melhor loja no mês: ${esc(nomeLoja(lj[0].cod))} (${fmtPct(lj[0].pct)}); mais atrás: ${esc(nomeLoja(lj.at(-1).cod))} (${fmtPct(lj.at(-1).pct)}).`);
+  if(lh[0])f.push(`Loja que mais vendeu hoje: ${esc(nomeLoja(lh[0].cod))} (${mil(lh[0].venda)}).`);
+  return f.join(" ");
+}
+function secRegs(){
+  const regs=REGS();if(!regs.includes(S.reg2))S.reg2=regs[0];const i=regInfo(S.reg2),P=D.periodos;
+  const chips=regs.map(r=>{const x=regInfo(r);return `<div class="card reg ${r===S.reg2?"on":""}" data-r2="${r}"><h3>${r} · ${esc(x.lider)}</h3><div class="v">${mil((x.mes.venda||0)+x.zM)}</div><div class="barra"><i style="width:${Math.min(100,(x.mes.pct||0)*100)}%;background:${cor(x.mes.pct)}"></i></div><div class="sub"><b style="color:${cor(x.mes.pct)}">${fmtPct(x.mes.pct)}</b> da meta no mês · hoje ${mil((x.hoje.venda||0)+x.zH)}</div></div>`}).join("");
+  const zl=zepLoja("mes"),zh=zepLoja("hoje"),ant={};for(const l of P.mesAnt.resumo?.lojas||[])ant[l.cod]=l;
+  const lojas=lojasDaReg(i.reg,"mes").filter(l=>l.venda||l.meta).map(l=>{const h=(P.hoje.resumo?.lojas||[]).find(x=>x.cod===l.cod)||{};return {...l,h,z:zl[l.cod]||0,zh:zh[l.cod]||0}}).sort((a,b)=>b.pct-a.pct);
+  const cods=new Set(lojas.map(l=>l.cod)),zv={};for(const v of D.zep?.periodos?.mes?.vendedores||[])if(cods.has(v.loja))zv[v.nome.toUpperCase()]=v.venda;
+  const vend=(k)=>(P[k].vendedores||[]).filter(v=>cods.has(v.loja));
+  const A=alertasReg(i.reg),ico={alto:"🔴",medio:"🟡",bom:"🟢"};
+  return `<div class="grid g4">${chips}</div>
+  <div class="card ia sec" id="iaReg"><div class="iat">✨ ${i.reg} · ${esc(i.lider)} <span class="sub">· resumo automático</span> <button id="btIaReg" class="btia">Analisar com IA agora</button></div><p>${resumoReg(i)}</p><div id="iaRegOut"></div></div>
+  <div class="grid g4" style="margin-top:14px">
+    ${kpi("Hoje · Universo + BaianãoEletro",mil((i.hoje.venda||0)+i.zH),`Universo ${mil(i.hoje.venda)} · ${fmtPct(i.hoje.pct)} da meta de ${mil(i.hoje.meta)}`)}
+    ${kpi("Mês · Universo + BaianãoEletro",mil((i.mes.venda||0)+i.zM),`Universo ${fmtPct(i.mes.pct)} da meta até hoje (${mil(i.mes.meta)})`)}
+    ${kpi("Projeção de fechamento",i.pr?.proj?mil(i.pr.proj):"—",i.pr?.pctProj?`<b style="color:${cor(i.pr.pctProj)}">${fmtPct(i.pr.pctProj)}</b> da meta de ${mil(i.pr.metaMes)}`:"")}
+    ${kpi("Precisa vender por dia",i.pr?mil(i.pr.porDia):"—",i.pr?`nos ${i.pr.diasRest} dias que faltam`:"")}
+  </div>
+  <div class="hero" style="margin-top:14px;grid-template-columns:1fr 1fr">
+    <div class="card"><b>Alertas da ${i.reg}</b><div class="alertas">${A.map(a=>`<div class="al ${a.nivel}"><div>${ico[a.nivel]} ${a.t}</div><div class="sub">${a.d}</div></div>`).join("")||'<div class="sub">Nada fora do normal agora.</div>'}</div></div>
+    <div class="card"><b>Vendedores da ${i.reg} · hoje</b>${tabelaSimples([{t:"#",f:(r,x)=>x+1},{t:"Vendedor",l:1,n:1,f:r=>esc(r.nome)},{t:"Loja",l:1,f:r=>esc(nomeLoja(r.loja))},{t:"Venda",f:r=>mil(r.venda)},{t:"Pedidos",f:r=>num(r.pedidos)}],vend("hoje"),{max:12})}</div>
+  </div>
+  <div class="card sec"><b>Lojas da ${i.reg}</b> <span class="sub">· ordenadas pelo ritmo do mês</span>${tabelaSimples([{t:"Loja",l:1,n:1,f:r=>esc(nomeLoja(r.cod))},{t:"Hoje",f:r=>mil(r.h.venda||0)},{t:"% meta hoje",f:r=>r.h.meta?pbar(r.h.pct):"—"},{t:"Mês",f:r=>mil(r.venda)},{t:"Meta até hoje",f:r=>mil(r.meta)},{t:"Ritmo mês",f:r=>r.meta?pbar(r.pct):"—"},{t:"vs mês passado",f:r=>{const a=ant[r.cod];return a?.venda?delta(r.venda/hoje(),a.venda/Number(P.mesAnt.fim.slice(8))):"—"}},{t:"Margem",f:r=>pct(r.margem)},{t:"BaianãoEletro mês",f:r=>r.z?mil(r.z):"—"}],lojas,{max:30})}
+  <div class="nota">"vs mês passado" compara a venda por dia deste mês com a do mês passado inteiro.</div></div>
+  <div class="card sec"><b>Vendedores da ${i.reg} · mês</b>${tabelaSimples([{t:"#",f:(r,x)=>x+1},{t:"Vendedor",l:1,n:1,f:r=>esc(r.nome)},{t:"Loja",l:1,f:r=>esc(nomeLoja(r.loja))},{t:"Universo",f:r=>mil(r.venda)},{t:"BaianãoEletro",f:r=>zv[r.nome.toUpperCase()]?mil(zv[r.nome.toUpperCase()]):"—"},{t:"Pedidos",f:r=>num(r.pedidos)},{t:"Ticket",f:r=>r.pedidos?brl(r.venda/r.pedidos):"—"},{t:"Devolução",f:r=>r.devol?mil(r.devol):"—"}],vend("mes"),{max:60})}</div>`;
+}
+async function iaRegional(){
+  const reg=S.reg2,out=$("#iaRegOut"),bt=$("#btIaReg");if(!CHAT_URL||!out)return;bt.disabled=true;bt.textContent="Analisando…";
+  out.innerHTML='<p class="sub">A IA está analisando a regional com os números de agora (até 1 minuto)…</p>';
+  try{const ctx=contextoChat(),k=await chave(),idx=indice(ctx),i=regInfo(reg);
+    const q=`Faça a análise completa da regional ${reg} (líder ${i.lider}) agora: como está hoje, como está no mês e a projeção, quais lojas e vendedores puxam pra cima e quais estão atrás, e 3 ações práticas para o líder ${i.lider} e os gerentes das lojas. Use só números da regional ${reg} e das lojas dela.`;
+    const pede=async(pergunta,hist)=>{const r=await fetch(CHAT_URL,{method:"POST",headers:{"Content-Type":"application/json","X-Chave":k},body:JSON.stringify({pergunta,contexto:ctx,historico:hist})});const j=await r.json();if(!r.ok||!j.resposta)throw new Error(j.erro||"erro");return j};
+    let j=await pede(q,[]),resp=j.resposta,erros=verificar(resp,ctx,idx),n=0;
+    while(erros.length&&n<2){n++;j=await pede(`Sua resposta tem números que NÃO batem com os dados:\n${textoErros(erros)}\nReescreva a análise INTEIRA da regional ${reg}, corrigindo esses pontos e usando somente números do JSON ligados à loja/regional/vendedor e ao período certos.`,[{role:"user",content:q},{role:"assistant",content:resp}]);resp=j.resposta;erros=verificar(resp,ctx,idx)}
+    if(erros.length)resp=limpar(resp,erros);
+    if(S.reg2!==reg)return;
+    out.innerHTML=`<div class="m a" style="max-width:none;margin-top:10px">${md(resp)}<span class="mod">IA · ${esc(j.modelo||"")} · dados de ${esc(ctx.dadosDe.slice(0,5))} · ✔ números conferidos com os dados${erros.length?` (${erros.length} trecho(s) sem base retirados)`:""}</span></div>`;
+  }catch(e){out.innerHTML=`<p class="sub">Não consegui analisar agora (${esc(e.message)}). Tente de novo em instantes.</p>`}
+  if(bt){bt.disabled=false;bt.textContent="Analisar com IA de novo"}
+}
+
 // ---------- roteador ----------
 function render(){
   if(!D)return;ligaChat();
@@ -746,11 +822,12 @@ function render(){
   $("#secs").onclick=e=>{const s=e.target.dataset.s;if(s){S.sec=s;if(s!=="uni"&&S.per==="regionais")S.per="mes";salva2();render()}};
   if(S.sec==="uni"){renderUni();$("#tabsP").style.display="";return}
   cabecalho();
-  $("#tabsP").style.display=S.sec==="geral"?"none":"";
+  $("#tabsP").style.display=S.sec==="geral"||S.sec==="regs"?"none":"";
   [...$("#tabsP").querySelectorAll("button")].forEach(b=>{if(b.dataset.p==="regionais")b.remove()});
   if(S.per==="regionais")S.per="mes";
   $("#tabsP").onclick=e=>{const p=e.target.dataset.p;if(p){S.per=p;salva2();render()}};
-  $("#app").innerHTML=S.sec==="geral"?secGeral():S.sec==="zep"?secZep():secRede();
+  $("#app").innerHTML=S.sec==="geral"?secGeral():S.sec==="regs"?secRegs():S.sec==="zep"?secZep():secRede();
+  if(S.sec==="regs"){document.querySelectorAll("[data-r2]").forEach(el=>el.onclick=()=>{S.reg2=el.dataset.r2;try{localStorage.setItem("painel-reg2",S.reg2)}catch(e){}render()});$("#btIaReg").onclick=iaRegional;if(!CHAT_URL)$("#btIaReg").style.display="none"}
 }
 
 carrega();setInterval(carrega,20*1000); // sem dado novo o GitHub responde 304 (não conta no limite)setInterval(()=>D&&cabecalho(),60*1000);
