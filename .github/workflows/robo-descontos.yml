@@ -1,0 +1,122 @@
+name: Robô de descontos
+
+# "Orçamentos para aprovação" do Universo Baianão, com o login do Ed (secrets ED_CPF / ED_SENHA, que o próprio Ed cadastrou).
+# Aplica as regras de margem por regional que vocês mandam no WhatsApp e avisa cada decisão.
+# Isolado das outras automações:
+#   - WhatsApp: aparelho conectado PRÓPRIO (sessao-aprov), cache "robo-wa-*" (os relatórios usam "wa-*" → não se misturam);
+#   - grupo de concorrência próprio; não mexe no painel, na coleta nem nos relatórios;
+#   - repositório público = minutos grátis; registro só com contagens; regras/histórico criptografados no ramo "aprovacao".
+# Fica ligado 07h–23h de Salvador. Cada execução dura ~5h40 e chama a próxima; o agendamento abaixo é o vigia
+# (se não houver robô rodando, liga um; se houver, sai em segundos).
+on:
+  schedule:
+    - cron: "*/10 10-23,0-1 * * *"   # 07:00 ... 22:50 de Salvador
+  workflow_dispatch:
+    inputs:
+      acao:
+        description: "O que fazer"
+        type: choice
+        options: [rodar, simular, conectar-whatsapp-robo]
+        default: rodar
+      minutos:
+        description: "Duração (minutos) — só pra teste"
+        required: false
+        default: ""
+      sucessor:
+        description: "(uso interno)"
+        required: false
+        default: "0"
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  robo:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    defaults:
+      run:
+        working-directory: relatorios
+    env:
+      ACAO: ${{ github.event.inputs.acao || 'rodar' }}
+      SENHA: ${{ secrets.PAINEL_SENHA }}
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Já tem robô rodando?
+        id: vez
+        run: |
+          [ -n "$SENHA" ] || { echo "Falta o secret PAINEL_SENHA"; exit 1; }
+          if [ "$ACAO" = "conectar-whatsapp-robo" ]; then echo "seguir=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+          outros() { gh run list -R "$REPO" -w robo-descontos.yml -L 20 --json databaseId,status \
+            --jq "[.[]|select(.databaseId != ${{ github.run_id }} and .status != \"completed\")]|length"; }
+          if [ "${{ github.event.inputs.sucessor }}" = "1" ]; then
+            # sucessor: espera o anterior soltar o WhatsApp (até 6 min)
+            for i in $(seq 1 36); do [ "$(outros)" = "0" ] && break; sleep 10; done
+          fi
+          if [ "$(outros)" != "0" ]; then echo "Robô já está rodando — nada a fazer"; echo "seguir=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          H=$((10#$(TZ=America/Bahia date +%H)))
+          if [ "$ACAO" = "rodar" ] && { [ "$H" -lt 7 ] || [ "$H" -ge 23 ]; }; then echo "Fora do horário"; echo "seguir=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo "seguir=1" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        if: steps.vez.outputs.seguir == '1'
+        with: { node-version: 22, cache: npm, cache-dependency-path: relatorios/package-lock.json }
+      - if: steps.vez.outputs.seguir == '1'
+        run: npm ci --no-audit --no-fund > /dev/null 2>&1
+
+      - name: Restaurar WhatsApp do robô
+        if: steps.vez.outputs.seguir == '1'
+        uses: actions/cache/restore@v4
+        with:
+          path: relatorios/sessao-aprov.tar.enc
+          key: robo-wa-${{ github.run_id }}
+          restore-keys: robo-wa-
+      - name: Abrir sessão
+        if: steps.vez.outputs.seguir == '1'
+        run: |
+          if [ -f sessao-aprov.tar.enc ]; then
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:SENHA -in sessao-aprov.tar.enc | tar xzf - && echo "Sessão aberta" || echo "⚠️ não abriu a sessão"
+          else echo "Sem sessão salva"; fi
+
+      - name: Conectar WhatsApp do robô (mostra o código)
+        if: steps.vez.outputs.seguir == '1' && env.ACAO == 'conectar-whatsapp-robo'
+        env:
+          SESSAO_DIR: sessao-aprov
+        run: rm -rf sessao-aprov && node src/conectar.js 2>&1 | grep -E '^(✅|❌|  CÓDIGO|  No celular|  Conectar aparelho|=)'
+
+      - name: Robô
+        id: robo
+        if: steps.vez.outputs.seguir == '1' && env.ACAO != 'conectar-whatsapp-robo'
+        env:
+          ED_CPF: ${{ secrets.ED_CPF }}
+          ED_SENHA: ${{ secrets.ED_SENHA }}
+          EDNILSON_NUM: ${{ secrets.EDNILSON_NUM }}
+          AVISAR_ED: ${{ vars.AVISAR_ED }}
+          SIMULAR: ${{ env.ACAO == 'simular' && '1' || '0' }}
+          DURACAO_MIN: ${{ github.event.inputs.minutos || '340' }}
+        run: |
+          set -o pipefail
+          node src/aprovacao/robo.js 2>&1 | grep --line-buffered -E '^(✅|⚠️|❌|▶|🧪|Fora)' | sed -u -E 's/^(.{160}).*/\1/'
+
+      - name: Chamar o próximo turno
+        if: always() && steps.vez.outputs.seguir == '1' && env.ACAO == 'rodar'
+        run: |
+          H=$((10#$(TZ=America/Bahia date +%H)))
+          if [ "$H" -ge 7 ] && [ "$H" -lt 23 ]; then gh workflow run robo-descontos.yml -R "$REPO" --ref main -f acao=rodar -f sucessor=1 && echo "▶ próximo turno chamado"; fi
+
+      - name: Guardar WhatsApp do robô (criptografado)
+        id: fechar
+        if: always() && steps.vez.outputs.seguir == '1'
+        run: |
+          if [ -d sessao-aprov ]; then
+            tar czf - sessao-aprov | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:SENHA -out sessao-aprov.tar.enc && echo "ok=1" >> "$GITHUB_OUTPUT"
+          fi
+      - if: always() && steps.fechar.outputs.ok == '1'
+        uses: actions/cache/save@v4
+        with:
+          path: relatorios/sessao-aprov.tar.enc
+          key: robo-wa-${{ github.run_id }}

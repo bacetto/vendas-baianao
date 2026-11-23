@@ -3,7 +3,8 @@ import makeWASocket, { useMultiFileAuthState, fetchLatestBaileysVersion, Browser
 import pino from "pino";
 import fs from "node:fs";
 
-const ARQ_CONTATOS = "sessao/contatos.json";
+const SESSAO = process.env.SESSAO_DIR || "sessao";
+const ARQ_CONTATOS = `${SESSAO}/contatos.json`;
 const contatos = (() => { try { return JSON.parse(fs.readFileSync(ARQ_CONTATOS, "utf8")); } catch { return {}; } })();
 
 // a biblioteca de criptografia imprime chaves no console; não deixa isso ir pro registro
@@ -15,7 +16,7 @@ for (const k of ["log", "info", "warn"]) {
 export const NUMERO = (process.env.WHATS_NUMERO || "5571981053362").replace(/\D/g, "");
 
 export async function conectar({ parear = false, timeoutMs = 120000 } = {}) {
-  const { state, saveCreds } = await useMultiFileAuthState("sessao");
+  const { state, saveCreds } = await useMultiFileAuthState(SESSAO);
   if (!state.creds.registered && !parear) throw new Error("WhatsApp ainda não foi conectado. Rode a ação 'Conectar WhatsApp' primeiro.");
   const { version } = await fetchLatestBaileysVersion().catch(() => ({ version: undefined }));
 
