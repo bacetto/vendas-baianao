@@ -1,0 +1,25 @@
+name: Teste IA
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  t:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          SENHA: ${{ secrets.PAINEL_SENHA }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_AI_TOKEN: ${{ secrets.CF_AI_TOKEN }}
+        run: |
+          mkdir -p saida
+          curl -s "https://raw.githubusercontent.com/${{ github.repository }}/dados/dados.enc" -o atual.enc
+          node -e '
+            const fs=require("fs"),c=require("crypto"),z=require("zlib");const e=JSON.parse(fs.readFileSync("atual.enc"));const b=Buffer.from(e.dados,"base64");
+            const k=c.pbkdf2Sync(process.env.SENHA,Buffer.from(e.salt,"base64"),e.iter,32,"sha256");const d=c.createDecipheriv("aes-256-gcm",k,Buffer.from(e.iv,"base64"));d.setAuthTag(b.subarray(-16));
+            fs.writeFileSync("saida/d.json",z.gunzipSync(Buffer.concat([d.update(b.subarray(0,-16)),d.final()])));'
+          node --input-type=module -e '
+            import fs from "node:fs"; import { analiseIA } from "./painel/ia.mjs";
+            const D=JSON.parse(fs.readFileSync("saida/d.json")); delete D.ia; const t0=Date.now();
+            try { const r=await analiseIA(D); console.log(r?`✅ IA ok em ${((Date.now()-t0)/1000).toFixed(0)}s, removidos=${r.removidos}`:"❌ IA devolveu nulo"); }
+            catch(e){ console.log("❌ ERRO:", String(e.stack||e).replace(/R\$\s*[\d.,]+/g,"R$ x").slice(0,600)); }'
