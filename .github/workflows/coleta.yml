@@ -30,6 +30,7 @@ jobs:
           ZEP_SENHA: ${{ secrets.ZEP_SENHA }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_AI_TOKEN: ${{ secrets.CF_AI_TOKEN }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |

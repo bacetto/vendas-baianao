@@ -33,10 +33,12 @@ jobs:
         env:
           SENHA: ${{ secrets.PAINEL_SENHA }}
           CF_AI_TOKEN: ${{ secrets.CF_AI_TOKEN }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           printf '%s' "$SENHA" | sha256sum | cut -d' ' -f1 | tr -d '\n' | npx -y wrangler@4 secret put CHAVE >/dev/null && echo "CHAVE ok"
           printf '%s' "$CLOUDFLARE_ACCOUNT_ID" | npx -y wrangler@4 secret put CF_ACCOUNT_ID >/dev/null && echo "CF_ACCOUNT_ID ok"
           printf '%s' "$CF_AI_TOKEN" | npx -y wrangler@4 secret put CF_AI_TOKEN >/dev/null && echo "CF_AI_TOKEN ok"
+          if [ -n "$GROQ_API_KEY" ]; then printf '%s' "$GROQ_API_KEY" | npx -y wrangler@4 secret put GROQ_API_KEY >/dev/null && echo "GROQ_API_KEY ok"; else echo "sem GROQ_API_KEY (só Cloudflare)"; fi
       - name: Testar
         env:
           SENHA: ${{ secrets.PAINEL_SENHA }}

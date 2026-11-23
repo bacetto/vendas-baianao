@@ -5,7 +5,13 @@ import fs from "node:fs";
 import { verificar, indice, textoErros, limpar } from "./verificador.js";
 
 const CACHE = "saida/ia.json";
-const MODELOS = ["@cf/openai/gpt-oss-120b", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"];
+// provedores grátis em ordem: Cloudflare Workers AI e, de reserva, Groq (nenhum dos dois treina com os dados)
+const PROVEDORES = () => [
+  ...(process.env.CF_ACCOUNT_ID && process.env.CF_AI_TOKEN ? ["@cf/openai/gpt-oss-120b", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"].map((m) => ({ nome: "cloudflare", modelo: m,
+    url: `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/v1/chat/completions`, token: process.env.CF_AI_TOKEN })) : []),
+  ...(process.env.GROQ_API_KEY ? ["openai/gpt-oss-120b", "llama-3.3-70b-versatile"].map((m) => ({ nome: "groq", modelo: m,
+    url: "https://api.groq.com/openai/v1/chat/completions", token: process.env.GROQ_API_KEY })) : []),
+];
 // valores já formatados em texto: o modelo só copia, não converte (evita "R$ 586 mil" virar "R$ 5,9 mi")
 const r0 = (x) => { const v = Math.round(x || 0), a = Math.abs(v), f = (n, d) => n.toLocaleString("pt-BR", { maximumFractionDigits: d });
   return (v < 0 ? "-" : "") + (a >= 1e6 ? `R$ ${f(a / 1e6, 2)} mi` : a >= 1e3 ? `R$ ${f(a / 1e3, 1)} mil` : `R$ ${f(a, 0)}`); };
@@ -74,23 +80,24 @@ Responda APENAS um JSON válido neste formato:
  "acoes": ["até 4 ações práticas para hoje/amanhã, cada uma dizendo QUEM (líder da regional, gerente da loja X) faz O QUÊ, baseada num número do JSON. Proibido conselho genérico como 'treinar vendedores' ou 'revisar estratégia'"]}`;
 
 export async function analiseIA(D) {
-  const { CF_ACCOUNT_ID, CF_AI_TOKEN } = process.env;
-  if (!CF_ACCOUNT_ID || !CF_AI_TOKEN) return null;
+  const provs = PROVEDORES();
+  if (!provs.length) return null;
   let cache = null;
   try { cache = JSON.parse(fs.readFileSync(CACHE, "utf8")); } catch (e) {}
   // a cada 30 min (o limite grátis é por dia); reaproveita a última análise no meio-tempo
   // de hora em hora (a cota grátis diária da Cloudflare não comporta de 30 em 30 + o chat)
   if (cache?.geradoEm && Date.now() - new Date(cache.geradoEm).getTime() < 59 * 60e3 && cache.dia === D.periodos.hoje.inicio) return cache;
-  let pausa = 0; try { pausa = Number(fs.readFileSync("saida/ia-pausa.txt", "utf8")) || 0; } catch (e) {}
-  if (Date.now() < pausa) return cache && cache.dia === D.periodos.hoje.inicio ? cache : null;
+  let pausas = {}; try { pausas = JSON.parse(fs.readFileSync("saida/ia-pausa.json", "utf8")) || {}; } catch (e) {}
+  const ativos = provs.filter((p) => !(Date.now() < (pausas[p.nome] || 0)));
+  if (!ativos.length) return cache && cache.dia === D.periodos.hoje.inicio ? cache : null;
   const obj = contexto(D), ctx = JSON.stringify(obj), idx = indice(obj);
-  const chamar = async (modelo, mensagens) => {
-    const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/v1/chat/completions`, {
-      method: "POST", headers: { Authorization: `Bearer ${CF_AI_TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: modelo, temperature: 0.2, max_tokens: 3000, reasoning_effort: "low", messages: mensagens }),
+  const chamar = async (prov, mensagens) => {
+    const r = await fetch(prov.url, {
+      method: "POST", headers: { Authorization: `Bearer ${prov.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: prov.modelo, temperature: 0.2, max_tokens: 3000, ...(/gpt-oss/.test(prov.modelo) ? { reasoning_effort: "low" } : {}), messages: mensagens }),
       signal: AbortSignal.timeout(120000),
     });
-    if (r.status === 429) { fs.writeFileSync("saida/ia-pausa.txt", String(Date.now() + 60 * 60e3)); throw new Error("cota grátis do dia esgotada (429): tenta de novo em 1 h"); }
+    if (r.status === 429) { pausas[prov.nome] = Date.now() + 60 * 60e3; fs.writeFileSync("saida/ia-pausa.json", JSON.stringify(pausas)); throw new Error(`cota grátis do ${prov.nome} esgotada (429): pausa 1 h`); }
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = await r.json(), msg = j.choices?.[0]?.message || {};
     const txt = String(msg.content || msg.reasoning_content || "");
@@ -98,16 +105,18 @@ export async function analiseIA(D) {
     return { txt, out: JSON.parse(txt.slice(txt.indexOf("{"), txt.lastIndexOf("}") + 1)) };
   };
   const textoDe = (o) => [o.manchete, o.resumo, ...(o.destaques || []), ...(o.atencao || []), ...(o.acoes || [])].filter(Boolean).join("\n");
-  for (const modelo of MODELOS) {
+  for (const prov of ativos) {
+    if (Date.now() < (pausas[prov.nome] || 0)) continue;
+    const modelo = prov.modelo;
     try {
       const msgs = [{ role: "system", content: INSTRUCOES }, { role: "user", content: ctx }];
-      let { txt, out } = await chamar(modelo, msgs);
+      let { txt, out } = await chamar(prov, msgs);
       if (!out.resumo) throw new Error("resposta sem resumo");
       // conferência: cada número tem que bater com os dados e com a loja/regional/vendedor citado
       let erros = verificar(textoDe(out), obj, idx);
       if (erros.length) {
         try {
-          const c = await chamar(modelo, [...msgs, { role: "assistant", content: txt }, { role: "user", content: `Estes números NÃO batem com os dados:\n${textoErros(erros)}\nDevolva o JSON inteiro corrigido, só com números do JSON, cada um ligado ao item certo.` }]);
+          const c = await chamar(prov, [...msgs, { role: "assistant", content: txt }, { role: "user", content: `Estes números NÃO batem com os dados:\n${textoErros(erros)}\nDevolva o JSON inteiro corrigido, só com números do JSON, cada um ligado ao item certo.` }]);
           if (c.out.resumo) { out = c.out; erros = verificar(textoDe(out), obj, idx); }
         } catch (e) {}
       }
@@ -122,7 +131,7 @@ export async function analiseIA(D) {
       fs.writeFileSync(CACHE, JSON.stringify(res));
       console.log(`✅ Análise da IA atualizada (${res.modelo}${erros.length ? `, ${erros.length} trecho(s) removido(s)` : ", números conferidos"})`);
       return res;
-    } catch (e) { console.log(`⚠️ IA ${modelo}: ${String(e.message).slice(0, 100)}`); if (/429/.test(e.message)) break; }
+    } catch (e) { console.log(`⚠️ IA ${prov.nome} ${modelo}: ${String(e.message).slice(0, 100)}`); }
   }
   return cache && cache.dia === D.periodos.hoje.inicio ? cache : null;
 }
