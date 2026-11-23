@@ -146,7 +146,7 @@ export function decidir(item, regional, e, base) {
   // pedido sem custo/lucro dos produtos não dá pra projetar margem
   const num0 = (v) => v !== null && v !== undefined && v !== "" && ok(Number(v));
   const prods = item.products || [];
-  if (!prods.length || prods.some((p) => !num0(p.profit) || !num0(p.unitCost) || !num0(p.quantity) || Number(p.unitCost) <= 0 || Number(p.quantity) <= 0)) return { acao: "MANUAL", motivo: "pedido sem custo/lucro dos produtos" };
+  if (!prods.length || prods.some((p) => !num0(p.profit) || !num0(p.unitCost) || !num0(p.quantity) || Number(p.unitCost) < 0 || Number(p.quantity) <= 0) || !(prods.reduce((a, p) => a + Number(p.unitCost) * Number(p.quantity), 0) > 0)) return { acao: "MANUAL", motivo: "pedido sem custo/lucro dos produtos" };
   if (!num0(item.finalValue) || Number(item.finalValue) <= 0) return { acao: "MANUAL", motivo: "pedido sem valor final" };
   const proj = projetar(item, base);
   if (!proj) return { acao: "ESPERAR", motivo: "sem os números do dia do regional" };
@@ -210,6 +210,8 @@ export function textoAviso(item, regional, d, e, resultado, base) {
     if (regional && REGIONAIS.includes(regional) && !temRegras) out.push("", `👉 Pra o robô decidir o ${regional}, mande: *${regional} - M40 - D20 - S7*`);
   }
   if (d.acao === "APROVAR" && resultado !== "ok") out.push("", `📝 ${d.motivo}`);
+  // não aprovado por motivo que NÃO é regra (dado faltando etc.): mostra o motivo mesmo com as 3 regras ✅
+  else if (d.acao !== "APROVAR" && !foraRegra && temRegras && typeof mc === "number" && typeof sc === "number") out.push("", `⚠️ *Por que não aprovei:* ${d.motivo}`);
   return out.filter((x) => x !== null).join("\n");
 }
 
