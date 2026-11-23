@@ -1,0 +1,28 @@
+name: Teste IA
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  t:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          SENHA: ${{ secrets.PAINEL_SENHA }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          mkdir -p saida
+          curl -s "https://raw.githubusercontent.com/${{ github.repository }}/dados/dados.enc" -o atual.enc
+          node -e '
+            const fs=require("fs"),c=require("crypto"),z=require("zlib");const e=JSON.parse(fs.readFileSync("atual.enc"));const b=Buffer.from(e.dados,"base64");
+            const k=c.pbkdf2Sync(process.env.SENHA,Buffer.from(e.salt,"base64"),e.iter,32,"sha256");const d=c.createDecipheriv("aes-256-gcm",k,Buffer.from(e.iv,"base64"));d.setAuthTag(b.subarray(-16));
+            fs.writeFileSync("saida/d.json",z.gunzipSync(Buffer.concat([d.update(b.subarray(0,-16)),d.final()])));'
+          node --input-type=module -e '
+            import fs from "node:fs"; import { contextoIA } from "./painel/ia.mjs";
+            const D=JSON.parse(fs.readFileSync("saida/d.json")); const ctx=JSON.stringify(contextoIA(D));
+            console.log("RES contexto chars", ctx.length);
+            for (const m of ["openai/gpt-oss-120b","llama-3.3-70b-versatile"]) {
+              const r=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+process.env.GROQ_API_KEY,"Content-Type":"application/json"},
+                body:JSON.stringify({model:m,max_tokens:3000,messages:[{role:"user",content:"Resuma em 1 frase: "+ctx}]})});
+              const t=await r.text(); console.log("RES", m, r.status, r.status===200?"ok":t.replace(/R\$\s*[\d.,]+/g,"").slice(0,300));
+            }'
