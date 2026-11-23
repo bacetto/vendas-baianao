@@ -9,7 +9,7 @@ const CACHE = "saida/ia.json";
 const PROVEDORES = () => [
   ...(process.env.CF_ACCOUNT_ID && process.env.CF_AI_TOKEN ? ["@cf/openai/gpt-oss-120b", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"].map((m) => ({ nome: "cloudflare", modelo: m,
     url: `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/v1/chat/completions`, token: process.env.CF_AI_TOKEN })) : []),
-  ...(process.env.GROQ_API_KEY ? ["openai/gpt-oss-120b", "llama-3.3-70b-versatile"].map((m) => ({ nome: "groq", modelo: m,
+  ...(process.env.GROQ_API_KEY ? ["openai/gpt-oss-120b", "openai/gpt-oss-20b"].map((m) => ({ nome: "groq", modelo: m,
     url: "https://api.groq.com/openai/v1/chat/completions", token: process.env.GROQ_API_KEY })) : []),
 ];
 // valores já formatados em texto: o modelo só copia, não converte (evita "R$ 586 mil" virar "R$ 5,9 mi")

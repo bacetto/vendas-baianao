@@ -18,11 +18,6 @@ jobs:
             const k=c.pbkdf2Sync(process.env.SENHA,Buffer.from(e.salt,"base64"),e.iter,32,"sha256");const d=c.createDecipheriv("aes-256-gcm",k,Buffer.from(e.iv,"base64"));d.setAuthTag(b.subarray(-16));
             fs.writeFileSync("saida/d.json",z.gunzipSync(Buffer.concat([d.update(b.subarray(0,-16)),d.final()])));'
           node --input-type=module -e '
-            import fs from "node:fs"; import { contextoIA } from "./painel/ia.mjs";
-            const D=JSON.parse(fs.readFileSync("saida/d.json")); const ctx=JSON.stringify(contextoIA(D));
-            console.log("RES contexto chars", ctx.length);
-            for (const m of ["openai/gpt-oss-120b","llama-3.3-70b-versatile"]) {
-              const r=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+process.env.GROQ_API_KEY,"Content-Type":"application/json"},
-                body:JSON.stringify({model:m,max_tokens:3000,messages:[{role:"user",content:"Resuma em 1 frase: "+ctx}]})});
-              const t=await r.text(); console.log("RES", m, r.status, r.status===200?"ok":t.replace(/R\$\s*[\d.,]+/g,"").slice(0,300));
-            }'
+            import fs from "node:fs"; import { analiseIA } from "./painel/ia.mjs";
+            const D=JSON.parse(fs.readFileSync("saida/d.json")); delete D.ia; const t0=Date.now();
+            const r=await analiseIA(D); console.log("RES", r?`ok ${r.modelo} em ${((Date.now()-t0)/1000).toFixed(0)}s removidos=${r.removidos} itens=${(r.destaques||[]).length}/${(r.atencao||[]).length}/${(r.acoes||[]).length}`:"nulo");'
