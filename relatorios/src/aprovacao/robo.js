@@ -97,7 +97,7 @@ function atualizarServicos() {
 }
 const servDe = (reg) => (Date.now() - serv.em < 60 * 60e3 ? serv.regs[reg] : null);
 
-// Boletim pro Ed de 2 em 2 horas (margem / serviços do mês por regional). Roda em paralelo, sem segurar as aprovações;
+// Boletim pro Ed de 2 em 2 horas (parcial do DIA: margem / serviços por regional). Roda em paralelo, sem segurar as aprovações;
 // tenta de novo a cada 2 min até :50 da hora; "est.boletim" evita mandar 2x (inclusive na troca de turno).
 const bol = { carregando: false, tentou: 0, avisou: null };
 function boletim() {
@@ -109,12 +109,11 @@ function boletim() {
   }
   if (bol.carregando || Date.now() - bol.tentou < 2 * 60e3) return;
   bol.carregando = true; bol.tentou = Date.now();
-  portal.servicosMes().then((r) => {
+  portal.resumoDia().then((r) => {
     const t = textoBoletim(r, h);
     if (!t) throw new Error("números dos regionais incompletos");
     wa.enviar(ED || "eu", t);
     est.boletim = chave; sujo = true;
-    if (Object.keys(r).length) { serv.regs = r; serv.em = Date.now(); }
     console.log(`✅ Boletim das ${h}h enviado${ED ? "" : " (sem EDNILSON_NUM: foi pra você)"}`);
   }).catch((e) => console.log("⚠️ boletim não saiu:", String(e.message).slice(0, 80)))
     .finally(() => { bol.carregando = false; });

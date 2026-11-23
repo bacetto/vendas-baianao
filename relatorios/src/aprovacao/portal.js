@@ -86,6 +86,17 @@ export async function abrirPortal() {
       protheusGroup: item.group, discountValue: item.discountValue, protheusType: item.type, itemGroup: item.itemGroup,
       decision: decisao, note: nota,
     }),
+    // parcial do DIA por regional (margem e % de serviços) — pro boletim do Ed; não mexe nos números do mês do robô
+    resumoDia: async () => {
+      const d = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+      const r = await chamar("get", `/vendas-lojas/resumo?dataInicio=${d}&dataFim=${d}`);
+      const out = {};
+      for (const g of r?.porRegional || []) {
+        const venda = g.mercantil?.venda || 0, pac = g.pacoteServicos?.valor || 0;
+        if (/^R[1-9]$/.test(g.regional) && venda > 0) out[g.regional] = { venda, pct: (100 * pac) / venda, margem: margemPct(g.margem, venda) };
+      }
+      return out;
+    },
     // resumo do mês por regional (venda e pacote de serviços = Sorte Dobrada + Garantia). Consulta pesada (~1 min).
     servicosMes: async () => {
       const d = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
