@@ -2,7 +2,7 @@
 //
 // Regra por regional: margem mínima do regional (a "Reg." que o portal mostra no pedido, já com o desconto).
 //   margem Reg. >= mínimo  -> APROVA
-//   margem Reg. <  mínimo  -> REPROVA (ou deixa pro Ed, se "abaixo manual")
+//   fora da regra -> NÃO FAZ NADA no portal (nunca reprova); só avisa no grupo de detalhamento
 //   regional sem regra / robô pausado / dado faltando -> fica pro Ed decidir no portal (e avisa)
 //
 // Comandos (mensagem no WhatsApp, sozinha na mensagem):
@@ -10,7 +10,6 @@
 //   R1 manual    R1 sem robô (tudo do R1 fica pro Ed)
 //   todas 41     mesmo mínimo pra R1–R4
 //   teto 40      não decide sozinho pedido com desconto acima de 40% (teto off = sem teto)
-//   abaixo reprovar | abaixo manual
 //   pausar | ligar | regras | ajuda
 
 export const REGIONAIS = ["R1", "R2", "R3", "R4"];
@@ -102,10 +101,6 @@ export function comando(texto, e) {
     e.teto = /off|sem/.test(m[1]) ? null : num(m[1]);
     return { resposta: e.teto == null ? "✅ Sem teto de desconto." : `✅ Desconto acima de *${pct(e.teto)}* sempre fica pro Ed.`, mudou: true };
   }
-  if ((m = low.match(/^abaixo\s+(reprovar|reprova|manual)$/))) {
-    e.abaixo = m[1] === "manual" ? "manual" : "reprovar";
-    return { resposta: `✅ Abaixo do mínimo: ${e.abaixo === "manual" ? "fica pro Ed decidir" : "o robô reprova"}.`, mudou: true };
-  }
   if ((m = low.match(/^serv(?:icos?|ico)?\s*[:=-]?\s*(\d{1,2}(?:[.,]\d{1,2})?|off|sem)\s*%?$/))) {
     e.servMin = /off|sem/.test(m[1]) ? null : num(m[1]);
     return { resposta: e.servMin == null ? "✅ Sem exigência de serviços." : `✅ Serviços: o regional precisa ter ≥ *${pct(e.servMin)}* das vendas do mês em serviços.`, mudou: true };
@@ -157,7 +152,8 @@ export function decidir(item, regional, e, base) {
   const margem = proj.margemCom, serv = proj.servCom;
   if (!ok(margem) || margem <= 0 || margem > 100) return { acao: "MANUAL", motivo: "não deu pra calcular com segurança a margem do regional com o pedido" };
   if (!ok(serv) || serv < 0 || serv > 100) return { acao: "MANUAL", motivo: "não deu pra calcular com segurança os serviços do regional com o pedido" };
-  const fora = (motivo) => (e.abaixo === "manual" ? { acao: "MANUAL", motivo } : { acao: "REPROVAR", motivo });
+  // fora da regra: NUNCA reprova — não faz nada no portal e avisa (o Ed decide)
+  const fora = (motivo) => ({ acao: "MANUAL", motivo: `fora da regra: ${motivo}` });
   const falhas = [];
   if (desc > regra.max + 1e-9) falhas.push(`desconto ${pct(desc)} acima do D${num2(regra.max)}`);
   if (margem < regra.min) falhas.push(`margem com o pedido ${pct(margem)} abaixo do M${num2(regra.min)}`);
@@ -174,8 +170,7 @@ export function textoAviso(item, regional, d, e, resultado, base) {
   const prod = (item.products || []).map((p) => p.description || p.name || p.productName).filter(Boolean)[0];
   const cab = {
     APROVAR: resultado === "ok" ? "✅ *APROVADO pelo robô*" : "❌ *Falhou ao aprovar* — aprove no portal",
-    REPROVAR: resultado === "ok" ? "🚫 *REPROVADO pelo robô*" : "❌ *Falhou ao reprovar* — decida no portal",
-    MANUAL: "⏳ *AGUARDANDO O ED* (no portal)",
+    MANUAL: /^fora da regra/.test(d.motivo) ? "⛔ *NÃO LIBERADO pelo robô* — fica pro Ed (nada foi feito no portal)" : "⏳ *AGUARDANDO O ED* (no portal)",
   }[d.acao];
   const regra = e.regras[regional]?.min != null ? num2(e.regras[regional].min) : null;
   return [

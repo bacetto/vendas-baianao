@@ -141,7 +141,8 @@ async function ciclo() {
     if (SIMULAR) { if (!visto.has(it.id)) { visto.add(it.id); console.log(`🧪 faria: ${d.acao} (${reg})`); avisar(textoAviso(it, reg, d, est, "ok", servDe(reg))); } continue; }
     if ((tentativas[it.id] || 0) >= 2) continue; // já falhou 2x e já avisou: fica pro Ed
 
-    const decisao = d.acao === "APROVAR" ? "APROVADO" : "REPROVADO_MANUAL";
+    if (d.acao !== "APROVAR") continue; // o robô SÓ aprova; nunca reprova
+    const decisao = "APROVADO";
     const nota = `${d.acao === "APROVAR" ? "Aprovado" : "Reprovado"} automaticamente pela regra do Ednilson (${reg}): ${d.motivo}.`;
     try {
       await portal.decidir(it, decisao, nota);
@@ -194,9 +195,9 @@ while (true) {
 
 if (!SIMULAR && hora() >= 23 && est.resumo !== hoje()) {
   const dia = est.historico.filter((h) => h.t > Date.now() - 18 * 3600e3);
-  const a = dia.filter((h) => h.tipo === "APROVADO").length, r = dia.filter((h) => h.tipo === "REPROVADO_MANUAL").length;
+  const a = dia.filter((h) => h.tipo === "APROVADO").length;
   est.resumo = hoje();
-  avisar(`🌙 *Resumo do robô de descontos — hoje*\n✅ Aprovados: *${a}*\n🚫 Reprovados: *${r}*\n\n${textoRegras(est)}`);
+  avisar(`🌙 *Resumo do robô de descontos — hoje*\n✅ Aprovados: *${a}*\n\n${textoRegras(est)}`);
   await salvar(est).catch(() => {});
 }
 console.log(`▶ Fim do turno: ${cont.aprov} aprovados, ${cont.reprov} reprovados, ${cont.manual} pro Ed`);
