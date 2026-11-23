@@ -1,11 +1,10 @@
 // Robô de descontos do Ed — roda o dia todo no GitHub Actions (07h–23h de Salvador).
 // Fluxo (igual ao de hoje, só que automático):
-//   1. o regional manda o pedido no grupo "LIBERAÇÃO DESCONTO" (Filial / Pedido / ...);
-//   2. o robô acha o pedido nos "Orçamentos para aprovação" do portal (login do Ed);
+//   1. lê direto os "Orçamentos para aprovação" pendentes do Ed no portal, a cada ~15 s (não espera o grupo);
 //   3. aplica a regra de margem do regional que vocês mandaram no WhatsApp;
 //   4. aprova/reprova no portal e manda o detalhe no grupo DETALHAMENTO APROVAÇÕES BAIANAO (Gabriel + Ednilson).
 //   O robô NUNCA escreve no grupo LIBERAÇÃO DESCONTO: só lê.
-// Pedido que NÃO foi pedido no grupo: o robô não toca. Registro público: só contagens.
+// O que não cumpre as 3 regras fica pro Ed (o regional pede no LIBERAÇÃO DESCONTO como antes). Registro público: só contagens.
 import { abrirPortal } from "./portal.js";
 import { carregar, salvar } from "./estado.js";
 import { zap } from "./zap.js";
@@ -37,7 +36,8 @@ const avisar = (t0) => { const t = SIMULAR ? `🧪 *SIMULAÇÃO* (nada foi feito
 
 function mensagem(txt, info) {
   // pedido novo no grupo LIBERAÇÃO DESCONTO
-  if (grupoId && info.jid === grupoId) {
+  if (grupoId && info.jid === grupoId) return; // grupo LIBERAÇÃO: o robô não usa mais (lê direto do portal)
+  if (false) {
     const ps = lerPedidos(txt);
     for (const p of ps) {
       est.solicitados[p.pedido] = { ...p, t: Date.now(), msg: { key: info.msg.key, message: { conversation: txt.slice(0, 600) } } };
@@ -72,17 +72,17 @@ async function acharAvisos() {
 }
 await acharAvisos();
 if (!avisosId) avisar(`⚠️ *Robô de descontos*: ainda não achei o grupo "${GRUPO_AVISOS}". Enquanto isso, os avisos vêm aqui.`);
-if (!grupoId) { grupoId = undefined; avisar(`⚠️ *Robô de descontos*: não achei o grupo "${GRUPO}" neste WhatsApp. Sem ele, não pego os pedidos.`); }
+if (!grupoId) grupoId = undefined; // o grupo LIBERAÇÃO não é mais necessário: o robô lê direto do portal
 else console.log("✅ Grupo de liberação encontrado");
 for (const [t, i] of cedo.splice(0)) mensagem(t, i);
 for (const [d, t] of antes.splice(0)) wa.enviar(d, t);
 
 if (!SIMULAR && est.dia !== hoje()) {
   est.dia = hoje(); sujo = true;
-  avisar(`🤖 *Robô de descontos ligado* (${hoje().split("-").reverse().join("/")})\nPego os pedidos do grupo *${GRUPO}*.\n\n${textoRegras(est)}\n\nMande *ajuda* pra ver os comandos.`);
+  avisar(`🤖 *Robô de descontos ligado* (${hoje().split("-").reverse().join("/")})\nLeio direto os pendentes do Ed no portal.\n\n${textoRegras(est)}\n\nMande *ajuda* pra ver os comandos.`);
 }
 
-const visto = new Set();
+const visto = new Set(), primeiraVez = {};
 let portal = null, filial = {}, filiaisEm = 0, falhas = 0, avisoFalhaEm = 0;
 const tentativas = {}, cont = { aprov: 0, reprov: 0, manual: 0 };
 // % de serviços do mês por regional: consulta pesada, atualiza a cada 10 min em paralelo (não segura a decisão)
@@ -99,10 +99,6 @@ const servDe = (reg) => (Date.now() - serv.em < 60 * 60e3 ? serv.regs[reg] : nul
 async function ciclo() {
   // grupo de avisos criado depois: procura de novo a cada 10 min
   if (!avisosId && Date.now() - avisosEm > 10 * 60e3 && (await acharAvisos())) avisar(`✅ Grupo de avisos conectado.\n\n${textoRegras(est)}\n\nMande *ajuda* pra ver os comandos.`);
-  // limpa pedidos do grupo vencidos
-  for (const [k, s] of Object.entries(est.solicitados)) if (Date.now() - s.t > VALIDADE) { delete est.solicitados[k]; sujo = true; }
-  const sols = Object.values(est.solicitados);
-  if (!sols.length) return; // nada pedido no grupo: nem consulta o portal
 
   if (!portal) portal = await abrirPortal();
   if (Date.now() - filiaisEm > 3600e3) {
@@ -111,67 +107,44 @@ async function ciclo() {
     filiaisEm = Date.now();
   }
   atualizarServicos();
+  // lê DIRETO os pendentes do Ed no portal (não espera o grupo): decide assim que o pedido cai lá
   const itens = await portal.pendentes();
-  for (const sol of sols) {
-    const achados = itens.filter((i) => bate(sol, i));
-    if (achados.length > 1) { // mesmo número de pedido em mais de uma loja: na dúvida, não faz nada
-      if (!sol.avisado) { sol.avisado = true; sujo = true; avisar(`⚠️ Pedido *${sol.pedido}* aparece em ${achados.length} lojas no portal e a mensagem não deixa claro qual é. Não fiz nada — fica pro Ed.`); }
-      continue;
-    }
-    const it = achados[0];
-    if (!it) {
-      if (!sol.semPortal && Date.now() - sol.t > ESPERA_PORTAL) {
-        sol.semPortal = true; sujo = true;
-        // já foi decidido? mostra por quem e quando
-        let hist = [];
-        try { hist = (await portal.historico(sol.pedido.padStart(6, "0"))).filter((h) => bate(sol, h)); } catch (e) {}
-        hist.sort((a, b) => String(b.decision?.decidedAt || "").localeCompare(String(a.decision?.decidedAt || "")));
-        const h = hist[0];
-        const quando = (iso) => { try { return new Date(new Date(iso).getTime() - 3 * 3600e3).toISOString().slice(11, 16); } catch { return "?"; } };
-        const st = { APROVADO: "aprovado", REPROVADO_MANUAL: "reprovado", REPROVADO_POR_REGRA: "reprovado por regra" };
-        avisar(h
-          ? `ℹ️ Pedido *${sol.pedido}* (filial ${sol.filial ?? "?"}) pedido no grupo já estava *${st[h.decision?.finalStatus] || h.decision?.finalStatus}* no portal${h.decision?.decidedByName ? ` por ${h.decision.decidedByName}` : ""}${h.decision?.decidedAt ? ` às ${quando(h.decision.decidedAt)}` : ""}. Não fiz nada.`
-          : `🔎 Pedido *${sol.pedido}* (filial ${sol.filial ?? "?"}) pedido no grupo não está nos pendentes do Ed nem no histórico (número/filial errado ou não precisou de aprovação). Não fiz nada.`);
-      }
-      continue;
-    }
+  for (const it of itens) {
+    if (!it?.id) continue;
     if (it?.decision?.canDecide === false || (it?.decision?.finalStatus && it.decision.finalStatus !== "PENDENTE")) continue;
+    primeiraVez[it.id] ||= Date.now();
     const reg = regionalDe(filial[String(it.branchCode).trim()] ?? it.regional);
     let d = decidir(it, reg, est, servDe(reg));
     if (d.acao === "ESPERAR") {
-      if (Date.now() - sol.t < 10 * 60e3) continue; // dados de serviços chegando
-      d = { acao: "MANUAL", motivo: "não consegui ler os serviços do regional no portal" };
+      if (Date.now() - primeiraVez[it.id] < 10 * 60e3) continue; // números do mês chegando
+      d = { acao: "MANUAL", motivo: "não consegui ler os números do mês do regional no portal" };
     }
-
-    if (d.acao === "MANUAL") {
-      if (!sol.avisado && !visto.has(it.id)) { visto.add(it.id); if (!SIMULAR) { sol.avisado = true; sujo = true; } cont.manual++; avisar(textoAviso(it, reg, d, est, undefined, servDe(reg))); }
-      continue;
+    if (d.acao !== "APROVAR") {
+      if (!est.avisados[it.id] && !visto.has(it.id)) { visto.add(it.id); if (!SIMULAR) { est.avisados[it.id] = Date.now(); sujo = true; } cont.manual++; avisar(textoAviso(it, reg, d, est, undefined, servDe(reg))); }
+      continue; // o robô SÓ aprova; nunca reprova
     }
-    if (SIMULAR) { if (!visto.has(it.id)) { visto.add(it.id); console.log(`🧪 faria: ${d.acao} (${reg})`); avisar(textoAviso(it, reg, d, est, "ok", servDe(reg))); } continue; }
+    if (SIMULAR) { if (!visto.has(it.id)) { visto.add(it.id); console.log(`🧪 faria: APROVAR (${reg})`); avisar(textoAviso(it, reg, d, est, "ok", servDe(reg))); } continue; }
     if ((tentativas[it.id] || 0) >= 2) continue; // já falhou 2x e já avisou: fica pro Ed
-
-    if (d.acao !== "APROVAR") continue; // o robô SÓ aprova; nunca reprova
-    const decisao = "APROVADO";
     const nota = process.env.NOTA_APROVACAO || "Venda"; // descrição que vai no portal ao aprovar (igual o Ed usa)
     try {
-      await portal.decidir(it, decisao, nota);
-      d.acao === "APROVAR" ? cont.aprov++ : cont.reprov++;
+      await portal.decidir(it, "APROVADO", nota);
+      cont.aprov++;
       // aprovado: já soma o pedido no regional até a próxima leitura do portal (o próximo pedido é avaliado em cima disso)
       const b = serv.regs[reg];
-      if (d.acao === "APROVAR" && b) {
+      if (b) {
         const ps = it.products || [];
         b.venda += Number(it.finalValue) || 0;
         b.pacote += (it.services || []).reduce((a, x) => a + (Number(x.finalValue) || 0), 0);
         if (typeof b.lucro === "number") b.lucro += ps.reduce((a, x) => a + (Number(x.profit) || 0), 0);
       }
-      est.historico.push({ t: Date.now(), tipo: decisao, pedido: it.orderNumber, reg, desc: it.discountPercentage, margem: it.evaluation?.regionalMargin, min: est.regras[reg]?.min });
-      delete est.solicitados[sol.pedido];
+      est.avisados[it.id] = Date.now();
+      est.historico.push({ t: Date.now(), tipo: "APROVADO", pedido: it.orderNumber, reg, desc: it.discountPercentage });
       sujo = true;
-      console.log(`✅ ${d.acao === "APROVAR" ? "aprovado" : "reprovado"} 1 pedido (${reg})`);
+      console.log(`✅ aprovado 1 pedido (${reg})`);
       avisar(textoAviso(it, reg, d, est, "ok", servDe(reg)));
     } catch (e) {
       tentativas[it.id] = (tentativas[it.id] || 0) + 1;
-      console.log(`⚠️ decisão não registrada (tentativa ${tentativas[it.id]}): ${String(e.message).slice(0, 100)}`);
+      console.log(`⚠️ aprovação não registrada (tentativa ${tentativas[it.id]}): ${String(e.message).slice(0, 100)}`);
       if (tentativas[it.id] >= 2) avisar(textoAviso(it, reg, { ...d, motivo: `${d.motivo}. Portal recusou: ${String(e.message).slice(0, 120)}` }, est, "erro"));
     }
   }
