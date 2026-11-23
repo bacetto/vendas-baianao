@@ -87,16 +87,17 @@ const visto = new Set(), primeiraVez = {};
 let falhasSenha = 0;
 let portal = null, filial = {}, filiaisEm = 0, falhas = 0, avisoFalhaEm = 0;
 const tentativas = {}, cont = { aprov: 0, reprov: 0, manual: 0 };
-// % de serviços do mês por regional: consulta pesada, atualiza a cada 10 min em paralelo (não segura a decisão)
+// números do DIA por regional (margem e serviços): atualiza a cada 3 min em paralelo (não segura a decisão)
 const serv = { regs: {}, em: 0, carregando: false, tentou: 0 };
 function atualizarServicos() {
-  if (serv.carregando || !portal || Date.now() - serv.tentou < 10 * 60e3) return;
+  if (serv.carregando || !portal || Date.now() - serv.tentou < 3 * 60e3) return; // números do dia: relê a cada 3 min
   serv.carregando = true; serv.tentou = Date.now();
-  portal.servicosMes().then((r) => { if (Object.keys(r).length) { serv.regs = r; serv.em = Date.now(); console.log("✅ Serviços do mês atualizados"); } })
-    .catch((e) => { serv.tentou = Date.now() - 8 * 60e3; console.log("⚠️ serviços não lidos:", String(e.message).slice(0, 80)); })
+  portal.numerosDia().then((r) => { if (Object.keys(r).length) { serv.regs = r; serv.em = Date.now(); console.log("✅ Números do dia dos regionais atualizados"); } })
+    .catch((e) => { serv.tentou = Date.now() - 2 * 60e3; console.log("⚠️ números do dia não lidos:", String(e.message).slice(0, 80)); })
     .finally(() => { serv.carregando = false; });
 }
-const servDe = (reg) => (Date.now() - serv.em < 60 * 60e3 ? serv.regs[reg] : null);
+// só vale número do DIA de hoje e lido há menos de 15 min
+const servDe = (reg) => { const b = serv.regs[reg]; return b && Date.now() - serv.em < 15 * 60e3 && b.dia === new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10) ? b : null; };
 
 // Lojas abaixo de R$ 5 mil nas últimas 2h (pro Ed, 11h–21h): fotografa a venda do dia de cada loja às 9, 11 ... 21h
 // e compara com a foto de 2h antes. Fotos ficam no estado criptografado (sobrevivem à troca de turno).
@@ -189,8 +190,8 @@ async function ciclo() {
     const reg = regionalDe(filial[String(it.branchCode).trim()] ?? it.regional);
     let d = decidir(it, reg, est, servDe(reg));
     if (d.acao === "ESPERAR") {
-      if (Date.now() - primeiraVez[it.id] < 10 * 60e3) continue; // números do mês chegando
-      d = { acao: "MANUAL", motivo: "não consegui ler os números do mês do regional no portal" };
+      if (Date.now() - primeiraVez[it.id] < 10 * 60e3) continue; // números do dia chegando
+      d = { acao: "MANUAL", motivo: "não consegui ler (ou conferir) os números do dia do regional no portal" };
     }
     if (d.acao !== "APROVAR") {
       if (!est.avisados[it.id] && !visto.has(it.id)) { visto.add(it.id); if (!SIMULAR) { est.avisados[it.id] = Date.now(); sujo = true; } cont.manual++; avisar(textoAviso(it, reg, d, est, undefined, servDe(reg))); }
@@ -209,6 +210,7 @@ async function ciclo() {
         b.venda += Number(it.finalValue) || 0;
         b.pacote += (it.services || []).reduce((a, x) => a + (Number(x.finalValue) || 0), 0);
         if (typeof b.lucro === "number") b.lucro += ps.reduce((a, x) => a + (Number(x.profit) || 0), 0);
+        if (typeof b.custo === "number") b.custo += ps.reduce((a, x) => a + (Number(x.unitCost) || 0) * (Number(x.quantity) || 0), 0);
       }
       est.avisados[it.id] = Date.now();
       est.historico.push({ t: Date.now(), tipo: "APROVADO", pedido: it.orderNumber, reg, desc: it.discountPercentage });

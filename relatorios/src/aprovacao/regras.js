@@ -43,16 +43,16 @@ export function textoRegras(e) {
   return [
     `📋 *Regras*${e.pausado ? " — ⏸️ *PAUSADO*" : ""}`,
     ...linhas,
-    "_M = margem mínima do regional · D = desconto máximo do pedido · S = serviços mínimos do regional (% das vendas do mês)_",
+    "_M = margem mínima do regional · D = desconto máximo do pedido · S = serviços mínimos do regional (% das vendas do dia)_",
   ].join("\n");
 }
 
 export const AJUDA = [
   "🤖 *Como mandar as regras*",
   "*R1 - M40 - D30 - S7*",
-  "M40 = margem do regional fica no mínimo 40%",
+  "M40 = margem do regional no dia fica no mínimo 40%",
   "D30 = desconto do pedido no máximo 30%",
-  "S7 = serviços no mínimo 7% das vendas do regional no mês",
+  "S7 = serviços no mínimo 7% das vendas do regional no dia",
   "Pode mudar só um: *R1 - D25*",
   "*R1 manual* = R1 fica pro Ed decidir",
   "*regras* · *pausar* · *ligar*",
@@ -101,10 +101,6 @@ export function comando(texto, e) {
     e.teto = /off|sem/.test(m[1]) ? null : num(m[1]);
     return { resposta: e.teto == null ? "✅ Sem teto de desconto." : `✅ Desconto acima de *${pct(e.teto)}* sempre fica pro Ed.`, mudou: true };
   }
-  if ((m = low.match(/^serv(?:icos?|ico)?\s*[:=-]?\s*(\d{1,2}(?:[.,]\d{1,2})?|off|sem)\s*%?$/))) {
-    e.servMin = /off|sem/.test(m[1]) ? null : num(m[1]);
-    return { resposta: e.servMin == null ? "✅ Sem exigência de serviços." : `✅ Serviços: o regional precisa ter ≥ *${pct(e.servMin)}* das vendas do mês em serviços.`, mudou: true };
-  }
   if (/^(pausar|pausa|parar|para)$/.test(low)) { e.pausado = true; return { resposta: "⏸️ Robô *pausado*. Tudo fica pro Ed até mandar *ligar*.", mudou: true }; }
   if (/^(ligar|liga|retomar|voltar)$/.test(low)) { e.pausado = false; return { resposta: `▶️ Robô *ligado*.\n\n${textoRegras(e)}`, mudou: true }; }
   if (/^(regras|regra|status)$/.test(low)) return { resposta: textoRegras(e), mudou: false };
@@ -112,23 +108,21 @@ export function comando(texto, e) {
   return null;
 }
 
-// Como fica o regional SE o pedido for aprovado (base = resumo do mês do regional: venda, lucro, pacote de serviços).
-// Margem do portal = lucro / custo. O "Reg." do pedido é a margem atual; somamos o efeito do pedido em cima dele.
+// Como fica o regional NO DIA se o pedido for aprovado (base = resumo do dia do regional: venda, lucro, custo, pacote de serviços).
 export function projetar(item, base) {
-  if (!base || !(base.venda > 0)) return null;
+  // base = números do DIA do regional (venda, lucro, custo, pacote de serviços). Margem do portal = lucro / custo.
+  if (!base || !(base.venda > 0) || !(base.custo > 0) || typeof base.lucro !== "number") return null;
   const prods = item.products || [];
   const pl = prods.reduce((a, p) => a + (Number(p.profit) || 0), 0);
   const pc = prods.reduce((a, p) => a + (Number(p.unitCost) || 0) * (Number(p.quantity) || 0), 0);
   const fv = Number(item.finalValue) || prods.reduce((a, p) => a + (Number(p.finalValue) || 0), 0);
   const sv = (item.services || []).reduce((a, s) => a + (Number(s.finalValue) || 0), 0);
-  const servAtual = (100 * base.pacote) / base.venda;
-  const servCom = (100 * (base.pacote + sv)) / (base.venda + fv);
-  let margemAtual = item.evaluation?.regionalMargin, margemCom = null;
-  if (typeof base.lucro === "number" && base.venda - base.lucro > 0 && pc > 0 && typeof margemAtual === "number") {
-    const C = base.venda - base.lucro;
-    margemCom = margemAtual + 100 * ((base.lucro + pl) / (C + pc) - base.lucro / C);
-  }
-  return { margemAtual, margemCom, servAtual, servCom };
+  return {
+    margemAtual: (100 * base.lucro) / base.custo,
+    margemCom: pc > 0 ? (100 * (base.lucro + pl)) / (base.custo + pc) : null,
+    servAtual: (100 * base.pacote) / base.venda,
+    servCom: (100 * (base.pacote + sv)) / (base.venda + fv),
+  };
 }
 
 // Só entra na automação o pedido que APENAS o Ednilson pode liberar (grupo aprovador "... (Apenas Ednilson)").
@@ -155,7 +149,7 @@ export function decidir(item, regional, e, base) {
   if (!prods.length || prods.some((p) => !num0(p.profit) || !num0(p.unitCost) || !num0(p.quantity) || Number(p.unitCost) <= 0 || Number(p.quantity) <= 0)) return { acao: "MANUAL", motivo: "pedido sem custo/lucro dos produtos" };
   if (!num0(item.finalValue) || Number(item.finalValue) <= 0) return { acao: "MANUAL", motivo: "pedido sem valor final" };
   const proj = projetar(item, base);
-  if (!proj) return { acao: "ESPERAR", motivo: "sem os números do mês do regional" };
+  if (!proj) return { acao: "ESPERAR", motivo: "sem os números do dia do regional" };
   const margem = proj.margemCom, serv = proj.servCom;
   if (!ok(margem) || margem <= 0 || margem > 100) return { acao: "MANUAL", motivo: "não deu pra calcular com segurança a margem do regional com o pedido" };
   if (!ok(serv) || serv < 0 || serv > 100) return { acao: "MANUAL", motivo: "não deu pra calcular com segurança os serviços do regional com o pedido" };
@@ -177,7 +171,9 @@ export function textoServicosVenda(item) {
   if (!sv.length) return "🛠️ *Sem serviço na venda*";
   const nome = (x) => String(x.description || x.code || "serviço").trim().toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
   const total = sv.reduce((a, x) => a + (Number(x.finalValue) || 0), 0);
-  return `🛠️ *Com serviço:* ${sv.map((x) => `${nome(x)}${Number(x.quantity) > 1 ? ` (${x.quantity}x)` : ""}`).join(", ")} · ${brl(total)}`;
+  const grupo = {};
+  for (const x of sv) { const k = nome(x); grupo[k] = (grupo[k] || 0) + (Number(x.quantity) || 1); }
+  return `🛠️ *Com serviço:* ${Object.entries(grupo).map(([k, q]) => `${k}${q > 1 ? ` (${q}x)` : ""}`).join(", ")} · ${brl(total)}`;
 }
 
 export function textoAviso(item, regional, d, e, resultado, base) {
@@ -208,7 +204,7 @@ export function textoAviso(item, regional, d, e, resultado, base) {
       linha(mc >= g.min, "Margem", mc, `mín. ${num2(g.min)}%`),
       linha(sc >= g.serv, "Serviços", sc, `mín. ${num2(g.serv)}%`),
       L,
-      `_Margem e serviços do ${regional} já contando este pedido (hoje: ${pct(proj.margemAtual)} e ${pct(proj.servAtual)})_`);
+      `_Margem e serviços do ${regional} no dia, já contando este pedido (antes dele: ${pct(proj.margemAtual)} e ${pct(proj.servAtual)})_`);
   } else {
     out.push("", `📝 ${d.motivo}`);
     if (regional && REGIONAIS.includes(regional) && !temRegras) out.push("", `👉 Pra o robô decidir o ${regional}, mande: *${regional} - M40 - D20 - S7*`);

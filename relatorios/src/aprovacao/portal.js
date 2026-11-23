@@ -111,13 +111,14 @@ export async function abrirPortal() {
         .filter((l) => l.num > 0);
     },
     // resumo do mês por regional (venda e pacote de serviços = Sorte Dobrada + Garantia). Consulta pesada (~1 min).
-    servicosMes: async () => {
+    // números do DIA de cada regional (venda, lucro, custo, serviços) — base das regras M e S do robô
+    numerosDia: async () => {
       const d = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
-      const r = await chamar("get", `/vendas-lojas/resumo?dataInicio=${d.slice(0, 8)}01&dataFim=${d}`);
+      const r = await chamar("get", `/vendas-lojas/resumo?dataInicio=${d}&dataFim=${d}`);
       const out = {};
       for (const g of r?.porRegional || []) {
         const venda = g.mercantil?.venda || 0, pac = g.pacoteServicos?.valor || 0;
-        if (/^R[1-9]$/.test(g.regional) && venda > 0) out[g.regional] = { venda, pacote: pac, lucro: g.margem?.lucro ?? null, pct: (100 * pac) / venda, margem: margemPct(g.margem, venda) };
+        if (/^R[1-9]$/.test(g.regional) && venda > 0) out[g.regional] = { dia: d, venda, pacote: pac, lucro: g.margem?.lucro ?? null, custo: g.margem?.custoVenda ?? (typeof g.margem?.lucro === "number" ? venda - g.margem.lucro : null), pct: (100 * pac) / venda, margem: margemPct(g.margem, venda) };
       }
       // CONFERÊNCIA: o total de cada regional tem que bater com a soma das lojas dele (por loja do mesmo resumo).
       // Se não bater (diferença > 0,05 p.p. nos serviços ou > 0,5% na venda), o regional fica sem números -> o robô não aprova nada dele.
@@ -132,7 +133,8 @@ export async function abrirPortal() {
         const okVenda = s && Math.abs(s.venda - o.venda) <= 0.005 * o.venda;
         const okServ = s && s.venda > 0 && Math.abs((100 * s.pacote) / s.venda - o.pct) <= 0.05;
         const okPortal = (() => { const g = (r.porRegional || []).find((x) => x.regional === k); const pp = g?.pacoteServicos?.percentual; return typeof pp !== "number" || Math.abs(pp * 100 - o.pct) <= 0.05; })();
-        o.conferido = !!(okVenda && okServ && okPortal);
+        const okMargem = typeof o.lucro === "number" && o.custo > 0 && o.margem != null && Math.abs((100 * o.lucro) / o.custo - o.margem) <= 0.05;
+        o.conferido = !!(okVenda && okServ && okPortal && okMargem);
         if (!o.conferido) { console.log(`⚠️ conferência falhou no ${k}: números do regional não batem com a soma das lojas`); delete out[k]; }
       }
       return out;
