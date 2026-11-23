@@ -39,7 +39,7 @@ export default {
     const hist = (Array.isArray(b.historico) ? b.historico : []).slice(-6)
       .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: String(m.content || "").slice(0, 3000) }));
     const messages = [{ role: "system", content: SISTEMA }, { role: "system", content: "DADOS DO PAINEL (JSON):\n" + ctx }, ...hist, { role: "user", content: pergunta }];
-    let semCota = 0, total = 0;
+    let semCota = 0, total = 0, groqMinuto = false;
     const pulados = new Set();
     for (const p of PROVEDORES(env)) {
       if (pulados.has(p.nome)) continue;
@@ -49,13 +49,15 @@ export default {
           method: "POST", headers: { Authorization: `Bearer ${p.token}`, "Content-Type": "application/json" },
           body: JSON.stringify({ model: p.modelo, messages, temperature: 0.2, max_tokens: 2000, ...(/gpt-oss/.test(p.modelo) ? { reasoning_effort: "low" } : {}) }),
         });
-        if (r.status === 429) { semCota++; pulados.add(p.nome); continue; }
+        if (r.status === 429) { semCota++; pulados.add(p.nome); if (p.nome === "groq") groqMinuto = true; continue; }
         if (!r.ok) continue;
         const j = await r.json();
         const txt = String(j.choices?.[0]?.message?.content || "").trim();
         if (txt) return json({ resposta: txt, modelo: p.modelo.split("/").pop() }, 200, origin);
       } catch (e) {}
     }
+    // Groq: limite POR MINUTO (libera logo) -> "ocupada"; só Cloudflare sem cota -> limite do dia
+    if (groqMinuto) return json({ erro: "ocupada", tenteEm: 30 }, 429, origin);
     if (semCota && semCota === new Set(PROVEDORES(env).map((p) => p.nome)).size) return json({ erro: "limite", detalhe: "cota grátis diária da IA esgotada" }, 429, origin);
     return json({ erro: "a IA não respondeu agora, tente de novo em instantes" }, 502, origin);
   },

@@ -733,12 +733,21 @@ const md0=t=>esc(t).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/^#{1,4}\s*(.+
 const md=t=>md0(tabMd(t)).replace(/@@T([A-Za-z0-9+/=]+)@@/g,(_,x)=>{const R=JSON.parse(decodeURIComponent(escape(atob(x))));
   return `<div class="tw" style="max-height:none;margin:6px 0"><table><thead><tr>${R[0].map(c=>`<th class="l">${md0(c)}</th>`).join("")}</tr></thead><tbody>${R.slice(1).map(r=>`<tr>${r.map(c=>`<td class="l" style="white-space:normal">${md0(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`}).replace(/<br>\s*<div class="tw"/g,'<div class="tw"').replace(/(<\/div>)<br>/g,"$1");
 const addMsg=(c,h)=>{const d=document.createElement("div");d.className="m "+c;d.innerHTML=h;$("#msgs").appendChild(d);$("#msgs").scrollTop=1e9;return d};
+async function chamarIA(corpo,aviso){
+  for(let t=0;t<4;t++){
+    const r=await fetch(CHAT_URL,{method:"POST",headers:{"Content-Type":"application/json","X-Chave":await chave()},body:JSON.stringify(corpo)});
+    const j=await r.json().catch(()=>({}));
+    if(r.status===429&&j.erro==="ocupada"){aviso&&aviso(`A IA está atendendo outra pergunta (limite grátis por minuto). Tentando de novo em ${j.tenteEm||30}s…`);await new Promise(x=>setTimeout(x,(j.tenteEm||30)*1000));continue}
+    if(r.status===429)throw new Error("COTA");
+    if(!r.ok||!j.resposta)throw new Error(j.erro||"erro");return j;
+  }
+  throw new Error("a IA está muito ocupada agora, tente de novo em 1 minuto");
+}
 async function chave(){const s=localStorage.getItem("painel-baianao-s")||"";const h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,"0")).join("")}
 async function perguntar(q){
   q=q.trim();if(!q)return;$(".sug")?.remove();addMsg("u",esc(q));const w=addMsg("a p","Analisando os números…");
   try{const ctx=contextoChat(),k=await chave(),idx=indice(ctx);
-    const pede=async(pergunta,hist)=>{const r=await fetch(CHAT_URL,{method:"POST",headers:{"Content-Type":"application/json","X-Chave":k},body:JSON.stringify({pergunta,contexto:ctx,historico:hist})});
-      const j=await r.json();if(r.status===429)throw new Error("COTA");if(!r.ok||!j.resposta)throw new Error(j.erro||"erro");return j};
+    const pede=(pergunta,hist)=>chamarIA({pergunta,contexto:ctx,historico:hist},m=>{w.className="m a p";w.innerHTML=esc(m)});
     let j=await pede(q,HIST),resp=j.resposta,erros=verificar(resp,ctx,idx),rodadas=0;
     // conferência automática: número que não bate com os dados volta pra IA corrigir (até 2 vezes)
     while(erros.length&&rodadas<2){rodadas++;w.innerHTML=`Conferindo os números com os dados… (correção ${rodadas})`;
@@ -849,7 +858,7 @@ async function iaRegional(){
 **Destaques** (até 3 itens: lojas/vendedores que puxam pra cima, com número)
 **Atenção** (até 3 itens: lojas/vendedores atrás, com número)
 **Ações** (3 itens: quem faz o quê — líder ${i.lider} ou gerente da loja X — baseado num número dos dados; sem metas ou números inventados)`;
-    const pede=async(pergunta,hist)=>{const r=await fetch(CHAT_URL,{method:"POST",headers:{"Content-Type":"application/json","X-Chave":k},body:JSON.stringify({pergunta,contexto:ctx,historico:hist})});const j=await r.json();if(r.status===429)throw new Error("COTA");if(!r.ok||!j.resposta)throw new Error(j.erro||"erro");return j};
+    const pede=(pergunta,hist)=>chamarIA({pergunta,contexto:ctx,historico:hist},m=>{IAREG[reg]={on:1,html:`<p class="sub">${esc(m)}</p>`};reRender()});
     let j=await pede(q,[]),resp=j.resposta,erros=verificar(resp,ctx,idx),n=0;
     while(erros.length&&n<2){n++;j=await pede(`Sua resposta tem números que NÃO batem com os dados:\n${textoErros(erros)}\nReescreva a análise INTEIRA da regional ${reg}, corrigindo esses pontos e usando somente números do JSON ligados à loja/regional/vendedor e ao período certos.`,[{role:"user",content:q},{role:"assistant",content:resp}]);resp=j.resposta;erros=verificar(resp,ctx,idx)}
     window.__iaErros=erros;window.__iaBruta=resp; // pra diagnóstico
