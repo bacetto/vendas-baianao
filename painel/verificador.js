@@ -43,8 +43,8 @@ export function indice(ctx) {
     if (GLOBAIS.includes(chave)) e = ent("GLOBAL:" + chave + ":" + norm(o.nome || chave), `${o.nome || chave} (número da rede inteira)`, {}, true);
     else if (typeof o.loja === "string" && !o.nome) e = lojaDe(o.loja);
     else if (typeof o.nome === "string" && (o.venda !== undefined || o.pedidos !== undefined) && o.nome.split(" ").length >= 2 && !/^R\d$/.test(o.nome)) {
-      const w = norm(o.nome).split(" ").filter((x) => x.length > 2);
-      e = ent("VEND:" + norm(o.nome), o.nome, { vend: [w.slice(0, 2).join(" "), w.length > 2 ? `${w[0]} ${w[w.length - 1]}` : ""].filter(Boolean) });
+      const todas = norm(o.nome).split(" ").filter(Boolean), w = todas.filter((x) => x.length > 2);
+      e = ent("VEND:" + norm(o.nome), o.nome, { vend: { full: todas.join(" "), dois: todas.slice(0, 2).join(" "), first: w[0] || "", outros: w.slice(1) } });
     } else if (typeof o.reg === "string" && /^R\d$/.test(o.reg)) e = ent("REG:" + o.reg, o.reg, { reg: o.reg, lider: norm(o.lider || "") });
     for (const [k, v] of Object.entries(o)) {
       if (typeof v === "string") e.vals.push(...numeros(v).map((n) => ({ ...n, per })));
@@ -56,11 +56,12 @@ export function indice(ctx) {
 }
 
 function citadas(linha, ents) {
-  const L = " " + norm(linha).replace(/[·\-–—()]/g, " ") + " ";
+  const L = " " + norm(linha).replace(/[·\-–—()*,;:!?"'/|]|\.(?=\s|$)/g, " ").replace(/\s+/g, " ") + " ";
   return ents.filter((e) => {
     const a = e.aliases;
     if (a.reg) return new RegExp(`\\b${a.reg}\\b`).test(L) || (a.lider && L.includes(" " + a.lider + " "));
-    if (a.vend) return a.vend.some((x) => L.includes(" " + x + " ") || L.includes(" " + x));
+    if (a.vend) { const v = a.vend; // nome completo, os 2 primeiros nomes, ou primeiro nome + qualquer sobrenome
+      return L.includes(" " + v.full) || (v.dois.includes(" ") && L.includes(" " + v.dois + " ")) || (v.first && L.includes(" " + v.first + " ") && v.outros.some((x) => L.includes(" " + x + " "))); }
     if (!a || e.global) return false;
     if (a.nome !== undefined) return (a.nome && a.nome.length > 3 && L.includes(" " + a.nome)) || (a.num && new RegExp(`\\bLOJA\\s*0*${a.num}\\b|\\b0*${a.num}\\s+${a.nome.split(" ")[0]}`).test(L));
     return false;
