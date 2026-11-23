@@ -3,7 +3,8 @@
 //   1. o regional manda o pedido no grupo "LIBERAÇÃO DESCONTO" (Filial / Pedido / ...);
 //   2. o robô acha o pedido nos "Orçamentos para aprovação" do portal (login do Ed);
 //   3. aplica a regra de margem do regional que vocês mandaram no WhatsApp;
-//   4. aprova/reprova no portal, responde no grupo (citando a mensagem) e manda o detalhe na conversa "você mesmo".
+//   4. aprova/reprova no portal e manda o detalhe no grupo DETALHAMENTO APROVAÇÕES BAIANAO (Gabriel + Ednilson).
+//   O robô NUNCA escreve no grupo LIBERAÇÃO DESCONTO: só lê.
 // Pedido que NÃO foi pedido no grupo: o robô não toca. Registro público: só contagens.
 import { abrirPortal } from "./portal.js";
 import { carregar, salvar } from "./estado.js";
@@ -13,7 +14,7 @@ import { comando, decidir, regionalDe, textoAviso, textoRegras, lerPedidos, bate
 const CICLO = 15000;
 const SIMULAR = process.env.SIMULAR === "1"; // teste: lê e avisa o que faria, sem mexer no portal nem no grupo
 const GRUPO = process.env.GRUPO_LIBERACAO || "LIBERAÇÃO DESCONTO";
-const GRUPO_AVISOS = process.env.GRUPO_AVISOS || "ROBÔ DE DESCONTOS"; // grupo Gabriel + Ednilson: detalhes e comandos
+const GRUPO_AVISOS = process.env.GRUPO_AVISOS || "DETALHAMENTO APROVAÇÕES BAIANAO"; // grupo Gabriel + Ednilson: detalhes e comandos
 const ESPERA_PORTAL = 15 * 60e3;  // pedido do grupo que não aparece nos pendentes do Ed em 15 min: avisa
 const VALIDADE = 4 * 3600e3;      // pedido do grupo vale 4h
 const DURACAO = Number(process.env.DURACAO_MIN || 340) * 60e3;
@@ -32,8 +33,7 @@ est.solicitados ||= {};
 console.log(`▶ Regras carregadas (${Object.keys(est.regras).length} regionais com regra${est.pausado ? ", pausado" : ""})`);
 let sujo = false, acordar = null, grupoId = null, avisosId = null, avisosEm = 0;
 let wa = null; const antes = [];
-const avisar = (t0) => { const t = SIMULAR ? `🧪 *SIMULAÇÃO* (nada foi feito no portal nem no grupo)\n${t0}` : t0; (avisosId ? [avisosId] : DEST).forEach((d) => (wa ? wa.enviar(d, t) : antes.push([d, t]))); };
-const noGrupo = (texto, citar) => { if (!SIMULAR && grupoId) wa.enviar(grupoId, texto, citar); };
+const avisar = (t0) => { const t = SIMULAR ? `🧪 *SIMULAÇÃO* (nada foi feito no portal)\n${t0}` : t0; (avisosId ? [avisosId] : DEST).forEach((d) => (wa ? wa.enviar(d, t) : antes.push([d, t]))); };
 
 function mensagem(txt, info) {
   // pedido novo no grupo LIBERAÇÃO DESCONTO
@@ -125,7 +125,6 @@ async function ciclo() {
       delete est.solicitados[sol.pedido];
       sujo = true;
       console.log(`✅ ${d.acao === "APROVAR" ? "aprovado" : "reprovado"} 1 pedido (${reg})`);
-      noGrupo(d.acao === "APROVAR" ? "aprovado ✅" : `não aprovado ❌ — ${/desconto do pedido/.test(d.motivo) ? "desconto acima do máximo permitido" : "margem do regional abaixo do limite"}`, sol.msg);
       avisar(textoAviso(it, reg, d, est, "ok"));
     } catch (e) {
       tentativas[it.id] = (tentativas[it.id] || 0) + 1;
