@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Central de Automações · Baianão</title>
+<style>
+:root{--bg:#f4f5f8;--card:#fff;--ink:#12172b;--mut:#6b7285;--line:#e4e6ee;--navy:#14246b;--navy2:#1d3394;--red:#e02b2b;--yel:#ffc928;--ok:#0e9f6e;--okbg:#e6f6ef;--bad:#d63b3b;--badbg:#fdecec;--warn:#b77a00;--warnbg:#fff5dc;--off:#8a90a2;--offbg:#eef0f4;--soft:#eef0f7}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
+a{color:var(--navy2)}
+header{background:var(--navy);color:#fff;border-bottom:5px solid var(--red)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 18px}
+.top{display:flex;align-items:center;gap:14px;padding:16px 0}
+.logo{width:46px;height:46px;border-radius:12px;background:#fff;color:var(--navy);display:grid;place-items:center;font-weight:900;font-style:italic;font-size:28px;border-bottom:5px solid var(--red);flex:none}
+.top h1{margin:0;font-size:21px;font-weight:800;letter-spacing:-.3px}
+.top p{margin:1px 0 0;opacity:.8;font-size:13.5px}
+.relogio{margin-left:auto;text-align:right;font-size:13px;opacity:.9}
+.relogio b{display:block;font-size:22px;opacity:1}
+nav{display:flex;gap:4px;overflow-x:auto;padding-bottom:10px}
+nav a{color:#fff;text-decoration:none;font-weight:600;font-size:13.5px;padding:6px 12px;border-radius:999px;background:#ffffff14;white-space:nowrap}
+nav a:hover{background:#ffffff2a}
+main{padding:20px 0 50px}
+h2{font-size:17px;margin:30px 0 12px;display:flex;align-items:center;gap:8px}
+h2 small{font-weight:500;color:var(--mut);font-size:13px}
+.banner{border-radius:16px;padding:18px 20px;display:flex;gap:16px;align-items:center;background:var(--card);border:1px solid var(--line)}
+.banner .ico{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;font-size:28px;flex:none}
+.banner h3{margin:0;font-size:20px}
+.banner p{margin:3px 0 0;color:var(--mut)}
+.banner.ok .ico{background:var(--okbg)}.banner.bad{border-color:#f3b9b9;background:#fff8f8}.banner.bad .ico{background:var(--badbg)}
+.banner.warn{border-color:#f0d58c;background:#fffcf3}.banner.warn .ico{background:var(--warnbg)}
+.banner .lista{margin:8px 0 0;padding:0;list-style:none}
+.banner .lista li{margin:3px 0;font-weight:600}
+.mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}
+.mini div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.mini b{font-size:24px;display:block;line-height:1.1}
+.mini span{color:var(--mut);font-size:12.5px}
+/* agenda */
+.agenda{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:6px 0;overflow:hidden}
+.ev{display:grid;grid-template-columns:64px 14px 1fr auto;gap:10px;align-items:center;padding:9px 16px;border-bottom:1px solid var(--soft)}
+.ev:last-child{border-bottom:0}
+.ev .h{font-weight:800;font-size:15px}
+.ev .dot{width:12px;height:12px;border-radius:50%;background:var(--line)}
+.ev .t{font-weight:600}.ev .t small{display:block;font-weight:500;color:var(--mut);font-size:12.5px}
+.ev .p{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.ev.passou{opacity:.5}.ev.passou .dot{background:var(--mut)}
+.ev.prox{background:#f2f5ff}.ev.prox .dot{background:var(--red);box-shadow:0 0 0 4px #e02b2b30}.ev.prox .h{color:var(--red)}
+.p.lid{background:#e8ecfb;color:var(--navy)}.p.ed{background:#fff1cc;color:#7a5600}.p.mk{background:#f1e8fb;color:#5b2a8a}
+.filtros{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.filtros button{border:1px solid var(--line);background:var(--card);padding:6px 12px;border-radius:999px;font:inherit;font-size:13px;font-weight:600;color:var(--mut);cursor:pointer}
+.filtros button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+/* cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;display:flex;flex-direction:column}
+.card.bad{border-color:#f0a9a9;box-shadow:0 0 0 3px #d63b3b18}
+.card .cab{display:flex;align-items:flex-start;gap:10px}
+.card .em{font-size:26px;line-height:1}
+.card h3{margin:0;font-size:16.5px}
+.card .quem{color:var(--mut);font-size:12.5px;margin-top:2px}
+.st{margin-left:auto;font-size:12px;font-weight:800;padding:4px 10px;border-radius:999px;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.st i{width:8px;height:8px;border-radius:50%;background:currentColor}
+.st.ok{background:var(--okbg);color:var(--ok)}.st.ok i{animation:pulso 2s infinite}
+.st.bad{background:var(--badbg);color:var(--bad)}.st.warn{background:var(--warnbg);color:var(--warn)}
+.st.off{background:var(--offbg);color:var(--off)}.st.load{background:var(--soft);color:var(--mut)}
+@keyframes pulso{0%{box-shadow:0 0 0 0 #0e9f6e70}70%{box-shadow:0 0 0 7px #0e9f6e00}100%{box-shadow:0 0 0 0 #0e9f6e00}}
+.sinal{font-size:12.5px;color:var(--mut);margin:8px 0 0;min-height:18px}
+.sinal.bad{color:var(--bad);font-weight:600}.sinal.warn{color:var(--warn);font-weight:600}
+.desc{margin:10px 0 6px}
+.lbl{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--mut);margin:12px 0 4px}
+.card ul{margin:0;padding-left:18px}.card li{margin:3px 0}
+.quando{display:flex;flex-wrap:wrap;gap:5px}
+.quando span{background:var(--soft);border-radius:7px;padding:2px 8px;font-weight:700;font-size:13px}
+.trava{margin-top:auto;padding-top:12px}
+.trava div{background:#f7f8fb;border-radius:10px;padding:9px 11px;font-size:13.5px}
+/* tabelas */
+.tab{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--soft)}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);background:#fafbfd}
+tr:last-child td{border-bottom:0}
+.reg{display:inline-block;background:var(--navy);color:#fff;font-weight:800;border-radius:7px;padding:2px 8px}
+code{background:var(--soft);border-radius:6px;padding:2px 7px;font-weight:700;font-size:13.5px;white-space:nowrap}
+.dois{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+.box h3{margin:0 0 8px;font-size:15.5px}
+.box ul{margin:0;padding-left:18px}.box li{margin:4px 0}
+.regra3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0}
+.regra3 div{border-radius:12px;padding:12px;background:#f2f5ff;border:1px solid #dfe5fb}
+.regra3 b{font-size:22px;color:var(--navy);display:block}
+.regra3 span{font-size:13px}
+.off-card{opacity:.7}
+footer{color:var(--mut);font-size:12.5px;text-align:center;padding:20px 0 30px}
+@media(max-width:720px){.dois{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.relogio{display:none}.regra3{grid-template-columns:1fr}.ev{grid-template-columns:52px 12px 1fr;}.ev .p{grid-column:3;justify-self:start}th:nth-child(3),td:nth-child(3){display:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <div class="logo">B</div>
+      <div>
+        <h1>Central de Automações</h1>
+        <p>Baianão Móveis · tudo que roda sozinho, quando roda e com quais regras</p>
+      </div>
+      <div class="relogio"><b id="hora">--:--</b><span id="data"></span></div>
+    </div>
+    <nav>
+      <a href="#status">Situação agora</a>
+      <a href="#agenda">Agenda de hoje</a>
+      <a href="#automacoes">Automações</a>
+      <a href="#robo">Regras do robô</a>
+      <a href="#regionais">Regionais</a>
+      <a href="#seguranca">Se travar</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section id="status">
+    <div class="banner" id="banner">
+      <div class="ico">⏳</div>
+      <div><h3>Conferindo as automações…</h3><p>Lendo a situação ao vivo de cada uma.</p></div>
+    </div>
+    <div class="mini" id="mini"></div>
+  </section>
+
+  <section id="agenda">
+    <h2>📅 Agenda de hoje <small>todos os envios automáticos, no horário de Salvador</small></h2>
+    <div class="filtros" id="filtros">
+      <button class="on" data-f="todos">Todos</button>
+      <button data-f="lid">Líderes Regionais</button>
+      <button data-f="ed">Ednilson</button>
+      <button data-f="mk">Marketing</button>
+    </div>
+    <div class="agenda" id="lista-agenda"></div>
+  </section>
+
+  <section id="automacoes">
+    <h2>⚙️ Automações ligadas <small>o status de cada uma atualiza sozinho a cada 4 minutos</small></h2>
+    <div class="grid" id="cards"></div>
+  </section>
+
+  <section id="robo">
+    <h2>🤖 Robô de descontos — as regras <small>como o robô decide no lugar do Ed</small></h2>
+    <div class="box">
+      <p style="margin:0">Para cada regional o Ed define 3 números. O robô <b>só aprova se o pedido cumprir as 3 ao mesmo tempo</b>, contando o pedido como se já estivesse aprovado e usando os números <b>do dia</b> (não do mês).</p>
+      <div class="regra3">
+        <div><b>M</b><span><b>Margem mínima</b> do regional. Ex.: M40 = a margem do regional não pode ficar abaixo de 40%.</span></div>
+        <div><b>D</b><span><b>Desconto máximo</b> do pedido. Ex.: D30 = pedido com mais de 30% de desconto fica pro Ed.</span></div>
+        <div><b>S</b><span><b>Serviços mínimos</b> em % das vendas do regional. Ex.: S7 = serviços precisam ser pelo menos 7%.</span></div>
+      </div>
+      <div class="dois">
+        <div>
+          <div class="lbl">Como mudar (mensagem no grupo DETALHAMENTO APROVAÇÕES BAIANAO)</div>
+          <ul>
+            <li><code>R1 - M40 - D30 - S7</code> define as 3 regras do R1</li>
+            <li><code>R2 manual</code> tira o R2 do robô (tudo fica pro Ed)</li>
+            <li><code>regras</code> mostra as regras atuais de todos</li>
+            <li><code>pausar</code> / <code>ligar</code> para ou volta o robô</li>
+            <li><code>ajuda</code> lista todos os comandos</li>
+          </ul>
+        </div>
+        <div>
+          <div class="lbl">Travas de segurança</div>
+          <ul>
+            <li><b>Nunca reprova.</b> Ou aprova, ou deixa pro Ed.</li>
+            <li>Qualquer dúvida ou dado faltando: <b>não faz nada</b>.</li>
+            <li>Só pedidos que <b>apenas o Ed</b> pode liberar.</li>
+            <li>Quando aprova, a descrição no portal é <code>vendaa</code> (com 2 "a") — assim dá pra saber que foi o robô.</li>
+            <li>Não escreve no grupo LIBERAÇÃO DESCONTO, só no DETALHAMENTO.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="regionais">
+    <h2>🗺️ Regionais e regras gerais dos relatórios</h2>
+    <div class="dois">
+      <div class="tab">
+        <table>
+          <thead><tr><th>Regional</th><th>Líder</th><th>Nos rankings</th></tr></thead>
+          <tbody>
+            <tr><td><span class="reg">R1</span></td><td><b>Uara</b></td><td>Sim</td></tr>
+            <tr><td><span class="reg">R2</span></td><td><b>Diego</b></td><td>Sim</td></tr>
+            <tr><td><span class="reg">R3</span></td><td><b>Alexandre</b></td><td>Sim</td></tr>
+            <tr><td><span class="reg">R4</span></td><td><b>Michel</b></td><td>Sim</td></tr>
+            <tr><td><span class="reg" style="background:var(--off)">R0</span></td><td>— e "Sem regional"</td><td>Fica de fora</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="box">
+        <h3>Padrão de todos os relatórios</h3>
+        <ul>
+          <li>Ranking em <b>texto</b> (sem card), ordenado por <b>% da meta batida</b>.</li>
+          <li>Os 4 regionais com medalha, <b>5 maiores</b> e <b>5 menores</b> lojas (a mais baixa por último) e o bloco de <b>serviços</b>.</li>
+          <li>Embaixo, os <b>leads</b> no mesmo formato.</li>
+          <li>Nas parciais e no final do dia: 2 fotos "Resultado por categoria" (dia e mês).</li>
+          <li>No acumulado do mês, o dia de hoje não entra: é sempre <b>até ontem</b>.</li>
+          <li>Lojas de shopping (abertas até 22h): 51 Shopping da Bahia, 33 Bela Vista, 40 Salvador Norte.</li>
+          <li>Tudo sai do WhatsApp (71) 98105-3362.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="seguranca">
+    <h2>🛡️ Se alguma coisa travar</h2>
+    <div class="dois">
+      <div class="box">
+        <h3>O que o sistema faz sozinho</h3>
+        <ul>
+          <li><b>Relatório falhou?</b> Tenta de novo até 6 vezes e avisa o Gabriel no WhatsApp ("você mesmo") a cada tentativa — e avisa quando resolver.</li>
+          <li><b>Painel parou?</b> O Vigia confere a cada 15 min, religa a coleta e avisa no WhatsApp (no máximo 1 aviso por hora).</li>
+          <li><b>Robô de descontos caiu?</b> É religado sozinho em até 5 minutos, das 7h às 23h.</li>
+          <li><b>Boletim ou lojas &lt; 5 mil não saíram?</b> O Gabriel recebe aviso no WhatsApp e o robô tenta de novo.</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3>Como ler os status desta página</h3>
+        <ul>
+          <li><span class="st ok" style="display:inline-flex"><i></i>Funcionando</span> rodando normal agora.</li>
+          <li><span class="st warn" style="display:inline-flex"><i></i>Atenção</span> atrasou um pouco ou está se recuperando sozinho.</li>
+          <li><span class="st bad" style="display:inline-flex"><i></i>Travou</span> precisa olhar — aparece também no topo da página.</li>
+          <li><span class="st off" style="display:inline-flex"><i></i>Em pausa</span> fora do horário de funcionar (normal).</li>
+        </ul>
+        <p style="margin:10px 0 0;color:var(--mut);font-size:13px">Tudo roda de graça na nuvem, sem depender do computador ligado.</p>
+      </div>
+    </div>
+
+    <h2>⏸️ Desligadas</h2>
+    <div class="grid">
+      <div class="card off-card">
+        <div class="cab"><span class="em">📦</span><div><h3>Central de Cotação de fornecedores</h3><div class="quem">Compras · insumos das lojas</div></div><span class="st off"><i></i>Desligada</span></div>
+        <p class="desc">Pedia preço a fornecedores todo dia. Desligada desde 02/11 e encerrada a pedido em 21/11. Não volta sem ordem.</p>
+      </div>
+    </div>
+  </section>
+</main>
+<footer id="rodape">Baianão Móveis · Central de Automações</footer>
+
+<script>
+const REPO = "bacetto/vendas-baianao", REPO_FOTOS = "bacetto/fotos-baianao", API = "https://api.github.com/repos/";
+const tzNow = () => { const d = new Date(Date.now() - 3 * 3600e3); return { h: d.getUTCHours(), m: d.getUTCMinutes(), min: d.getUTCHours() * 60 + d.getUTCMinutes(), d }; };
+const hm = (min) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+const horaBR = (iso) => new Date(iso).toLocaleTimeString("pt-BR", { timeZone: "America/Bahia", hour: "2-digit", minute: "2-digit" });
+const ha = (iso) => { const s = (Date.now() - new Date(iso)) / 1000; if (s < 90) return "agora há pouco"; const m = Math.round(s / 60); if (m < 60) return `há ${m} min`; const h = Math.floor(m / 60); return h < 24 ? `há ${h}h${m % 60 ? String(m % 60).padStart(2, "0") : ""}` : `em ${new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Bahia" })}`; };
+
+// ---------- AGENDA ----------
+const AG = [
+  [6 * 60 + 17, "Fotos do site atualizadas", "Painel de fotos do marketing", "mk", "fotos"],
+  [6 * 60 + 50, "Parcial do mês (até ontem)", "Ednilson · chega antes das 7h", "ed", "rel"],
+  [8 * 60, "Meta do dia", "Grupo LÍDERES REGIONAL · só a foto por regional", "lid", "rel"],
+  ...[10, 12, 14, 16, 18, 20].map((h) => [h * 60, "Parcial do dia", "Grupo LÍDERES REGIONAL · vendas + leads + categorias", "lid", "rel"]),
+  ...[10, 12, 14, 16, 18, 20, 22].map((h) => [h * 60 + 1, "Boletim margem / serviços", "Ednilson · parcial do dia por regional", "ed", "robo"]),
+  ...[11, 13, 15, 17, 19, 21].map((h) => [h * 60, "Lojas abaixo de R$ 5 mil", `Ednilson · vendas das ${h - 2}h às ${h}h`, "ed", "robo"]),
+  [12 * 60 + 17, "Fotos do site atualizadas", "Painel de fotos do marketing", "mk", "fotos"],
+  [18 * 60 + 17, "Fotos do site atualizadas", "Painel de fotos do marketing", "mk", "fotos"],
+  [22 * 60 + 20, "Resultado final do dia", "Grupo LÍDERES REGIONAL", "lid", "rel"],
+].sort((a, b) => a[0] - b[0]);
+const TAG = { lid: "Líderes", ed: "Ednilson", mk: "Marketing" };
+let filtro = "todos";
+function agenda() {
+  const n = tzNow().min, prox = AG.find((e) => e[0] >= n - 2 && (filtro === "todos" || e[3] === filtro));
+  document.getElementById("lista-agenda").innerHTML = AG.filter((e) => filtro === "todos" || e[3] === filtro).map((e) =>
+    `<div class="ev ${e === prox ? "prox" : e[0] < n - 2 ? "passou" : ""}"><span class="h">${hm(e[0] % 60 === 1 ? e[0] - 1 : e[0])}</span><span class="dot"></span><span class="t">${e[1]}<small>${e[2]}${e === prox ? " · <b style='color:var(--red)'>próximo</b>" : ""}</small></span><span class="p ${e[3]}">${TAG[e[3]]}</span></div>`).join("")
+    + (prox ? "" : `<div class="ev"><span class="h">—</span><span class="dot"></span><span class="t">Envios de hoje encerrados<small>Amanhã começa às 06:17</small></span></div>`);
+}
+document.getElementById("filtros").onclick = (ev) => { const b = ev.target.closest("button"); if (!b) return; filtro = b.dataset.f; document.querySelectorAll("#filtros button").forEach((x) => x.classList.toggle("on", x === b)); agenda(); };
+
+// ---------- AUTOMAÇÕES ----------
+const A = [
+  { id: "rel", em: "📲", nome: "Relatórios dos Líderes Regionais", quem: "Grupo LÍDERES REGIONAL · Uara, Diego, Alexandre e Michel",
+    desc: "Tira os números do Universo Baianão e manda no grupo o ranking de vendas e leads do dia, por regional e por loja.",
+    quando: ["08:00 meta", "10h", "12h", "14h", "16h", "18h", "20h", "22:20 final"],
+    regras: ["08:00 só a foto <b>META DO DIA</b> (lojas ainda fechadas)", "10h às 20h, de 2 em 2h: parcial do dia + leads + 2 fotos de categoria", "22:20 resultado final do dia (depois do fechamento dos shoppings)", "Não manda nada fora desses horários"],
+    trava: "Tenta de novo até 6 vezes sozinho e avisa o Gabriel no WhatsApp." },
+  { id: "rel", em: "🌅", nome: "Parcial do mês do Ednilson", quem: "Ednilson · relatório para a diretoria",
+    desc: "Todo dia de manhã, o acumulado do mês até ontem: regionais, maiores e menores lojas, serviços e leads.",
+    quando: ["06:50 todo dia"], regras: ["Precisa chegar <b>antes das 7h</b>, nunca depois", "Título \"Parcial do mês\", regionais com medalha", "O dia de hoje não entra (até ontem)"],
+    trava: "Mesma proteção dos relatórios: novas tentativas + aviso no WhatsApp do Gabriel." },
+  { id: "robo", em: "🤖", nome: "Robô de descontos", quem: "Login do Ednilson · avisos no grupo DETALHAMENTO APROVAÇÕES BAIANAO",
+    desc: "Fica olhando os \"Orçamentos para aprovação\" pendentes do Ed no portal e aprova na hora os que cumprem as regras M / D / S do regional.",
+    quando: ["07h às 23h", "confere a cada 15 s"], regras: ["Só aprova se cumprir as 3 regras juntas (M, D e S)", "Nunca reprova: o resto fica pro Ed", "Aviso no celular mostra cada regra com ✅/❌ e se a venda tem serviço", "Descrição <code>vendaa</code> quando é o robô"],
+    trava: "Se cair, é religado sozinho em até 5 minutos.", link: "#robo" },
+  { id: "robo", em: "📊", nome: "Boletim margem e serviços", quem: "Ednilson",
+    desc: "De 2 em 2 horas, a margem e o % de serviços do dia de cada regional, curtinho: <code>R1 - 40% / 6%</code>.",
+    quando: ["10h", "12h", "14h", "16h", "18h", "20h", "22h"], regras: ["Números do <b>dia</b>, não do mês", "Se faltar algum regional, não manda número pela metade"],
+    trava: "Se o portal não responder, o Gabriel é avisado e ele tenta no próximo horário." },
+  { id: "robo", em: "📉", nome: "Lojas abaixo de R$ 5 mil", quem: "Ednilson",
+    desc: "De 2 em 2 horas, as lojas que venderam menos de R$ 5 mil nas últimas 2 horas, separadas por regional.",
+    quando: ["11h", "13h", "15h", "17h", "19h", "21h"], regras: ["Compara a venda do dia da loja agora com a de 2h atrás", "Só lojas dos regionais R1 a R4", "Se nenhuma ficou abaixo, avisa que está tudo ok"],
+    trava: "Se faltar a leitura anterior, o Gabriel é avisado." },
+  { id: "painel", em: "📈", nome: "Painel Vendas ao vivo", quem: "Gabriel e o patrão · com senha",
+    desc: "Página com as vendas do Universo Baianão e do baianaoeletro (ZepSystem) por regional, loja, vendedor e produto, com assistente de IA.",
+    quando: ["07h às 23h", "atualiza a cada ~1 min"], regras: ["Visão por regional somando Universo + baianaoeletro", "Análises do mês sempre até ontem, com crescimento sobre o mês anterior", "Dados criptografados: só abre com a senha"],
+    trava: "O Vigia religa a coleta e avisa no WhatsApp se os dados ficarem velhos.", link: "../painel/site/" },
+  { id: "vigia", em: "🛡️", nome: "Vigia do painel", quem: "Avisa o Gabriel no WhatsApp",
+    desc: "Confere a cada 15 minutos se o painel está recebendo dados novos. Se parou, religa e avisa.",
+    quando: ["07h às 23h", "a cada 15 min"], regras: ["Dados com mais de 15 min = painel parado", "No máximo 1 aviso por hora", "Não atrapalha relatório que estiver saindo"],
+    trava: "É ele quem cuida dos outros." },
+  { id: "fotos", em: "🖼️", nome: "Fotos Baianão (marketing)", quem: "Time de marketing",
+    desc: "Painel para o marketing pegar as fotos dos produtos e os banners do site baianao.com.br no formato que precisar, sem acesso ao Shopify.",
+    quando: ["06:17", "12:17", "18:17"], regras: ["Grátis, sem API paga", "Atualiza sozinho com os banners e selos do site"],
+    trava: "Se uma atualização falhar, o painel continua no ar com as fotos da anterior.", link: "https://bacetto.github.io/fotos-baianao/" },
+];
+
+let ST = {};   // id -> {s:"ok|warn|bad|off|load", txt}
+function cards() {
+  document.getElementById("cards").innerHTML = A.map((a) => {
+    const s = ST[a.id] || { s: "load", txt: "Conferindo…" };
+    const rot = { ok: "Funcionando", warn: "Atenção", bad: "Travou", off: "Em pausa", load: "…" }[s.s];
+    return `<div class="card ${s.s === "bad" ? "bad" : ""}">
+      <div class="cab"><span class="em">${a.em}</span><div><h3>${a.nome}</h3><div class="quem">${a.quem}</div></div><span class="st ${s.s}"><i></i>${rot}</span></div>
+      <div class="sinal ${s.s === "bad" ? "bad" : s.s === "warn" ? "warn" : ""}">${s.txt}</div>
+      <p class="desc">${a.desc}</p>
+      <div class="lbl">Quando</div><div class="quando">${a.quando.map((q) => `<span>${q}</span>`).join("")}</div>
+      <div class="lbl">Regras</div><ul>${a.regras.map((r) => `<li>${r}</li>`).join("")}</ul>
+      <div class="trava"><div>🔁 <b>Se travar:</b> ${a.trava}${a.link ? ` · <a href="${a.link}"${a.link.startsWith("http") ? ' target="_blank" rel="noopener"' : ""}>abrir</a>` : ""}</div></div>
+    </div>`;
+  }).join("");
+}
+
+// ---------- STATUS AO VIVO ----------
+async function get(u) {
+  const r = await fetch(API + u, { headers: { Accept: "application/vnd.github+json" } });
+  if (r.status === 403 || r.status === 429) { const reset = Number(r.headers.get("x-ratelimit-reset")) * 1000; const e = new Error("limite"); e.reset = reset; throw e; }
+  if (!r.ok) throw new Error("http " + r.status);
+  return r.json();
+}
+const vivo = (rs) => rs.filter((r) => r.status !== "completed");
+const feitos = (rs) => rs.filter((r) => r.status === "completed" && r.conclusion !== "cancelled" && r.conclusion !== "skipped");
+
+function avaliar(runs, dadosISO, fotos) {
+  const t = tzNow(), n = t.min, por = (f) => runs.filter((r) => r.path === `.github/workflows/${f}`);
+  const st = {};
+  // Painel (coleta)
+  {
+    const idade = dadosISO ? (Date.now() - new Date(dadosISO)) / 60e3 : 999, coleta = vivo(por("coleta.yml")).length;
+    if (n < 7 * 60 + 5 || n >= 23 * 60) st.painel = { s: "off", txt: `Fora do horário (07h–23h). Últimos dados às ${dadosISO ? horaBR(dadosISO) : "—"}.` };
+    else if (idade <= 15) st.painel = { s: "ok", txt: `Dados de ${horaBR(dadosISO)} (${ha(dadosISO)})` };
+    else if (idade <= 30) st.painel = { s: "warn", txt: `Dados de ${horaBR(dadosISO)} (${ha(dadosISO)}) — o Vigia já está cuidando` };
+    else st.painel = { s: "bad", txt: `Sem dados novos desde ${dadosISO ? horaBR(dadosISO) : "—"}${coleta ? " (coleta rodando, mas não consegue atualizar)" : " (coleta parada)"}` };
+  }
+  // Vigia
+  {
+    const u = feitos(por("vigia.yml"))[0], idade = u ? (Date.now() - new Date(u.updated_at)) / 60e3 : 999;
+    if (n < 7 * 60 + 10) st.vigia = { s: "off", txt: "Começa às 07:07" };
+    else if (u && u.conclusion === "success" && idade < 35) st.vigia = { s: "ok", txt: `Última conferência ${ha(u.updated_at)}` };
+    else if (u && u.conclusion !== "success") st.vigia = { s: "bad", txt: `Última conferência deu erro (${horaBR(u.updated_at)})` };
+    else st.vigia = { s: n >= 24 * 60 - 5 ? "off" : "warn", txt: u ? `Última conferência ${ha(u.updated_at)} — o GitHub atrasou o agendamento` : "Sem conferência recente" };
+  }
+  // Robô de descontos (inclui boletim e lojas < 5 mil)
+  {
+    const rs = por("robo-descontos.yml"), v = vivo(rs).filter((r) => r.status === "in_progress"), u = feitos(rs)[0];
+    if (n < 7 * 60 || n >= 23 * 60) st.robo = { s: "off", txt: "Em pausa (funciona das 07h às 23h)" };
+    else if (v.length) st.robo = { s: "ok", txt: `Ligado desde ${horaBR(v[v.length - 1].run_started_at || v[v.length - 1].created_at)}` };
+    else if (vivo(rs).length || (u && (Date.now() - new Date(u.updated_at)) / 60e3 < 8)) st.robo = { s: "warn", txt: "Trocando de turno — volta em instantes" };
+    else if (n < 7 * 60 + 10) st.robo = { s: "warn", txt: "Ligando para o dia" };
+    else st.robo = { s: "bad", txt: "Robô desligado — o religamento automático não conseguiu" };
+  }
+  // Relatórios do WhatsApp
+  {
+    const rs = por("relatorios.yml"), v = vivo(rs), fs = feitos(rs), u = fs[0], ok = fs.find((r) => r.conclusion === "success");
+    if (v.length) st.rel = { s: "ok", txt: `Enviando / conferindo agora (${horaBR(v[0].created_at)})` };
+    else if (u && u.conclusion === "failure") {
+      const recente = (Date.now() - new Date(u.updated_at)) / 60e3 < 10;
+      st.rel = { s: recente ? "warn" : "bad", txt: recente ? `Falhou às ${horaBR(u.updated_at)} — já está tentando de novo sozinho` : `Último envio falhou às ${horaBR(u.updated_at)} e ainda não voltou` };
+    } else if (ok) st.rel = { s: n < 6 * 60 + 40 ? "off" : "ok", txt: `${n < 6 * 60 + 40 ? "Começa às 06:50 · " : ""}Última rodada ok às ${horaBR(ok.updated_at)} (${ha(ok.updated_at)})` };
+    else st.rel = { s: "warn", txt: "Sem rodadas recentes registradas" };
+  }
+  // Fotos
+  if (fotos) {
+    const fs = feitos(fotos), u = fs[0];
+    if (vivo(fotos).length) st.fotos = { s: "ok", txt: "Atualizando agora" };
+    else if (!u) st.fotos = { s: "warn", txt: "Sem atualização recente registrada" };
+    else if (u.conclusion === "success") st.fotos = { s: "ok", txt: `Atualizado às ${horaBR(u.updated_at)} (${ha(u.updated_at)})` };
+    else st.fotos = { s: "warn", txt: `A última atualização falhou (${horaBR(u.updated_at)}) — o painel segue no ar com as fotos anteriores` };
+  }
+  return st;
+}
+
+function banner() {
+  const vals = A.filter((a, i, arr) => arr.findIndex((b) => b.id === a.id) === i).map((a) => [a, ST[a.id]]).filter(([, s]) => s);
+  const nomes = (k) => A.filter((a) => ST[a.id]?.s === k).map((a) => a.nome);
+  const bad = nomes("bad"), warn = nomes("warn"), okN = A.filter((a) => ST[a.id]?.s === "ok").length, offN = A.filter((a) => ST[a.id]?.s === "off").length;
+  const b = document.getElementById("banner");
+  if (!vals.length) return;
+  if (bad.length) { b.className = "banner bad"; b.innerHTML = `<div class="ico">🚨</div><div><h3>${bad.length === 1 ? "1 automação travou" : bad.length + " automações travaram"}</h3><p>Precisa olhar:</p><ul class="lista">${bad.map((x) => `<li>❌ ${x}</li>`).join("")}</ul></div>`; }
+  else if (warn.length) { b.className = "banner warn"; b.innerHTML = `<div class="ico">⚠️</div><div><h3>Tudo rodando, com ${warn.length === 1 ? "1 ponto" : warn.length + " pontos"} de atenção</h3><p>Está se recuperando sozinho — só acompanhe:</p><ul class="lista">${warn.map((x) => `<li>⚠️ ${x}</li>`).join("")}</ul></div>`; }
+  else { b.className = "banner ok"; b.innerHTML = `<div class="ico">✅</div><div><h3>Tudo funcionando</h3><p>${okN} automações rodando agora${offN ? ` · ${offN} em pausa por estar fora do horário (normal)` : ""}.</p></div>`; }
+  const t = tzNow(), prox = AG.find((e) => e[0] >= t.min);
+  document.getElementById("mini").innerHTML = `
+    <div><b style="color:var(--ok)">${okN}</b><span>funcionando agora</span></div>
+    <div><b style="color:${bad.length ? "var(--bad)" : "var(--ink)"}">${bad.length}</b><span>travadas</span></div>
+    <div><b>${AG.filter((e) => e[0] < t.min).length}<small style="font-size:15px;color:var(--mut)"> / ${AG.length}</small></b><span>envios de hoje já passaram</span></div>
+    <div><b>${prox ? hm(prox[0] % 60 === 1 ? prox[0] - 1 : prox[0]) : "06:17"}</b><span>próximo: ${prox ? prox[1] : "amanhã"}</span></div>`;
+}
+
+let ultima = 0, esperaAte = 0;
+async function atualizar() {
+  if (Date.now() < esperaAte) return;
+  try {
+    const [runs, dados, fotos] = await Promise.all([
+      get(`${REPO}/actions/runs?per_page=100`),
+      get(`${REPO}/commits/dados`).catch(() => null),
+      get(`${REPO_FOTOS}/actions/runs?per_page=5`).catch(() => null),
+    ]);
+    ST = avaliar(runs.workflow_runs || [], dados?.commit?.committer?.date, fotos?.workflow_runs);
+    ultima = Date.now();
+  } catch (e) {
+    if (e.reset) esperaAte = e.reset;
+    for (const k of ["rel", "robo", "painel", "vigia", "fotos"]) if (!ST[k] || ST[k].s === "load") ST[k] = { s: "load", txt: "Status ao vivo indisponível no momento — tenta de novo em instantes" };
+  }
+  cards(); banner(); rodape();
+}
+function rodape() { document.getElementById("rodape").textContent = `Baianão Móveis · Central de Automações · status conferido ${ultima ? "às " + new Date(ultima).toLocaleTimeString("pt-BR", { timeZone: "America/Bahia", hour: "2-digit", minute: "2-digit" }) : "—"} · atualiza sozinho a cada 4 min`; }
+function relogio() { const t = tzNow(); document.getElementById("hora").textContent = hm(t.min); document.getElementById("data").textContent = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Bahia", weekday: "long", day: "2-digit", month: "long" }); }
+
+relogio(); agenda(); cards(); atualizar();
+setInterval(relogio, 15e3); setInterval(agenda, 60e3);
+setInterval(() => { if (!document.hidden) atualizar(); }, 4 * 60e3);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && Date.now() - ultima > 4 * 60e3) atualizar(); });
+</script>
+</body>
+</html>
