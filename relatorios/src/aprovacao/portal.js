@@ -84,7 +84,7 @@ export async function abrirPortal() {
       const out = {};
       for (const g of r?.porRegional || []) {
         const venda = g.mercantil?.venda || 0, pac = g.pacoteServicos?.valor || 0;
-        if (/^R[1-9]$/.test(g.regional) && venda > 0) out[g.regional] = { venda, pacote: pac, pct: (100 * pac) / venda };
+        if (/^R[1-9]$/.test(g.regional) && venda > 0) out[g.regional] = { venda, pacote: pac, lucro: g.margem?.lucro ?? null, pct: (100 * pac) / venda };
       }
       return out;
     },

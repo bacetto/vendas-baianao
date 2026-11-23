@@ -136,6 +136,14 @@ async function ciclo() {
     try {
       await portal.decidir(it, decisao, nota);
       d.acao === "APROVAR" ? cont.aprov++ : cont.reprov++;
+      // aprovado: já soma o pedido no regional até a próxima leitura do portal (o próximo pedido é avaliado em cima disso)
+      const b = serv.regs[reg];
+      if (d.acao === "APROVAR" && b) {
+        const ps = it.products || [];
+        b.venda += Number(it.finalValue) || 0;
+        b.pacote += (it.services || []).reduce((a, x) => a + (Number(x.finalValue) || 0), 0);
+        if (typeof b.lucro === "number") b.lucro += ps.reduce((a, x) => a + (Number(x.profit) || 0), 0);
+      }
       est.historico.push({ t: Date.now(), tipo: decisao, pedido: it.orderNumber, reg, desc: it.discountPercentage, margem: it.evaluation?.regionalMargin, min: est.regras[reg]?.min });
       delete est.solicitados[sol.pedido];
       sujo = true;

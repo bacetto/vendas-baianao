@@ -116,33 +116,55 @@ export function comando(texto, e) {
   return null;
 }
 
+// Como fica o regional SE o pedido for aprovado (base = resumo do mês do regional: venda, lucro, pacote de serviços).
+// Margem do portal = lucro / custo. O "Reg." do pedido é a margem atual; somamos o efeito do pedido em cima dele.
+export function projetar(item, base) {
+  if (!base || !(base.venda > 0)) return null;
+  const prods = item.products || [];
+  const pl = prods.reduce((a, p) => a + (Number(p.profit) || 0), 0);
+  const pc = prods.reduce((a, p) => a + (Number(p.unitCost) || 0) * (Number(p.quantity) || 0), 0);
+  const fv = Number(item.finalValue) || prods.reduce((a, p) => a + (Number(p.finalValue) || 0), 0);
+  const sv = (item.services || []).reduce((a, s) => a + (Number(s.finalValue) || 0), 0);
+  const servAtual = (100 * base.pacote) / base.venda;
+  const servCom = (100 * (base.pacote + sv)) / (base.venda + fv);
+  let margemAtual = item.evaluation?.regionalMargin, margemCom = null;
+  if (typeof base.lucro === "number" && base.venda - base.lucro > 0 && pc > 0 && typeof margemAtual === "number") {
+    const C = base.venda - base.lucro;
+    margemCom = margemAtual + 100 * ((base.lucro + pl) / (C + pc) - base.lucro / C);
+  }
+  return { margemAtual, margemCom, servAtual, servCom };
+}
+
 // Decide um pedido pendente. item = objeto do portal; regional = "R1".."R4".
-export function decidir(item, regional, e, serv) {
-  const margem = item?.evaluation?.regionalMargin;
+export function decidir(item, regional, e, base) {
+  const proj = projetar(item, base);
+  const margem = proj?.margemCom;
+  const serv = proj ? { pct: proj.servCom } : null;
   const desc = item?.discountPercentage;
   const regra = e.regras[regional];
   if (e.pausado) return { acao: "MANUAL", motivo: "robô pausado" };
   if (!REGIONAIS.includes(regional)) return { acao: "MANUAL", motivo: `loja sem regional (${regional || "?"})` };
   if (!regra || regra.min == null) return { acao: "MANUAL", motivo: `${regional} sem regra` };
-  if (typeof margem !== "number" || !Number.isFinite(margem)) return { acao: "MANUAL", motivo: "portal não trouxe a margem do regional" };
+  if (!proj) return { acao: "ESPERAR", motivo: "sem os números do mês do regional" };
+  if (typeof margem !== "number" || !Number.isFinite(margem)) return { acao: "MANUAL", motivo: "não deu pra calcular a margem do regional com o pedido" };
   if (e.teto != null && typeof desc === "number" && desc > e.teto) return { acao: "MANUAL", motivo: `desconto ${pct(desc)} acima do teto ${pct(e.teto)}` };
   const fora = (motivo) => (e.abaixo === "manual" ? { acao: "MANUAL", motivo } : { acao: "REPROVAR", motivo });
   if (regra.max != null) {
     if (typeof desc !== "number" || !Number.isFinite(desc)) return { acao: "MANUAL", motivo: "portal não trouxe o % de desconto" };
     if (desc > regra.max + 1e-6) return fora(`desconto do pedido ${pct(desc)} acima do D${num2(regra.max)}`);
   }
-  if (margem < regra.min) return fora(`margem Reg. ${pct(margem)} abaixo do M${num2(regra.min)}`);
+  if (margem < regra.min) return fora(`margem do regional com o pedido ${pct(margem)} abaixo do M${num2(regra.min)}`);
   const sm = regra.serv ?? null;
   if (sm != null) {
-    if (!serv || typeof serv.pct !== "number" || !Number.isFinite(serv.pct)) return { acao: "ESPERAR", motivo: "sem os dados de serviços do regional" };
-    if (serv.pct < sm) return fora(`serviços do ${regional} em ${pct(serv.pct)} das vendas do mês, abaixo do S${num2(sm)}`);
+    if (serv.pct < sm) return fora(`serviços do ${regional} com o pedido em ${pct(serv.pct)} das vendas do mês, abaixo do S${num2(sm)}`);
   }
-  return { acao: "APROVAR", motivo: `margem Reg. ${pct(margem)} ≥ M${num2(regra.min)}${regra.max != null ? ` · desconto ${pct(desc)} ≤ D${num2(regra.max)}` : ""}${sm != null ? ` · serviços ${pct(serv.pct)} ≥ S${num2(sm)}` : ""}` };
+  return { acao: "APROVAR", motivo: `com o pedido: margem ${pct(margem)} ≥ M${num2(regra.min)}${regra.max != null ? ` · desconto ${pct(desc)} ≤ D${num2(regra.max)}` : ""}${sm != null ? ` · serviços ${pct(serv.pct)} ≥ S${num2(sm)}` : ""}` };
 }
 
 const brl = (n) => (typeof n === "number" ? n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—");
 
-export function textoAviso(item, regional, d, e, resultado, serv) {
+export function textoAviso(item, regional, d, e, resultado, base) {
+  const proj = projetar(item, base);
   const ev = item.evaluation || {};
   const prod = (item.products || []).map((p) => p.description || p.name || p.productName).filter(Boolean)[0];
   const cab = {
@@ -156,8 +178,8 @@ export function textoAviso(item, regional, d, e, resultado, serv) {
     `🏬 ${item.branchName || item.branchCode} · *${regional || "?"}*`,
     prod ? `📦 ${String(prod).slice(0, 60)}` : null,
     `💸 Desconto: *${pct(item.discountPercentage)}* (${brl(item.discountValue)})`,
-    `📊 Margem com o pedido → Reg.: *${pct(ev.regionalMargin)}* · LJ: ${pct(ev.storeMargin)} · Dir.: ${pct(ev.directorMargin)}`,
-    serv && typeof serv.pct === "number" ? `🛠️ Serviços do ${regional} no mês: *${pct(serv.pct)}* das vendas` : null,
+    `📊 Margem do ${regional}: ${pct(proj?.margemAtual ?? ev.regionalMargin)} hoje → *${pct(proj?.margemCom)}* com o pedido`,
+    proj ? `🛠️ Serviços do ${regional}: ${pct(proj.servAtual)} hoje → *${pct(proj.servCom)}* com o pedido` : null,
     `📝 ${d.motivo}`,
     d.acao === "MANUAL"
       ? (regional && REGIONAIS.includes(regional) ? `👉 Pra eu decidir os do ${regional}: *${regional} - M40 - D30 - S7*` : null)
