@@ -23,6 +23,10 @@ on:
         description: "Duração (minutos) — só pra teste"
         required: false
         default: ""
+      codigo:
+        description: "Código fixo pra conectar o WhatsApp (8 letras/números)"
+        required: false
+        default: ""
       sucessor:
         description: "(uso interno)"
         required: false
@@ -87,8 +91,9 @@ jobs:
         if: steps.vez.outputs.seguir == '1' && env.ACAO == 'conectar-whatsapp-robo'
         env:
           SESSAO_DIR: sessao-aprov
-          CONECTAR_MS: "540000"
-        run: rm -rf sessao-aprov && node src/conectar.js 2>&1 | grep --line-buffered -E '^(✅|❌|  CÓDIGO|  No celular|  Conectar aparelho|=|Error)'
+          CONECTAR_MS: "600000"
+          CODIGO_PAREAR: ${{ github.event.inputs.codigo }}
+        run: node src/aprovacao/conectar-robo.js 2>&1 | grep --line-buffered -E '^(✅|❌|▶|⚠️|Error)'
 
       - name: Robô
         id: robo
