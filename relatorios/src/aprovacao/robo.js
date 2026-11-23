@@ -9,7 +9,7 @@ import { abrirPortal } from "./portal.js";
 import { carregar, salvar } from "./estado.js";
 import { zap } from "./zap.js";
 import { comando, decidir, regionalDe, textoAviso, textoRegras, lerPedidos, bate, soEdnilson } from "./regras.js";
-import { textoBoletim, BOLETIM_HORAS } from "./boletim.js";
+import { textoBoletim, BOLETIM_HORAS, textoJanela, JANELA_HORAS, FOTO_HORAS } from "./boletim.js";
 
 const CICLO = 15000;
 const SIMULAR = process.env.SIMULAR === "1"; // teste: lê e avisa o que faria, sem mexer no portal nem no grupo
@@ -97,6 +97,39 @@ function atualizarServicos() {
 }
 const servDe = (reg) => (Date.now() - serv.em < 60 * 60e3 ? serv.regs[reg] : null);
 
+// Lojas abaixo de R$ 5 mil nas últimas 2h (pro Ed, 11h–21h): fotografa a venda do dia de cada loja às 9, 11 ... 21h
+// e compara com a foto de 2h antes. Fotos ficam no estado criptografado (sobrevivem à troca de turno).
+const jan = { carregando: false, tentou: 0, avisou: null };
+let nomeLoja = {};
+function janela() {
+  const h = hora(), min = bahia().getUTCMinutes();
+  if (SIMULAR || !portal || !FOTO_HORAS.includes(h)) return;
+  if (est.fotos?.dia !== hoje()) { est.fotos = { dia: hoje() }; }
+  const chave = `${hoje()}-${h}`;
+  if (est.fotos[h]) {
+    if (!JANELA_HORAS.includes(h) || est.janela === chave) return;
+    if (!est.fotos[h - 2]) { if (jan.avisou !== chave) { jan.avisou = chave; est.janela = chave; sujo = true; wa.enviar("eu", `⚠️ *Lojas abaixo de R$ 5 mil (${h}h)* não saiu pro Ed: faltou a leitura das ${h - 2}h.`); } return; }
+    const info = {};
+    for (const n of Object.keys(est.fotos[h])) info[n] = { reg: est.fotos.reg?.[n], nome: nomeLoja[n] || `Loja ${n}` };
+    wa.enviar(ED || "eu", textoJanela(est.fotos[h - 2], est.fotos[h], info, h));
+    est.janela = chave; sujo = true;
+    console.log(`✅ Lojas abaixo de 5 mil (${h}h) enviado`);
+    return;
+  }
+  if (min >= 50) { if (jan.avisou !== chave) { jan.avisou = chave; console.log(`⚠️ leitura das ${h}h não feita`); } return; }
+  if (jan.carregando || Date.now() - jan.tentou < 60e3) return;
+  jan.carregando = true; jan.tentou = Date.now();
+  portal.lojasHoje().then((ls) => {
+    if (!ls.length) throw new Error("portal não trouxe as lojas");
+    est.fotos.reg ||= {};
+    const foto = {};
+    for (const l of ls) { foto[l.num] = l.venda; const r = regionalDe(l.regional); if (/^R[1-4]$/.test(r || "")) est.fotos.reg[l.num] = r; }
+    est.fotos[h] = foto; sujo = true;
+    console.log(`✅ Leitura das lojas (${h}h)`);
+  }).catch((e) => console.log("⚠️ leitura das lojas falhou:", String(e.message).slice(0, 80)))
+    .finally(() => { jan.carregando = false; });
+}
+
 // Boletim pro Ed de 2 em 2 horas (parcial do DIA: margem / serviços por regional). Roda em paralelo, sem segurar as aprovações;
 // tenta de novo a cada 2 min até :50 da hora; "est.boletim" evita mandar 2x (inclusive na troca de turno).
 const bol = { carregando: false, tentou: 0, avisou: null };
@@ -139,10 +172,12 @@ async function ciclo() {
   if (Date.now() - filiaisEm > 3600e3) {
     const fs = await portal.filiais();
     filial = Object.fromEntries(fs.filter((f) => f.codigoProtheus).map((f) => [String(f.codigoProtheus).trim(), f.regional]));
+    for (const f of fs) { const n = Number(String(f.codigoProtheus || "").replace(/\D/g, "").slice(-4)); const nm = String(f.tradeName || f.name || "").replace(/^BAIANAO\s*\/\s*/i, "").trim(); if (n && nm) nomeLoja[n] = nm; }
     filiaisEm = Date.now();
   }
   atualizarServicos();
   boletim();
+  janela();
   // lê DIRETO os pendentes do Ed no portal (não espera o grupo): decide assim que o pedido cai lá
   const itens = await portal.pendentes();
   for (const it of itens) {

@@ -97,6 +97,14 @@ export async function abrirPortal() {
       }
       return out;
     },
+    // venda de HOJE por loja (só lojas com meta hoje = abertas) — pro boletim das lojas abaixo de R$ 5 mil
+    lojasHoje: async () => {
+      const d = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+      const r = await chamar("get", `/vendas-lojas/resumo?dataInicio=${d}&dataFim=${d}`);
+      return (r?.porLoja || []).filter((l) => (l.mercantil?.meta || 0) > 0)
+        .map((l) => ({ num: Number(String(l.filial || l.loja || "").replace(/\D/g, "").slice(-4)) || 0, regional: l.regional, venda: Number(l.mercantil?.venda) || 0 }))
+        .filter((l) => l.num > 0);
+    },
     // resumo do mês por regional (venda e pacote de serviços = Sorte Dobrada + Garantia). Consulta pesada (~1 min).
     servicosMes: async () => {
       const d = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
