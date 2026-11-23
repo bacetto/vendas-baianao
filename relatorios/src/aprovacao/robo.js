@@ -8,7 +8,7 @@
 import { abrirPortal } from "./portal.js";
 import { carregar, salvar } from "./estado.js";
 import { zap } from "./zap.js";
-import { comando, decidir, regionalDe, textoAviso, textoRegras, lerPedidos, bate } from "./regras.js";
+import { comando, decidir, regionalDe, textoAviso, textoRegras, lerPedidos, bate, soEdnilson } from "./regras.js";
 
 const CICLO = 15000;
 const SIMULAR = process.env.SIMULAR === "1"; // teste: lê e avisa o que faria, sem mexer no portal nem no grupo
@@ -112,6 +112,7 @@ async function ciclo() {
   for (const it of itens) {
     if (!it?.id) continue;
     if (it?.decision?.canDecide === false || (it?.decision?.finalStatus && it.decision.finalStatus !== "PENDENTE")) continue;
+    if (!soEdnilson(it)) continue; // outra pessoa também pode aprovar: fora da automação (nem aprova, nem avisa)
     primeiraVez[it.id] ||= Date.now();
     const reg = regionalDe(filial[String(it.branchCode).trim()] ?? it.regional);
     let d = decidir(it, reg, est, servDe(reg));
