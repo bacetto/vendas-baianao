@@ -199,7 +199,7 @@ async function ciclo() {
     }
     if (SIMULAR) { if (!visto.has(it.id)) { visto.add(it.id); console.log(`🧪 faria: APROVAR (${reg})`); avisar(textoAviso(it, reg, d, est, "ok", servDe(reg))); } continue; }
     if ((tentativas[it.id] || 0) >= 2) continue; // já falhou 2x e já avisou: fica pro Ed
-    const nota = process.env.NOTA_APROVACAO || "Venda"; // descrição que vai no portal ao aprovar (igual o Ed usa)
+    const nota = process.env.NOTA_APROVACAO || "vendaa"; // descrição no portal quando o ROBÔ aprova ("vendaa" com 2 "a" = foi o robô)
     try {
       await portal.decidir(it, "APROVADO", nota);
       cont.aprov++;
