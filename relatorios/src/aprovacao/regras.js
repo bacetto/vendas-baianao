@@ -130,8 +130,9 @@ export function projetar(item, base) {
 // Só entra na automação o pedido que APENAS o Ednilson pode liberar (grupo aprovador "... (Apenas Ednilson)").
 // Se mais alguém puder aprovar (Gerentes, Regionais, Compras...) ou o portal não disser quem aprova: fica fora (nem avisa).
 export function soEdnilson(item) {
-  // dentro das 3 regras, não importa mais nada: entra todo pedido pendente na fila do Ed que ele pode decidir
-  return item?.decision?.canDecide !== false;
+  if (item?.decision?.canDecide === false) return false;
+  const gs = item?.evaluation?.approverGroups;
+  return Array.isArray(gs) && gs.length > 0 && gs.every((g) => /apenas\s+ednilson/i.test(String(g)));
 }
 
 // Decide um pedido pendente. item = objeto do portal; regional = "R1".."R4".
