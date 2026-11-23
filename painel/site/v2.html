@@ -800,13 +800,37 @@ function secRegs(){
   <div class="nota">"vs mês passado" compara a venda por dia deste mês com a do mês passado inteiro.</div></div>
   <div class="card sec"><b>Vendedores da ${i.reg} · mês</b>${tabelaSimples([{t:"#",f:(r,x)=>x+1},{t:"Vendedor",l:1,n:1,f:r=>esc(r.nome)},{t:"Loja",l:1,f:r=>esc(nomeLoja(r.loja))},{t:"Universo",f:r=>mil(r.venda)},{t:"BaianãoEletro",f:r=>zv[r.nome.toUpperCase()]?mil(zv[r.nome.toUpperCase()]):"—"},{t:"Pedidos",f:r=>num(r.pedidos)},{t:"Ticket",f:r=>r.pedidos?brl(r.venda/r.pedidos):"—"},{t:"Devolução",f:r=>r.devol?mil(r.devol):"—"}],vend("mes"),{max:60})}</div>`;
 }
+// contexto SÓ da regional (lojas e vendedores dela): a IA não tem como misturar com outra regional
+function contextoRegional(reg){
+  const P=D.periodos,i=regInfo(reg),g=r=>r&&r.meta!==undefined?{venda:fR(r.venda),meta:fR(r.meta),pctMeta:fP(r.pct),margem:fP(r.margem)}:null;
+  const zl=zepLoja("mes"),zh=zepLoja("hoje"),lojasM=lojasDaReg(reg,"mes"),cods=new Set(lojasM.map(l=>l.cod));
+  const loc=new Date(new Date(D.geradoEm).getTime()-3*3600e3);
+  const zvM={};for(const v of D.zep?.periodos?.mes?.vendedores||[])if(cods.has(v.loja))zvM[v.nome]=v;
+  return {dadosDe:`${String(loc.getUTCHours()).padStart(2,"0")}:${String(loc.getUTCMinutes()).padStart(2,"0")} de ${P.hoje.inicio.split("-").reverse().join("/")}`,
+    regional:{reg,lider:i.lider,
+      hoje:{universo:g(i.hoje),baianaoEletro:fR(i.zH),total:fR((i.hoje.venda||0)+i.zH)},
+      ontem:{universo:g(i.ontem)},
+      mes:{periodo:`${P.mes.label} até dia ${hoje()}`,universo:g(i.mes),baianaoEletro:fR(i.zM),total:fR((i.mes.venda||0)+i.zM),
+        mesPassadoMesmoPeriodo:i.rc.anteriorMesmoPeriodo?fR(i.rc.anteriorMesmoPeriodo):null,
+        projecao:i.pr?{fechamento:fR(i.pr.proj),projecaoEmPctDaMetaDoMesInteiro:fP(i.pr.pctProj),metaDoMesInteiro:fR(i.pr.metaMes),precisaPorDia:fR(i.pr.porDia),diasRestantes:i.pr.diasRest,eficiencia7dias:fP(i.pr.efic)}:null}},
+    lojasDaRegional:lojasM.filter(l=>l.venda||l.meta).map(l=>{const h=(P.hoje.resumo?.lojas||[]).find(x=>x.cod===l.cod)||{};return {loja:nomeLoja(l.cod),
+      hoje:{venda:fR(h.venda),meta:fR(h.meta),pctMeta:h.meta?fP(h.pct):"sem meta"},
+      mes:{venda:fR(l.venda),metaAteHoje:fR(l.meta),pctDaMetaAteHoje:l.meta?fP(l.pct):"sem meta",margem:fP(l.margem),baianaoEletro:zl[l.cod]?fR(zl[l.cod]):fR(0)}}}),
+    vendedoresDaRegional:{hoje:(P.hoje.vendedores||[]).filter(v=>cods.has(v.loja)).slice(0,10).map(v=>({nome:v.nome,loja:nomeLoja(v.loja),venda:fR(v.venda),pedidos:v.pedidos})),
+      mes:(P.mes.vendedores||[]).filter(v=>cods.has(v.loja)).slice(0,15).map(v=>({nome:v.nome,loja:nomeLoja(v.loja),venda:fR(v.venda),pedidos:v.pedidos,devolucao:fR(v.devol),baianaoEletro:zvM[v.nome]?fR(zvM[v.nome].venda):fR(0)}))}};
+}
 const IAREG={}; // análise da IA por regional (fica guardada entre as atualizações da página)
 const reRender=()=>{if(S.sec==="regs")render()};
 async function iaRegional(){
   const reg=S.reg2;if(!CHAT_URL||IAREG[reg]?.on)return;
   IAREG[reg]={on:1,html:'<p class="sub">A IA está analisando a regional com os números de agora (até 1 minuto)…</p>'};reRender();
-  try{const ctx=contextoChat(),k=await chave(),idx=indice(ctx),i=regInfo(reg);
-    const q=`Faça a análise completa da regional ${reg} (líder ${i.lider}) agora: como está hoje, como está no mês e a projeção, quais lojas e vendedores puxam pra cima e quais estão atrás, e 3 ações práticas para o líder ${i.lider} e os gerentes das lojas. Use só números da regional ${reg} e das lojas dela.`;
+  try{const ctx=contextoRegional(reg),k=await chave(),idx=indice(ctx),i=regInfo(reg);
+    const q=`Analise a regional ${reg} (líder ${i.lider}) com os dados enviados, que são SÓ desta regional. Responda em no máximo 220 palavras, sem tabelas, exatamente nestes blocos:
+**Hoje** (1 a 2 frases)
+**Mês e projeção** (1 a 2 frases)
+**Destaques** (até 3 itens: lojas/vendedores que puxam pra cima, com número)
+**Atenção** (até 3 itens: lojas/vendedores atrás, com número)
+**Ações** (3 itens: quem faz o quê — líder ${i.lider} ou gerente da loja X — baseado num número dos dados; sem metas ou números inventados)`;
     const pede=async(pergunta,hist)=>{const r=await fetch(CHAT_URL,{method:"POST",headers:{"Content-Type":"application/json","X-Chave":k},body:JSON.stringify({pergunta,contexto:ctx,historico:hist})});const j=await r.json();if(!r.ok||!j.resposta)throw new Error(j.erro||"erro");return j};
     let j=await pede(q,[]),resp=j.resposta,erros=verificar(resp,ctx,idx),n=0;
     while(erros.length&&n<2){n++;j=await pede(`Sua resposta tem números que NÃO batem com os dados:\n${textoErros(erros)}\nReescreva a análise INTEIRA da regional ${reg}, corrigindo esses pontos e usando somente números do JSON ligados à loja/regional/vendedor e ao período certos.`,[{role:"user",content:q},{role:"assistant",content:resp}]);resp=j.resposta;erros=verificar(resp,ctx,idx)}
