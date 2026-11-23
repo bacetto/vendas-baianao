@@ -96,6 +96,7 @@ jobs:
           ED_SENHA: ${{ secrets.ED_SENHA }}
           EDNILSON_NUM: ${{ secrets.EDNILSON_NUM }}
           AVISAR_ED: ${{ vars.AVISAR_ED }}
+          GRUPO_AVISOS: ${{ vars.GRUPO_AVISOS }}
           SIMULAR: ${{ env.ACAO == 'simular' && '1' || '0' }}
           DURACAO_MIN: ${{ github.event.inputs.minutos || '340' }}
         run: |

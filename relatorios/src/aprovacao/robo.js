@@ -13,6 +13,7 @@ import { comando, decidir, regionalDe, textoAviso, textoRegras, lerPedidos, bate
 const CICLO = 15000;
 const SIMULAR = process.env.SIMULAR === "1"; // teste: lê e avisa o que faria, sem mexer no portal nem no grupo
 const GRUPO = process.env.GRUPO_LIBERACAO || "LIBERAÇÃO DESCONTO";
+const GRUPO_AVISOS = process.env.GRUPO_AVISOS || "ROBÔ DE DESCONTOS"; // grupo Gabriel + Ednilson: detalhes e comandos
 const ESPERA_PORTAL = 15 * 60e3;  // pedido do grupo que não aparece nos pendentes do Ed em 15 min: avisa
 const VALIDADE = 4 * 3600e3;      // pedido do grupo vale 4h
 const DURACAO = Number(process.env.DURACAO_MIN || 340) * 60e3;
@@ -29,9 +30,9 @@ if (hora() < 7 || hora() >= 23) { console.log("Fora do horário (07h–23h)"); p
 const est = await carregar();
 est.solicitados ||= {};
 console.log(`▶ Regras carregadas (${Object.keys(est.regras).length} regionais com regra${est.pausado ? ", pausado" : ""})`);
-let sujo = false, acordar = null, grupoId = null;
+let sujo = false, acordar = null, grupoId = null, avisosId = null, avisosEm = 0;
 let wa = null; const antes = [];
-const avisar = (t0) => { const t = SIMULAR ? `🧪 *SIMULAÇÃO* (nada foi feito no portal nem no grupo)\n${t0}` : t0; DEST.forEach((d) => (wa ? wa.enviar(d, t) : antes.push([d, t]))); };
+const avisar = (t0) => { const t = SIMULAR ? `🧪 *SIMULAÇÃO* (nada foi feito no portal nem no grupo)\n${t0}` : t0; (avisosId ? [avisosId] : DEST).forEach((d) => (wa ? wa.enviar(d, t) : antes.push([d, t]))); };
 const noGrupo = (texto, citar) => { if (!SIMULAR && grupoId) wa.enviar(grupoId, texto, citar); };
 
 function mensagem(txt, info) {
@@ -45,9 +46,10 @@ function mensagem(txt, info) {
     if (ps.length) { sujo = true; acordar?.(); }
     return;
   }
-  // comandos: na conversa "você mesmo", ou vindos do Ed (se AVISAR_ED=1)
-  const doEd = process.env.AVISAR_ED === "1" && ED && !info.fromMe && info.de.includes(ED);
-  if (!info.conversaComigo && !doEd) return;
+  // comandos: no grupo de avisos (Gabriel + Ed), na conversa "você mesmo", ou vindos do Ed
+  const doEd = ED && !info.fromMe && info.de.includes(ED);
+  const doGrupoAvisos = avisosId && info.jid === avisosId;
+  if (!info.conversaComigo && !doEd && !doGrupoAvisos) return;
   const r = comando(txt, est);
   if (!r) return;
   console.log("▶ Comando recebido");
@@ -57,6 +59,14 @@ function mensagem(txt, info) {
 const cedo = [];
 wa = await zap({ onTexto: (txt, info) => (grupoId === null ? cedo.push([txt, info]) : mensagem(txt, info)) });
 grupoId = await wa.grupo(GRUPO).catch(() => null);
+async function acharAvisos() {
+  avisosEm = Date.now();
+  const id = await wa.grupo(GRUPO_AVISOS).catch(() => null);
+  if (id && id !== avisosId) { avisosId = id; console.log("✅ Grupo de avisos encontrado"); return true; }
+  return false;
+}
+await acharAvisos();
+if (!avisosId) avisar(`⚠️ *Robô de descontos*: ainda não achei o grupo "${GRUPO_AVISOS}". Enquanto isso, os avisos vêm aqui.`);
 if (!grupoId) { grupoId = undefined; avisar(`⚠️ *Robô de descontos*: não achei o grupo "${GRUPO}" neste WhatsApp. Sem ele, não pego os pedidos.`); }
 else console.log("✅ Grupo de liberação encontrado");
 for (const [t, i] of cedo.splice(0)) mensagem(t, i);
@@ -72,6 +82,8 @@ let portal = null, filial = {}, filiaisEm = 0, falhas = 0, avisoFalhaEm = 0;
 const tentativas = {}, cont = { aprov: 0, reprov: 0, manual: 0 };
 
 async function ciclo() {
+  // grupo de avisos criado depois: procura de novo a cada 10 min
+  if (!avisosId && Date.now() - avisosEm > 10 * 60e3 && (await acharAvisos())) avisar(`✅ Grupo de avisos conectado.\n\n${textoRegras(est)}\n\nMande *ajuda* pra ver os comandos.`);
   // limpa pedidos do grupo vencidos
   for (const [k, s] of Object.entries(est.solicitados)) if (Date.now() - s.t > VALIDADE) { delete est.solicitados[k]; sujo = true; }
   const sols = Object.values(est.solicitados);
