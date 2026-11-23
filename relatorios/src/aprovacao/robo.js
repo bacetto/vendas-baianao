@@ -113,7 +113,7 @@ async function ciclo() {
       delete est.solicitados[sol.pedido];
       sujo = true;
       console.log(`✅ ${d.acao === "APROVAR" ? "aprovado" : "reprovado"} 1 pedido (${reg})`);
-      noGrupo(d.acao === "APROVAR" ? "aprovado ✅" : "não aprovado ❌ — margem do regional abaixo do limite", sol.msg);
+      noGrupo(d.acao === "APROVAR" ? "aprovado ✅" : `não aprovado ❌ — ${/desconto do pedido/.test(d.motivo) ? "desconto acima do máximo permitido" : "margem do regional abaixo do limite"}`, sol.msg);
       avisar(textoAviso(it, reg, d, est, "ok"));
     } catch (e) {
       tentativas[it.id] = (tentativas[it.id] || 0) + 1;

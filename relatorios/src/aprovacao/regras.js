@@ -31,19 +31,26 @@ const num = (s) => {
 };
 export const pct = (n) => (n == null ? "—" : `${Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`);
 
+export function textoRegra(r, e) {
+  const g = e.regras[r] || {};
+  if (g.min == null) return `*${r}*: manual (fica pro Ed)`;
+  return `*${r}*: aprova se a margem do regional ficar ≥ *${pct(g.min)}*${g.max != null ? ` e o desconto do pedido for até *${pct(g.max)}*` : " (sem máximo de desconto)"}`;
+}
 export function textoRegras(e) {
-  const linhas = REGIONAIS.map((r) => `• *${r}*: ${e.regras[r]?.min != null ? `aprova com margem Reg. ≥ ${pct(e.regras[r].min)}` : "manual (fica pro Ed)"}`);
+  const linhas = REGIONAIS.map((r) => `• ${textoRegra(r, e)}`);
   return [
     `📋 *Regras do robô de descontos*${e.pausado ? " — ⏸️ *PAUSADO*" : ""}`,
     ...linhas,
-    `• Abaixo do mínimo: ${e.abaixo === "manual" ? "fica pro Ed" : "reprova"}`,
-    `• Teto de desconto: ${e.teto != null ? pct(e.teto) : "sem teto"}`,
+    `• Fora da regra: ${e.abaixo === "manual" ? "fica pro Ed" : "reprova"}`,
+    ...(e.teto != null ? [`• Teto geral: acima de ${pct(e.teto)} fica pro Ed`] : []),
   ].join("\n");
 }
 
 export const AJUDA = [
   "🤖 *Comandos do robô de descontos*",
   "*R1 42* → R1 aprova se a margem do regional ficar ≥ 42%",
+  "*R1 max 30* → no R1, pedido com desconto acima de 30% não passa (*R1 max off* tira)",
+  "*R1 42 max 30* → as duas regras de uma vez",
   "*R1 manual* → R1 fica todo pro Ed",
   "*todas 41* → mesmo mínimo pra R1 a R4",
   "*teto 40* → acima de 40% de desconto nunca decide sozinho (*teto off* tira)",
@@ -57,11 +64,19 @@ export function comando(texto, e) {
   if (!t || t.length > 40) return null;
   const low = t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   let m;
+  if ((m = low.match(/^r\s*([1-4])\s*(?:(\d{1,2}(?:[.,]\d{1,2})?)\s*%?\s*)?(?:max|maximo|desc|desconto)\s*[:=-]?\s*(\d{1,2}(?:[.,]\d{1,2})?|off|sem)\s*%?$/))) {
+    const r = `R${m[1]}`;
+    e.regras[r] ||= {};
+    if (m[2]) e.regras[r].min = num(m[2]);
+    e.regras[r].max = /off|sem/.test(m[3]) ? null : num(m[3]);
+    e.regras[r].em = new Date().toISOString();
+    return { resposta: `✅ ${textoRegra(r, e)}${e.regras[r].min == null ? `\n⚠️ Falta a margem mínima do ${r} (ex.: *${r} 42*) — sem ela o ${r} fica pro Ed.` : ""}`, mudou: true };
+  }
   if ((m = low.match(/^r\s*([1-4])\s*[:=-]?\s*(\d{1,2}(?:[.,]\d{1,2})?)\s*%?$/))) {
     const r = `R${m[1]}`, v = num(m[2]);
     if (v == null || v < 0 || v > 100) return { resposta: "⚠️ Valor inválido. Ex.: *R1 42*", mudou: false };
-    e.regras[r] = { min: v, em: new Date().toISOString() };
-    return { resposta: `✅ *${r}*: aprova se a margem do regional ficar em *${pct(v)}* ou mais.${e.pausado ? "\n⏸️ Robô está pausado — mande *ligar*." : ""}`, mudou: true };
+    e.regras[r] = { ...e.regras[r], min: v, em: new Date().toISOString() };
+    return { resposta: `✅ ${textoRegra(r, e)}${e.pausado ? "\n⏸️ Robô está pausado — mande *ligar*." : ""}`, mudou: true };
   }
   if ((m = low.match(/^r\s*([1-4])\s*(manual|off|desligar|nao)$/))) {
     const r = `R${m[1]}`;
@@ -70,7 +85,7 @@ export function comando(texto, e) {
   }
   if ((m = low.match(/^(todas|todos|tudo|geral)\s*[:=-]?\s*(\d{1,2}(?:[.,]\d{1,2})?)\s*%?$/))) {
     const v = num(m[2]);
-    for (const r of REGIONAIS) e.regras[r] = { min: v, em: new Date().toISOString() };
+    for (const r of REGIONAIS) e.regras[r] = { ...e.regras[r], min: v, em: new Date().toISOString() };
     return { resposta: `✅ R1 a R4: aprova com margem do regional ≥ *${pct(v)}*.`, mudou: true };
   }
   if ((m = low.match(/^teto\s*[:=-]?\s*(\d{1,2}(?:[.,]\d{1,2})?|off|sem)\s*%?$/))) {
@@ -98,9 +113,13 @@ export function decidir(item, regional, e) {
   if (!regra || regra.min == null) return { acao: "MANUAL", motivo: `${regional} sem regra` };
   if (typeof margem !== "number" || !Number.isFinite(margem)) return { acao: "MANUAL", motivo: "portal não trouxe a margem do regional" };
   if (e.teto != null && typeof desc === "number" && desc > e.teto) return { acao: "MANUAL", motivo: `desconto ${pct(desc)} acima do teto ${pct(e.teto)}` };
-  if (margem >= regra.min) return { acao: "APROVAR", motivo: `margem Reg. ${pct(margem)} ≥ mínimo ${pct(regra.min)}` };
-  if (e.abaixo === "manual") return { acao: "MANUAL", motivo: `margem Reg. ${pct(margem)} abaixo do mínimo ${pct(regra.min)}` };
-  return { acao: "REPROVAR", motivo: `margem Reg. ${pct(margem)} abaixo do mínimo ${pct(regra.min)}` };
+  const fora = (motivo) => (e.abaixo === "manual" ? { acao: "MANUAL", motivo } : { acao: "REPROVAR", motivo });
+  if (regra.max != null) {
+    if (typeof desc !== "number" || !Number.isFinite(desc)) return { acao: "MANUAL", motivo: "portal não trouxe o % de desconto" };
+    if (desc > regra.max + 1e-6) return fora(`desconto do pedido ${pct(desc)} acima do máximo ${pct(regra.max)} do ${regional}`);
+  }
+  if (margem >= regra.min) return { acao: "APROVAR", motivo: `margem Reg. ${pct(margem)} ≥ mínimo ${pct(regra.min)}${regra.max != null ? ` e desconto ${pct(desc)} ≤ máximo ${pct(regra.max)}` : ""}` };
+  return fora(`margem Reg. ${pct(margem)} abaixo do mínimo ${pct(regra.min)}`);
 }
 
 const brl = (n) => (typeof n === "number" ? n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—");
@@ -123,7 +142,7 @@ export function textoAviso(item, regional, d, e, resultado) {
     `📝 ${d.motivo}`,
     d.acao === "MANUAL"
       ? (regional && REGIONAIS.includes(regional) ? `👉 Pra eu decidir este e os próximos do ${regional}: mande *${regional} ${regra ?? 40}*` : null)
-      : `👉 Próximo do ${regional} segue com mínimo *${pct(regra)}*. Pra mudar: *${regional} ${regra != null ? Math.round(regra) + 1 : 42}*`,
+      : `👉 Próximo do ${regional}: ${textoRegra(regional, e).replace(/^\*R\d\*: /, "")}. Pra mudar: *${regional} ${regra != null ? Math.round(regra) + 1 : 42}* ou *${regional} max 25*`,
   ].filter(Boolean).join("\n");
 }
 
