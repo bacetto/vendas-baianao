@@ -571,16 +571,17 @@ const normV = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").to
 
 // números com unidade: R$ (com mil/mi) e %
 function numeros(txt) {
-  const t = String(txt).replace(/ /g, " "), out = [];
-  for (const m of t.matchAll(/R\$\s*(-?\s*[\d.]+(?:,\d+)?)\s*(milh(?:[õo]es|[ãa]o)|mil|mi)?\b/gi)) {
-    let v = parseFloat(m[1].replace(/\s/g, "").replace(/\./g, "").replace(",", "."));
-    const u = (m[2] || "").toLowerCase();
+  const t = String(txt).replace(/\u00a0/g, " ").replace(/[\u2010-\u2015\u2212]/g, "-"), out = [];
+  for (const m of t.matchAll(/(-\s*)?R\$\s*(-?\s*[\d.]+(?:,\d+)?)\s*(milh(?:[õo]es|[ãa]o)|mil|mi)?\b/gi)) {
+    let v = parseFloat(m[2].replace(/\s/g, "").replace(/\./g, "").replace(",", "."));
+    if (m[1] && v > 0) v = -v;
+    const u = (m[3] || "").toLowerCase();
     if (u === "mil") v *= 1e3; else if (u.startsWith("mi")) v *= 1e6;
     if (!isNaN(v)) out.push({ t: "R", v, raw: m[0].trim() });
   }
   for (const m of t.matchAll(/(-?\d+(?:[.,]\d+)?)\s*%/g)) {
     const v = parseFloat(m[1].replace(",", "."));
-    if (!isNaN(v)) out.push({ t: "P", v, raw: m[0].trim() });
+    if (!isNaN(v)) out.push({ t: "P", v, raw: m[0].trim(), inteiro: !/[.,]/.test(m[1]) });
   }
   return out;
 }
@@ -589,7 +590,7 @@ const PER = [["mesPassado", /\b(m[eê]s passado|m[eê]s anterior|outubro|setembr
   ["ontem", /\bontem\b/i], ["hoje", /\b(hoje|do dia|no dia|agora)\b/i], ["mes", /\b(m[eê]s|mensal|acumulad|novembro)\b/i]];
 const periodoTexto = (t) => { for (const [p, re] of PER) if (re.test(t)) return p; return ""; };
 const periodoChave = (k) => ({ hoje: "hoje", ontem: "ontem", mes: "mes", mesAteHoje: "mes", mesPassado: "mesPassado", mesAnt: "mesPassado" })[k] || "";
-const igual = (a, b) => a.t === b.t && (a.t === "P" ? Math.abs(a.v - b.v) <= 0.6 : Math.abs(a.v - b.v) <= Math.max(600, Math.abs(b.v) * 0.025));
+const igual = (a, b) => a.t === b.t && (a.t === "P" ? Math.abs(a.v - b.v) <= (a.inteiro || b.inteiro ? 1 : 0.6) : Math.abs(a.v - b.v) <= Math.max(600, Math.abs(b.v) * 0.025));
 
 // índice: entidade -> valores; entidade "REDE" = números gerais (sem loja/regional/vendedor)
 function indice(ctx) {
@@ -618,16 +619,26 @@ function indice(ctx) {
     }
   };
   walk(ctx, ents.get("REDE"));
-  return [...ents.values()];
+  const lista = [...ents.values()], conta = {};
+  for (const e of lista) if (e.aliases?.vend?.first) conta[e.aliases.vend.first] = (conta[e.aliases.vend.first] || 0) + 1;
+  for (const e of lista) if (e.aliases?.vend) e.aliases.vend.unico = e.aliases.vend.first.length > 3 && conta[e.aliases.vend.first] === 1;
+  return lista;
 }
 
 function citadas(linha, ents) {
+  const achadas = citadas0(linha, ents);
+  // duas lojas com o mesmo nome (ex.: 11 e 22 CAMACARI): se a linha deu o número, vale só a do número
+  const porNum = achadas.filter((e) => e.aliases?.num && new RegExp(`\\b0*${e.aliases.num}\\b`).test(linha));
+  const nomesNum = new Set(porNum.map((e) => e.aliases.nome));
+  return achadas.filter((e) => !(e.aliases?.nome !== undefined && nomesNum.has(e.aliases.nome) && !porNum.includes(e)));
+}
+function citadas0(linha, ents) {
   const L = " " + normV(linha).replace(/[·\-–—()*,;:!?"'/|]|\.(?=\s|$)/g, " ").replace(/\s+/g, " ") + " ";
   return ents.filter((e) => {
     const a = e.aliases;
     if (a.reg) return new RegExp(`\\b${a.reg}\\b`).test(L) || (a.lider && L.includes(" " + a.lider + " "));
     if (a.vend) { const v = a.vend; // nome completo, os 2 primeiros nomes, ou primeiro nome + qualquer sobrenome
-      return L.includes(" " + v.full) || (v.dois.includes(" ") && L.includes(" " + v.dois + " ")) || (v.first && L.includes(" " + v.first + " ") && v.outros.some((x) => L.includes(" " + x + " "))); }
+      return L.includes(" " + v.full) || (v.dois.includes(" ") && L.includes(" " + v.dois + " ")) || (v.first && L.includes(" " + v.first + " ") && (v.unico || v.outros.some((x) => L.includes(" " + x + " ")))); }
     if (!a || e.global) return false;
     if (a.nome !== undefined) return (a.nome && a.nome.length > 3 && L.includes(" " + a.nome)) || (a.num && new RegExp(`\\bLOJA\\s*0*${a.num}\\b|\\b0*${a.num}\\s+${a.nome.split(" ")[0]}`).test(L));
     return false;
@@ -641,8 +652,10 @@ function verificar(texto, ctx, idx = indice(ctx)) {
   let assunto = [], perAssunto = ""; // linhas sem nome/período (ex.: linhas de tabela) herdam os do assunto anterior
   for (const linha of linhas) {
     const citou = citadas(linha, idx);
-    if (citou.length) assunto = citou;
     const perLinha = periodoTexto(linha);
+    const titulo = /^\s*(#{1,4}\s|\*\*[^*]{1,40}\*\*\s*[:–-]?\s*$)/.test(linha) || (/^\s*\*\*[^*]{1,40}\*\*/.test(linha) && linha.length < 60);
+    if (titulo) { assunto = citou; perAssunto = perLinha; }
+    if (citou.length) assunto = citou;
     if (perLinha) perAssunto = perLinha;
     const P = perLinha || perAssunto;
     const ns = numeros(linha);
