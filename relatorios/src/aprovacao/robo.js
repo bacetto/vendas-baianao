@@ -50,11 +50,16 @@ function mensagem(txt, info) {
   const doEd = ED && !info.fromMe && info.de.includes(ED);
   const doGrupoAvisos = avisosId && info.jid === avisosId;
   if (!info.conversaComigo && !doEd && !doGrupoAvisos) return;
-  const r = comando(txt, est);
-  if (!r) return;
-  console.log("▶ Comando recebido");
-  if (r.mudou) { est.historico.push({ t: Date.now(), tipo: "comando", txt: txt.trim().slice(0, 40), quem: doEd ? "ed" : "eu" }); sujo = true; acordar?.(); }
-  avisar(r.resposta);
+  // uma regra por linha (pode mandar as 4 numa mensagem só)
+  const linhas = String(txt).split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  const rs = linhas.map((l) => [l, comando(l, est)]).filter(([, r]) => r);
+  if (!rs.length) return;
+  console.log(`▶ Comando recebido (${rs.length})`);
+  let mudou = false;
+  for (const [l, r] of rs) if (r.mudou) { mudou = true; est.historico.push({ t: Date.now(), tipo: "comando", txt: l.slice(0, 40), quem: doEd ? "ed" : "eu" }); }
+  if (mudou) { sujo = true; acordar?.(); }
+  // várias regras: responde com o quadro completo (fica claro o que ficou valendo)
+  avisar(rs.length > 1 && mudou ? textoRegras(est) : rs.map(([, r]) => r.resposta).join("\n"));
 }
 const cedo = [];
 wa = await zap({ onTexto: (txt, info) => (grupoId === null ? cedo.push([txt, info]) : mensagem(txt, info)) });
