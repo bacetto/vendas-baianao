@@ -97,7 +97,7 @@ export async function analiseIA(D) {
       body: JSON.stringify({ model: prov.modelo, temperature: 0.2, max_tokens: 3000, ...(/gpt-oss/.test(prov.modelo) ? { reasoning_effort: "low" } : {}), messages: mensagens }),
       signal: AbortSignal.timeout(120000),
     });
-    if (r.status === 429) { pausas[prov.nome] = Date.now() + 60 * 60e3; fs.writeFileSync("saida/ia-pausa.json", JSON.stringify(pausas)); throw new Error(`cota grátis do ${prov.nome} esgotada (429): pausa 1 h`); }
+    if (r.status === 429) { pausas[prov.nome] = Date.now() + (prov.nome === "groq" ? 3 : 60) * 60e3; fs.writeFileSync("saida/ia-pausa.json", JSON.stringify(pausas)); throw new Error(`cota grátis do ${prov.nome} esgotada (429): pausa 1 h`); }
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = await r.json(), msg = j.choices?.[0]?.message || {};
     const txt = String(msg.content || msg.reasoning_content || "");
