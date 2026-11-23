@@ -16,7 +16,7 @@
 export const REGIONAIS = ["R1", "R2", "R3", "R4"];
 
 export function estadoInicial() {
-  return { regras: {}, pausado: false, abaixo: "reprovar", teto: null, avisados: {}, historico: [], dia: null };
+  return { regras: {}, pausado: false, abaixo: "reprovar", teto: null, avisados: {}, solicitados: {}, historico: [], dia: null };
 }
 
 export function regionalDe(valor) {
@@ -125,4 +125,21 @@ export function textoAviso(item, regional, d, e, resultado) {
       ? (regional && REGIONAIS.includes(regional) ? `👉 Pra eu decidir este e os próximos do ${regional}: mande *${regional} ${regra ?? 40}*` : null)
       : `👉 Próximo do ${regional} segue com mínimo *${pct(regra)}*. Pra mudar: *${regional} ${regra != null ? Math.round(regra) + 1 : 42}*`,
   ].filter(Boolean).join("\n");
+}
+
+// Lê os pedidos de uma mensagem do grupo LIBERAÇÃO DESCONTO ("Filial: 33 / Pedido: 036403 / ...").
+// Uma mensagem pode ter mais de um pedido. Retorna [{ pedido: "36403", filial: "33" | null }] (sem zeros à esquerda).
+export const semZero = (s) => String(s ?? "").trim().replace(/^0+(?=\d)/, "");
+export function lerPedidos(texto) {
+  const t = String(texto || "").replace(/\*/g, "");
+  const filiais = [...t.matchAll(/filial\s*[:\-]?\s*(\d{1,7})/gi)].map((m) => semZero(m[1]));
+  const peds = [...t.matchAll(/pedido\s*[:\-#nº°.]*\s*(\d{4,7})/gi)].map((m) => semZero(m[1]));
+  return peds.map((pedido, i) => ({ pedido, filial: filiais[i] ?? filiais[0] ?? null }));
+}
+// o pedido do grupo bate com o item do portal? (número do pedido; e a filial, se informada)
+export function bate(sol, item) {
+  if (semZero(item.orderNumber) !== sol.pedido) return false;
+  if (!sol.filial) return true;
+  const b = semZero(String(item.branchCode || "").trim().slice(-3));
+  return b === sol.filial || semZero(String(item.branchCode || "").trim()).endsWith(sol.filial);
 }

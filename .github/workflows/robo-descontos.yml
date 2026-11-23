@@ -1,6 +1,6 @@
 name: Robô de descontos
 
-# "Orçamentos para aprovação" do Universo Baianão, com o login do Ed (secrets ED_CPF / ED_SENHA, que o próprio Ed cadastrou).
+# Pedidos de desconto do grupo "LIBERAÇÃO DESCONTO" → "Orçamentos para aprovação" do Universo Baianão, com o login do Ed (secrets ED_CPF / ED_SENHA).
 # Aplica as regras de margem por regional que vocês mandam no WhatsApp e avisa cada decisão.
 # Isolado das outras automações:
 #   - WhatsApp: aparelho conectado PRÓPRIO (sessao-aprov), cache "robo-wa-*" (os relatórios usam "wa-*" → não se misturam);

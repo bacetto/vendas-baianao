@@ -39,7 +39,7 @@ export async function zap({ pasta = "sessao-aprov", onTexto } = {}) {
         const eu = [so(sock.user?.id), so(sock.user?.lid)];
         const de = [so(m.key.remoteJid), so(m.key.remoteJidAlt), so(m.key.senderPn)];
         const conversaComigo = m.key.fromMe && de.some((x) => x && eu.includes(x));
-        onTexto?.(txt, { conversaComigo, de: de.filter(Boolean), fromMe: !!m.key.fromMe });
+        onTexto?.(txt, { conversaComigo, de: de.filter(Boolean), fromMe: !!m.key.fromMe, jid: m.key.remoteJid, msg: { key: m.key, message: m.message } });
       }
     });
   };
@@ -49,10 +49,10 @@ export async function zap({ pasta = "sessao-aprov", onTexto } = {}) {
     if (enviando) return;
     enviando = true;
     try { while (aberto && fila.length) {
-      const { para, texto } = fila[0];
+      const { para, texto, citar } = fila[0];
       try {
-        const jid = para === "eu" ? jidNormalizedUser(sock.user.id) : `${para.replace(/\D/g, "").replace(/^(?!55)/, "55")}@s.whatsapp.net`;
-        const r = await sock.sendMessage(jid, { text: texto });
+        const jid = para === "eu" ? jidNormalizedUser(sock.user.id) : para.includes("@") ? para : `${para.replace(/\D/g, "").replace(/^(?!55)/, "55")}@s.whatsapp.net`;
+        const r = await sock.sendMessage(jid, { text: texto }, citar ? { quoted: citar } : undefined);
         if (r?.key?.id) meus.add(r.key.id);
         fila.shift();
       } catch (e) { console.log("⚠️ envio falhou, tento de novo:", String(e.message).slice(0, 80)); await new Promise((r) => setTimeout(r, 5000)); }
@@ -62,7 +62,13 @@ export async function zap({ pasta = "sessao-aprov", onTexto } = {}) {
   abrir();
   await Promise.race([pronto, new Promise((_, rej) => setTimeout(() => rej(new Error("Tempo esgotado conectando no WhatsApp")), 120000))]);
   return {
-    enviar: (para, texto) => { fila.push({ para, texto }); esvaziar(); },
+    enviar: (para, texto, citar) => { fila.push({ para, texto, citar }); esvaziar(); },
+    // id do grupo pelo nome (sem acento/maiúscula)
+    grupo: async (nome) => {
+      const n = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+      const gs = Object.values(await sock.groupFetchAllParticipating());
+      return (gs.find((g) => n(g.subject) === n(nome)) || gs.find((g) => n(g.subject).includes(n(nome))))?.id || null;
+    },
     pendentes: () => fila.length,
     desconectado: () => fim,
     fechar: async () => { for (let i = 0; i < 20 && fila.length && aberto; i++) await new Promise((r) => setTimeout(r, 1000)); fim = true; await new Promise((r) => setTimeout(r, 3000)); try { sock.end?.(); } catch {} },
