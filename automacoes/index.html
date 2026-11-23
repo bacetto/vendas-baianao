@@ -138,7 +138,7 @@ footer{color:var(--mut);font-size:12.5px;text-align:center;padding:20px 0 30px}
   </section>
 
   <section id="automacoes">
-    <h2>⚙️ Automações ligadas <small>o status de cada uma atualiza sozinho a cada 4 minutos</small></h2>
+    <h2>⚙️ Automações ligadas <small>o status de cada uma é conferido a cada 5 minutos</small></h2>
     <div class="grid" id="cards"></div>
   </section>
 
@@ -242,7 +242,6 @@ footer{color:var(--mut);font-size:12.5px;text-align:center;padding:20px 0 30px}
 <footer id="rodape">Baianão Móveis · Central de Automações</footer>
 
 <script>
-const REPO = "bacetto/vendas-baianao", REPO_FOTOS = "bacetto/fotos-baianao", API = "https://api.github.com/repos/";
 const tzNow = () => { const d = new Date(Date.now() - 3 * 3600e3); return { h: d.getUTCHours(), m: d.getUTCMinutes(), min: d.getUTCHours() * 60 + d.getUTCMinutes(), d }; };
 const hm = (min) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
 const horaBR = (iso) => new Date(iso).toLocaleTimeString("pt-BR", { timeZone: "America/Bahia", hour: "2-digit", minute: "2-digit" });
@@ -324,12 +323,6 @@ function cards() {
 }
 
 // ---------- STATUS AO VIVO ----------
-async function get(u) {
-  const r = await fetch(API + u, { headers: { Accept: "application/vnd.github+json" } });
-  if (r.status === 403 || r.status === 429) { const reset = Number(r.headers.get("x-ratelimit-reset")) * 1000; const e = new Error("limite"); e.reset = reset; throw e; }
-  if (!r.ok) throw new Error("http " + r.status);
-  return r.json();
-}
 const vivo = (rs) => rs.filter((r) => r.status !== "completed");
 const feitos = (rs) => rs.filter((r) => r.status === "completed" && r.conclusion !== "cancelled" && r.conclusion !== "skipped");
 
@@ -357,7 +350,7 @@ function avaliar(runs, dadosISO, fotos) {
     const rs = por("robo-descontos.yml"), v = vivo(rs).filter((r) => r.status === "in_progress"), u = feitos(rs)[0];
     if (n < 7 * 60 || n >= 23 * 60) st.robo = { s: "off", txt: "Em pausa (funciona das 07h às 23h)" };
     else if (v.length) st.robo = { s: "ok", txt: `Ligado desde ${horaBR(v[v.length - 1].run_started_at || v[v.length - 1].created_at)}` };
-    else if (vivo(rs).length || (u && (Date.now() - new Date(u.updated_at)) / 60e3 < 8)) st.robo = { s: "warn", txt: "Trocando de turno — volta em instantes" };
+    else if (vivo(rs).length) st.robo = { s: "warn", txt: "Trocando de turno — volta em instantes" };
     else if (n < 7 * 60 + 10) st.robo = { s: "warn", txt: "Ligando para o dia" };
     else st.robo = { s: "bad", txt: "Robô desligado — o religamento automático não conseguiu" };
   }
@@ -399,24 +392,25 @@ function banner() {
     <div><b>${prox ? hm(prox[0] % 60 === 1 ? prox[0] - 1 : prox[0]) : "06:17"}</b><span>próximo: ${prox ? prox[1] : "amanhã"}</span></div>`;
 }
 
-let ultima = 0, esperaAte = 0;
+let ultima = 0, gerado = null;
+const STATUS_URL = "https://raw.githubusercontent.com/bacetto/vendas-baianao/status/status.json";
+const conv = (lst, f) => (lst || []).map((r) => ({ path: `.github/workflows/${f}`, status: r.status, conclusion: r.conclusion, created_at: r.createdAt, updated_at: r.updatedAt, run_started_at: r.startedAt }));
 async function atualizar() {
-  if (Date.now() < esperaAte) return;
   try {
-    const [runs, dados, fotos] = await Promise.all([
-      get(`${REPO}/actions/runs?per_page=100`),
-      get(`${REPO}/commits/dados`).catch(() => null),
-      get(`${REPO_FOTOS}/actions/runs?per_page=5`).catch(() => null),
-    ]);
-    ST = avaliar(runs.workflow_runs || [], dados?.commit?.committer?.date, fotos?.workflow_runs);
-    ultima = Date.now();
+    const r = await fetch(`${STATUS_URL}?t=${Math.floor(Date.now() / 60e3)}`, { cache: "no-store" });
+    if (!r.ok) throw new Error("http " + r.status);
+    const j = await r.json();
+    const runs = [...conv(j.coleta, "coleta.yml"), ...conv(j.vigia, "vigia.yml"), ...conv(j.robo_vivo, "robo-descontos.yml"), ...conv(j.robo_fila, "robo-descontos.yml"), ...conv(j.robo, "robo-descontos.yml"), ...conv(j.rel, "relatorios.yml")];
+    ST = avaliar(runs, j.dados || null, conv(j.fotos, "publicar.yml"));
+    gerado = j.gerado; ultima = Date.now();
+    const idade = (Date.now() - new Date(gerado)) / 60e3;
+    if (idade > 25) for (const k in ST) if (ST[k].s === "ok") ST[k] = { s: "warn", txt: `${ST[k].txt} · (leitura de ${horaBR(gerado)}, o status está atrasado)` };
   } catch (e) {
-    if (e.reset) esperaAte = e.reset;
     for (const k of ["rel", "robo", "painel", "vigia", "fotos"]) if (!ST[k] || ST[k].s === "load") ST[k] = { s: "load", txt: "Status ao vivo indisponível no momento — tenta de novo em instantes" };
   }
   cards(); banner(); rodape();
 }
-function rodape() { document.getElementById("rodape").textContent = `Baianão Móveis · Central de Automações · status conferido ${ultima ? "às " + new Date(ultima).toLocaleTimeString("pt-BR", { timeZone: "America/Bahia", hour: "2-digit", minute: "2-digit" }) : "—"} · atualiza sozinho a cada 4 min`; }
+function rodape() { document.getElementById("rodape").textContent = `Baianão Móveis · Central de Automações · status lido ${gerado ? "às " + new Date(gerado).toLocaleTimeString("pt-BR", { timeZone: "America/Bahia", hour: "2-digit", minute: "2-digit" }) : "—"} · conferido a cada 5 min`; }
 function relogio() { const t = tzNow(); document.getElementById("hora").textContent = hm(t.min); document.getElementById("data").textContent = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Bahia", weekday: "long", day: "2-digit", month: "long" }); }
 
 relogio(); agenda(); cards(); atualizar();

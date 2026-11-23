@@ -1,0 +1,51 @@
+name: Status das automações
+
+# Alimenta a Central de Automações (automacoes/index.html).
+# Só LÊ a situação das outras automações (não liga, não desliga, não manda nada) e grava status.json no ramo "status".
+# Assim a página não depende do limite de consultas do GitHub de quem abre.
+# Isolado: grupo de concorrência próprio, não usa WhatsApp, não usa o portal. Repositório público = minutos grátis.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/status.yml", "automacoes/**"]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: status
+  cancel-in-progress: true
+
+jobs:
+  status:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Ler situação e publicar
+        run: |
+          set -e
+          lista() { gh run list -R "$1" -w "$2" -L "$3" ${4:+-s $4} --json status,conclusion,createdAt,updatedAt,startedAt,event 2>/dev/null || echo "[]"; }
+          mkdir -p pub
+          {
+            echo "{\"gerado\":\"$(date -u +%FT%TZ)\","
+            echo "\"dados\":\"$(gh api "repos/$REPO/commits/dados" --jq .commit.committer.date 2>/dev/null || echo "")\","
+            echo "\"coleta\":$(lista "$REPO" coleta.yml 5),"
+            echo "\"vigia\":$(lista "$REPO" vigia.yml 3),"
+            echo "\"robo\":$(lista "$REPO" robo-descontos.yml 5),"
+            echo "\"robo_vivo\":$(lista "$REPO" robo-descontos.yml 5 in_progress),"
+            echo "\"robo_fila\":$(lista "$REPO" robo-descontos.yml 5 queued),"
+            echo "\"rel\":$(lista "$REPO" relatorios.yml 10),"
+            echo "\"fotos\":$(lista bacetto/fotos-baianao publicar.yml 3)"
+            echo "}"
+          } > pub/status.json
+          python3 -c "import json;json.load(open('pub/status.json'))" && echo "✅ status ok"
+          cd pub && git init -q -b status && git config user.name "bacetto" && git config user.email "bacetto@users.noreply.github.com" \
+            && git add status.json && git commit -qm "status $(date -u +%FT%TZ)" \
+            && git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${REPO}" status && echo "✅ publicado"
