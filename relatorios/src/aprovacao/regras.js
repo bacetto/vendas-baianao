@@ -14,6 +14,8 @@
 //   pausar | ligar | regras | ajuda
 
 export const REGIONAIS = ["R1", "R2", "R3", "R4"];
+export const SERV_PADRAO = 7;
+export const servMin = (e) => (e.servMin === undefined ? SERV_PADRAO : e.servMin);
 
 export function estadoInicial() {
   return { regras: {}, pausado: false, abaixo: "reprovar", teto: null, avisados: {}, solicitados: {}, historico: [], dia: null };
@@ -42,6 +44,7 @@ export function textoRegras(e) {
     `📋 *Regras do robô de descontos*${e.pausado ? " — ⏸️ *PAUSADO*" : ""}`,
     ...linhas,
     `• Fora da regra: ${e.abaixo === "manual" ? "fica pro Ed" : "reprova"}`,
+    `• Serviços: ${servMin(e) != null ? `o regional precisa ter ≥ *${pct(servMin(e))}* das vendas do mês em serviços` : "sem exigência"}`,
     ...(e.teto != null ? [`• Teto geral: acima de ${pct(e.teto)} fica pro Ed`] : []),
   ].join("\n");
 }
@@ -51,6 +54,7 @@ export const AJUDA = [
   "*R1 42* → R1 aprova se a margem do regional ficar ≥ 42%",
   "*R1 max 30* → no R1, pedido com desconto acima de 30% não passa (*R1 max off* tira)",
   "*R1 42 max 30* → as duas regras de uma vez",
+  "*servicos 7* → regional precisa ter ≥ 7% das vendas do mês em serviços (*servicos off* tira)",
   "*R1 manual* → R1 fica todo pro Ed",
   "*todas 41* → mesmo mínimo pra R1 a R4",
   "*teto 40* → acima de 40% de desconto nunca decide sozinho (*teto off* tira)",
@@ -96,6 +100,10 @@ export function comando(texto, e) {
     e.abaixo = m[1] === "manual" ? "manual" : "reprovar";
     return { resposta: `✅ Abaixo do mínimo: ${e.abaixo === "manual" ? "fica pro Ed decidir" : "o robô reprova"}.`, mudou: true };
   }
+  if ((m = low.match(/^serv(?:icos?|ico)?\s*[:=-]?\s*(\d{1,2}(?:[.,]\d{1,2})?|off|sem)\s*%?$/))) {
+    e.servMin = /off|sem/.test(m[1]) ? null : num(m[1]);
+    return { resposta: e.servMin == null ? "✅ Sem exigência de serviços." : `✅ Serviços: o regional precisa ter ≥ *${pct(e.servMin)}* das vendas do mês em serviços.`, mudou: true };
+  }
   if (/^(pausar|pausa|parar|para)$/.test(low)) { e.pausado = true; return { resposta: "⏸️ Robô *pausado*. Tudo fica pro Ed até mandar *ligar*.", mudou: true }; }
   if (/^(ligar|liga|retomar|voltar)$/.test(low)) { e.pausado = false; return { resposta: `▶️ Robô *ligado*.\n\n${textoRegras(e)}`, mudou: true }; }
   if (/^(regras|regra|status)$/.test(low)) return { resposta: textoRegras(e), mudou: false };
@@ -104,7 +112,7 @@ export function comando(texto, e) {
 }
 
 // Decide um pedido pendente. item = objeto do portal; regional = "R1".."R4".
-export function decidir(item, regional, e) {
+export function decidir(item, regional, e, serv) {
   const margem = item?.evaluation?.regionalMargin;
   const desc = item?.discountPercentage;
   const regra = e.regras[regional];
@@ -118,13 +126,18 @@ export function decidir(item, regional, e) {
     if (typeof desc !== "number" || !Number.isFinite(desc)) return { acao: "MANUAL", motivo: "portal não trouxe o % de desconto" };
     if (desc > regra.max + 1e-6) return fora(`desconto do pedido ${pct(desc)} acima do máximo ${pct(regra.max)} do ${regional}`);
   }
-  if (margem >= regra.min) return { acao: "APROVAR", motivo: `margem Reg. ${pct(margem)} ≥ mínimo ${pct(regra.min)}${regra.max != null ? ` e desconto ${pct(desc)} ≤ máximo ${pct(regra.max)}` : ""}` };
-  return fora(`margem Reg. ${pct(margem)} abaixo do mínimo ${pct(regra.min)}`);
+  if (margem < regra.min) return fora(`margem Reg. ${pct(margem)} abaixo do mínimo ${pct(regra.min)}`);
+  const sm = servMin(e);
+  if (sm != null) {
+    if (!serv || typeof serv.pct !== "number" || !Number.isFinite(serv.pct)) return { acao: "ESPERAR", motivo: "sem os dados de serviços do regional" };
+    if (serv.pct < sm) return fora(`serviços do ${regional} em ${pct(serv.pct)} das vendas do mês, abaixo do mínimo ${pct(sm)}`);
+  }
+  return { acao: "APROVAR", motivo: `margem Reg. ${pct(margem)} ≥ mínimo ${pct(regra.min)}${regra.max != null ? `, desconto ${pct(desc)} ≤ máximo ${pct(regra.max)}` : ""}${sm != null ? `, serviços ${pct(serv.pct)} ≥ ${pct(sm)}` : ""}` };
 }
 
 const brl = (n) => (typeof n === "number" ? n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—");
 
-export function textoAviso(item, regional, d, e, resultado) {
+export function textoAviso(item, regional, d, e, resultado, serv) {
   const ev = item.evaluation || {};
   const prod = (item.products || []).map((p) => p.description || p.name || p.productName).filter(Boolean)[0];
   const cab = {
@@ -139,6 +152,7 @@ export function textoAviso(item, regional, d, e, resultado) {
     prod ? `📦 ${String(prod).slice(0, 60)}` : null,
     `💸 Desconto: *${pct(item.discountPercentage)}* (${brl(item.discountValue)})`,
     `📊 Margem com o pedido → Reg.: *${pct(ev.regionalMargin)}* · LJ: ${pct(ev.storeMargin)} · Dir.: ${pct(ev.directorMargin)}`,
+    serv && typeof serv.pct === "number" ? `🛠️ Serviços do ${regional} no mês: *${pct(serv.pct)}* das vendas` : null,
     `📝 ${d.motivo}`,
     d.acao === "MANUAL"
       ? (regional && REGIONAIS.includes(regional) ? `👉 Pra eu decidir este e os próximos do ${regional}: mande *${regional} ${regra ?? 40}*` : null)

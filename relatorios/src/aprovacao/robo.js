@@ -80,6 +80,16 @@ if (!SIMULAR && est.dia !== hoje()) {
 const visto = new Set();
 let portal = null, filial = {}, filiaisEm = 0, falhas = 0, avisoFalhaEm = 0;
 const tentativas = {}, cont = { aprov: 0, reprov: 0, manual: 0 };
+// % de serviços do mês por regional: consulta pesada, atualiza a cada 10 min em paralelo (não segura a decisão)
+const serv = { regs: {}, em: 0, carregando: false, tentou: 0 };
+function atualizarServicos() {
+  if (serv.carregando || !portal || Date.now() - serv.tentou < 10 * 60e3) return;
+  serv.carregando = true; serv.tentou = Date.now();
+  portal.servicosMes().then((r) => { if (Object.keys(r).length) { serv.regs = r; serv.em = Date.now(); console.log("✅ Serviços do mês atualizados"); } })
+    .catch((e) => { serv.tentou = Date.now() - 8 * 60e3; console.log("⚠️ serviços não lidos:", String(e.message).slice(0, 80)); })
+    .finally(() => { serv.carregando = false; });
+}
+const servDe = (reg) => (Date.now() - serv.em < 60 * 60e3 ? serv.regs[reg] : null);
 
 async function ciclo() {
   // grupo de avisos criado depois: procura de novo a cada 10 min
@@ -95,6 +105,7 @@ async function ciclo() {
     filial = Object.fromEntries(fs.filter((f) => f.codigoProtheus).map((f) => [String(f.codigoProtheus).trim(), f.regional]));
     filiaisEm = Date.now();
   }
+  atualizarServicos();
   const itens = await portal.pendentes();
   for (const sol of sols) {
     const it = itens.find((i) => bate(sol, i));
@@ -107,13 +118,17 @@ async function ciclo() {
     }
     if (it?.decision?.canDecide === false || (it?.decision?.finalStatus && it.decision.finalStatus !== "PENDENTE")) continue;
     const reg = regionalDe(filial[String(it.branchCode).trim()] ?? it.regional);
-    const d = decidir(it, reg, est);
+    let d = decidir(it, reg, est, servDe(reg));
+    if (d.acao === "ESPERAR") {
+      if (Date.now() - sol.t < 10 * 60e3) continue; // dados de serviços chegando
+      d = { acao: "MANUAL", motivo: "não consegui ler os serviços do regional no portal" };
+    }
 
     if (d.acao === "MANUAL") {
-      if (!sol.avisado && !visto.has(it.id)) { visto.add(it.id); if (!SIMULAR) { sol.avisado = true; sujo = true; } cont.manual++; avisar(textoAviso(it, reg, d, est)); }
+      if (!sol.avisado && !visto.has(it.id)) { visto.add(it.id); if (!SIMULAR) { sol.avisado = true; sujo = true; } cont.manual++; avisar(textoAviso(it, reg, d, est, undefined, servDe(reg))); }
       continue;
     }
-    if (SIMULAR) { if (!visto.has(it.id)) { visto.add(it.id); console.log(`🧪 faria: ${d.acao} (${reg})`); avisar(textoAviso(it, reg, d, est, "ok")); } continue; }
+    if (SIMULAR) { if (!visto.has(it.id)) { visto.add(it.id); console.log(`🧪 faria: ${d.acao} (${reg})`); avisar(textoAviso(it, reg, d, est, "ok", servDe(reg))); } continue; }
     if ((tentativas[it.id] || 0) >= 2) continue; // já falhou 2x e já avisou: fica pro Ed
 
     const decisao = d.acao === "APROVAR" ? "APROVADO" : "REPROVADO_MANUAL";
@@ -125,7 +140,7 @@ async function ciclo() {
       delete est.solicitados[sol.pedido];
       sujo = true;
       console.log(`✅ ${d.acao === "APROVAR" ? "aprovado" : "reprovado"} 1 pedido (${reg})`);
-      avisar(textoAviso(it, reg, d, est, "ok"));
+      avisar(textoAviso(it, reg, d, est, "ok", servDe(reg)));
     } catch (e) {
       tentativas[it.id] = (tentativas[it.id] || 0) + 1;
       console.log(`⚠️ decisão não registrada (tentativa ${tentativas[it.id]}): ${String(e.message).slice(0, 100)}`);

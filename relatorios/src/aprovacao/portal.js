@@ -77,6 +77,17 @@ export async function abrirPortal() {
       protheusGroup: item.group, discountValue: item.discountValue, protheusType: item.type, itemGroup: item.itemGroup,
       decision: decisao, note: nota,
     }),
+    // resumo do mês por regional (venda e pacote de serviços = Sorte Dobrada + Garantia). Consulta pesada (~1 min).
+    servicosMes: async () => {
+      const d = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+      const r = await chamar("get", `/vendas-lojas/resumo?dataInicio=${d.slice(0, 8)}01&dataFim=${d}`);
+      const out = {};
+      for (const g of r?.porRegional || []) {
+        const venda = g.mercantil?.venda || 0, pac = g.pacoteServicos?.valor || 0;
+        if (/^R[1-9]$/.test(g.regional) && venda > 0) out[g.regional] = { venda, pacote: pac, pct: (100 * pac) / venda };
+      }
+      return out;
+    },
     fechar: () => browser.close().catch(() => {}),
   };
 }
