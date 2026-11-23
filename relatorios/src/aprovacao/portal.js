@@ -119,6 +119,22 @@ export async function abrirPortal() {
         const venda = g.mercantil?.venda || 0, pac = g.pacoteServicos?.valor || 0;
         if (/^R[1-9]$/.test(g.regional) && venda > 0) out[g.regional] = { venda, pacote: pac, lucro: g.margem?.lucro ?? null, pct: (100 * pac) / venda, margem: margemPct(g.margem, venda) };
       }
+      // CONFERÊNCIA: o total de cada regional tem que bater com a soma das lojas dele (por loja do mesmo resumo).
+      // Se não bater (diferença > 0,05 p.p. nos serviços ou > 0,5% na venda), o regional fica sem números -> o robô não aprova nada dele.
+      const soma = {};
+      for (const l of r?.porLoja || []) {
+        const k = String(l.regional || "").trim();
+        (soma[k] ||= { venda: 0, pacote: 0 });
+        soma[k].venda += l.mercantil?.venda || 0; soma[k].pacote += l.pacoteServicos?.valor || 0;
+      }
+      for (const [k, o] of Object.entries(out)) {
+        const s = soma[k];
+        const okVenda = s && Math.abs(s.venda - o.venda) <= 0.005 * o.venda;
+        const okServ = s && s.venda > 0 && Math.abs((100 * s.pacote) / s.venda - o.pct) <= 0.05;
+        const okPortal = (() => { const g = (r.porRegional || []).find((x) => x.regional === k); const pp = g?.pacoteServicos?.percentual; return typeof pp !== "number" || Math.abs(pp * 100 - o.pct) <= 0.05; })();
+        o.conferido = !!(okVenda && okServ && okPortal);
+        if (!o.conferido) { console.log(`⚠️ conferência falhou no ${k}: números do regional não batem com a soma das lojas`); delete out[k]; }
+      }
       return out;
     },
     // histórico (já decididos) de um número de pedido
