@@ -785,7 +785,7 @@ function secRegs(){
   const vend=(k)=>(P[k].vendedores||[]).filter(v=>cods.has(v.loja));
   const A=alertasReg(i.reg),ico={alto:"🔴",medio:"🟡",bom:"🟢"};
   return `<div class="grid g4">${chips}</div>
-  <div class="card ia sec" id="iaReg"><div class="iat">✨ ${i.reg} · ${esc(i.lider)} <span class="sub">· resumo automático</span> <button id="btIaReg" class="btia">Analisar com IA agora</button></div><p>${resumoReg(i)}</p><div id="iaRegOut"></div></div>
+  <div class="card ia sec" id="iaReg"><div class="iat">✨ ${i.reg} · ${esc(i.lider)} <span class="sub">· resumo automático</span> <button id="btIaReg" class="btia" ${IAREG[i.reg]?.on?"disabled":""}>${IAREG[i.reg]?.on?"Analisando…":IAREG[i.reg]?.html?"Analisar com IA de novo":"Analisar com IA agora"}</button></div><p>${resumoReg(i)}</p><div id="iaRegOut">${IAREG[i.reg]?.html||""}</div></div>
   <div class="grid g4" style="margin-top:14px">
     ${kpi("Hoje · Universo + BaianãoEletro",mil((i.hoje.venda||0)+i.zH),`Universo ${mil(i.hoje.venda)} · ${fmtPct(i.hoje.pct)} da meta de ${mil(i.hoje.meta)}`)}
     ${kpi("Mês · Universo + BaianãoEletro",mil((i.mes.venda||0)+i.zM),`Universo ${fmtPct(i.mes.pct)} da meta até hoje (${mil(i.mes.meta)})`)}
@@ -800,19 +800,20 @@ function secRegs(){
   <div class="nota">"vs mês passado" compara a venda por dia deste mês com a do mês passado inteiro.</div></div>
   <div class="card sec"><b>Vendedores da ${i.reg} · mês</b>${tabelaSimples([{t:"#",f:(r,x)=>x+1},{t:"Vendedor",l:1,n:1,f:r=>esc(r.nome)},{t:"Loja",l:1,f:r=>esc(nomeLoja(r.loja))},{t:"Universo",f:r=>mil(r.venda)},{t:"BaianãoEletro",f:r=>zv[r.nome.toUpperCase()]?mil(zv[r.nome.toUpperCase()]):"—"},{t:"Pedidos",f:r=>num(r.pedidos)},{t:"Ticket",f:r=>r.pedidos?brl(r.venda/r.pedidos):"—"},{t:"Devolução",f:r=>r.devol?mil(r.devol):"—"}],vend("mes"),{max:60})}</div>`;
 }
+const IAREG={}; // análise da IA por regional (fica guardada entre as atualizações da página)
+const reRender=()=>{if(S.sec==="regs")render()};
 async function iaRegional(){
-  const reg=S.reg2,out=$("#iaRegOut"),bt=$("#btIaReg");if(!CHAT_URL||!out)return;bt.disabled=true;bt.textContent="Analisando…";
-  out.innerHTML='<p class="sub">A IA está analisando a regional com os números de agora (até 1 minuto)…</p>';
+  const reg=S.reg2;if(!CHAT_URL||IAREG[reg]?.on)return;
+  IAREG[reg]={on:1,html:'<p class="sub">A IA está analisando a regional com os números de agora (até 1 minuto)…</p>'};reRender();
   try{const ctx=contextoChat(),k=await chave(),idx=indice(ctx),i=regInfo(reg);
     const q=`Faça a análise completa da regional ${reg} (líder ${i.lider}) agora: como está hoje, como está no mês e a projeção, quais lojas e vendedores puxam pra cima e quais estão atrás, e 3 ações práticas para o líder ${i.lider} e os gerentes das lojas. Use só números da regional ${reg} e das lojas dela.`;
     const pede=async(pergunta,hist)=>{const r=await fetch(CHAT_URL,{method:"POST",headers:{"Content-Type":"application/json","X-Chave":k},body:JSON.stringify({pergunta,contexto:ctx,historico:hist})});const j=await r.json();if(!r.ok||!j.resposta)throw new Error(j.erro||"erro");return j};
     let j=await pede(q,[]),resp=j.resposta,erros=verificar(resp,ctx,idx),n=0;
     while(erros.length&&n<2){n++;j=await pede(`Sua resposta tem números que NÃO batem com os dados:\n${textoErros(erros)}\nReescreva a análise INTEIRA da regional ${reg}, corrigindo esses pontos e usando somente números do JSON ligados à loja/regional/vendedor e ao período certos.`,[{role:"user",content:q},{role:"assistant",content:resp}]);resp=j.resposta;erros=verificar(resp,ctx,idx)}
     if(erros.length)resp=limpar(resp,erros);
-    if(S.reg2!==reg)return;
-    out.innerHTML=`<div class="m a" style="max-width:none;margin-top:10px">${md(resp)}<span class="mod">IA · ${esc(j.modelo||"")} · dados de ${esc(ctx.dadosDe.slice(0,5))} · ✔ números conferidos com os dados${erros.length?` (${erros.length} trecho(s) sem base retirados)`:""}</span></div>`;
-  }catch(e){out.innerHTML=`<p class="sub">Não consegui analisar agora (${esc(e.message)}). Tente de novo em instantes.</p>`}
-  if(bt){bt.disabled=false;bt.textContent="Analisar com IA de novo"}
+    IAREG[reg]={html:`<div class="m a" style="max-width:none;margin-top:10px">${md(resp)}<span class="mod">IA · ${esc(j.modelo||"")} · dados de ${esc(ctx.dadosDe.slice(0,5))} · ✔ números conferidos com os dados${erros.length?` (${erros.length} trecho(s) sem base retirados)`:""}</span></div>`};
+  }catch(e){IAREG[reg]={html:`<p class="sub">Não consegui analisar agora (${esc(e.message)}). Tente de novo em instantes.</p>`}}
+  reRender();
 }
 
 // ---------- roteador ----------
