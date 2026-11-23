@@ -164,6 +164,15 @@ export function decidir(item, regional, e, base) {
 
 const brl = (n) => (typeof n === "number" ? n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—");
 
+// serviços que vieram no próprio pedido (Sorte Dobrada, Garantia...)
+export function textoServicosVenda(item) {
+  const sv = (item.services || []).filter((x) => (Number(x.finalValue) || 0) > 0 || (Number(x.quantity) || 0) > 0);
+  if (!sv.length) return "🛠️ *Sem serviço na venda*";
+  const nome = (x) => String(x.description || x.code || "serviço").trim().toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+  const total = sv.reduce((a, x) => a + (Number(x.finalValue) || 0), 0);
+  return `🛠️ *Com serviço:* ${sv.map((x) => `${nome(x)}${Number(x.quantity) > 1 ? ` (${x.quantity}x)` : ""}`).join(", ")} · ${brl(total)}`;
+}
+
 export function textoAviso(item, regional, d, e, resultado, base) {
   const proj = projetar(item, base);
   const ev = item.evaluation || {};
@@ -181,6 +190,7 @@ export function textoAviso(item, regional, d, e, resultado, base) {
     `🏬 ${String(item.branchName || item.branchCode).replace(/^BAIANAO\s*\/\s*/i, "")}`,
     prod ? `📦 ${String(prod).slice(0, 45)}` : null,
     `💸 ${brl(item.discountValue)} de desconto`,
+    textoServicosVenda(item),
   ];
   const temRegras = [g.min, g.max, g.serv].every((n) => typeof n === "number");
   const mc = proj?.margemCom, sc = proj?.servCom, dc = item.discountPercentage;
