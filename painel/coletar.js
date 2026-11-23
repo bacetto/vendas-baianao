@@ -6,7 +6,7 @@ const require = createRequire(import.meta.url);
 const { agregarPainel, periodosPainel } = require("./agregar.cjs");
 const { coletarRawPainel, coletarRawLeve } = require("./coleta-pagina.cjs");
 import { coletarZep } from "./zep.mjs";
-import { analiseIA } from "./ia.mjs";
+import { ultimaAnalise } from "./ia.mjs";
 
 const BASE = "https://universobaianao.com.br";
 const { PORTAL_CPF, PORTAL_SENHA } = process.env;
@@ -118,7 +118,7 @@ try {
   if (!leve) { try { const z = await coletarZep(browser, dados); if (z) { dados.zep = z; fs.writeFileSync(ZULT, JSON.stringify(z)); } } catch (e) { console.log("⚠️ ZepSystem não lido:", String(e.message).slice(0, 120)); } }
   if (!dados.zep) { try { const z = JSON.parse(fs.readFileSync(ZULT, "utf8")); if (z?.periodos?.hoje?.inicio === P.hoje.inicio) dados.zep = z; } catch (e) {} }
   // analista de IA (GitHub Models, grátis): a cada 30 min; se falhar, o painel usa o resumo automático
-  try { const ia = await analiseIA(dados); if (ia) dados.ia = ia; } catch (e) { console.log("⚠️ IA:", String(e.message).slice(0, 120)); }
+  { const ia = ultimaAnalise(dados.periodos.hoje.inicio); if (ia) dados.ia = ia; } // a IA roda em paralelo (painel/ia-run.mjs)
   fs.writeFileSync("saida/dados.json", JSON.stringify(dados));
   const m = dados.periodos.mes, h = dados.periodos.hoje;
   // registro público: sem valores de venda

@@ -136,3 +136,7 @@ export async function analiseIA(D) {
   return cache && cache.dia === D.periodos.hoje.inicio ? cache : null;
 }
 export { contexto as contextoIA };
+// leitura rápida da última análise (usada pela coleta, que não espera a IA)
+export function ultimaAnalise(dia) {
+  try { const c = JSON.parse(fs.readFileSync(CACHE, "utf8")); return c?.dia === dia ? c : null; } catch (e) { return null; }
+}
