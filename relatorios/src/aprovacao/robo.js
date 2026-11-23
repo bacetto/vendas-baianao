@@ -102,6 +102,18 @@ const servDe = (reg) => (Date.now() - serv.em < 60 * 60e3 ? serv.regs[reg] : nul
 const bol = { carregando: false, tentou: 0, avisou: null };
 function boletim() {
   const h = hora(), min = bahia().getUTCMinutes(), chave = `${hoje()}-${h}`;
+  // 1ª vez: manda uma prévia só pro Gabriel ("você mesmo") pra ele conferir antes do Ed receber
+  if (!SIMULAR && portal && !est.boletimTeste && !bol.carregando && Date.now() - bol.tentou > 2 * 60e3 && h >= 10 && h < 23) {
+    bol.carregando = true; bol.tentou = Date.now();
+    portal.resumoDia().then((r) => {
+      const t = textoBoletim(r, h);
+      if (!t) throw new Error("números dos regionais incompletos");
+      wa.enviar("eu", `🧪 *Prévia do boletim que o Ed vai receber de 2 em 2h (10h às 22h)*\n\n${t}`);
+      est.boletimTeste = Date.now(); sujo = true;
+      console.log("✅ Prévia do boletim enviada pro Gabriel");
+    }).catch((e) => console.log("⚠️ prévia não saiu:", String(e.message).slice(0, 80))).finally(() => { bol.carregando = false; });
+    return;
+  }
   if (SIMULAR || !portal || !BOLETIM_HORAS.includes(h) || est.boletim === chave) return;
   if (min >= 50) {
     if (bol.avisou !== chave) { bol.avisou = chave; wa.enviar("eu", `⚠️ *Boletim margem/serviços das ${h}h* não saiu pro Ed (portal não respondeu). Sigo tentando na próxima.`); }
