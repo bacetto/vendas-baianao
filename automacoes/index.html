@@ -394,7 +394,7 @@ function banner() {
 
 let ultima = 0, gerado = null;
 const STATUS_URL = "https://raw.githubusercontent.com/bacetto/vendas-baianao/status/status.json";
-const conv = (lst, f) => (lst || []).map((r) => ({ path: `.github/workflows/${f}`, status: r.status, conclusion: r.conclusion, created_at: r.createdAt, updated_at: r.updatedAt, run_started_at: r.startedAt }));
+const conv = (lst, f) => (lst || []).map((r) => ({ path: `.github/workflows/${f}`, status: r.status, conclusion: r.conclusion, created_at: r.createdAt, updated_at: r.updatedAt, run_started_at: r.startedAt })).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 async function atualizar() {
   try {
     const r = await fetch(`${STATUS_URL}?t=${Math.floor(Date.now() / 60e3)}`, { cache: "no-store" });
