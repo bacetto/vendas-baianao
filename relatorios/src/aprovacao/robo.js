@@ -15,7 +15,7 @@ const CICLO = 15000;
 const SIMULAR = process.env.SIMULAR === "1"; // teste: lê e avisa o que faria, sem mexer no portal nem no grupo
 const GRUPO = process.env.GRUPO_LIBERACAO || "LIBERAÇÃO DESCONTO";
 const GRUPO_AVISOS = process.env.GRUPO_AVISOS || "DETALHAMENTO APROVAÇÕES BAIANAO"; // grupo Gabriel + Ednilson: detalhes e comandos
-const ESPERA_PORTAL = 15 * 60e3;  // pedido do grupo que não aparece nos pendentes do Ed em 15 min: avisa
+const ESPERA_PORTAL = 3 * 60e3;   // pedido do grupo que não aparece nos pendentes do Ed em 3 min: avisa (com o histórico)
 const VALIDADE = 4 * 3600e3;      // pedido do grupo vale 4h
 const DURACAO = Number(process.env.DURACAO_MIN || 340) * 60e3;
 const INICIO = Date.now();
@@ -122,7 +122,16 @@ async function ciclo() {
     if (!it) {
       if (!sol.semPortal && Date.now() - sol.t > ESPERA_PORTAL) {
         sol.semPortal = true; sujo = true;
-        avisar(`🔎 Pedido *${sol.pedido}* (filial ${sol.filial ?? "?"}) foi pedido no grupo, mas não está nos pendentes do Ed no portal há 15 min (já decidido, número errado ou não precisou de aprovação). Não fiz nada.`);
+        // já foi decidido? mostra por quem e quando
+        let hist = [];
+        try { hist = (await portal.historico(sol.pedido.padStart(6, "0"))).filter((h) => bate(sol, h)); } catch (e) {}
+        hist.sort((a, b) => String(b.decision?.decidedAt || "").localeCompare(String(a.decision?.decidedAt || "")));
+        const h = hist[0];
+        const quando = (iso) => { try { return new Date(new Date(iso).getTime() - 3 * 3600e3).toISOString().slice(11, 16); } catch { return "?"; } };
+        const st = { APROVADO: "aprovado", REPROVADO_MANUAL: "reprovado", REPROVADO_POR_REGRA: "reprovado por regra" };
+        avisar(h
+          ? `ℹ️ Pedido *${sol.pedido}* (filial ${sol.filial ?? "?"}) pedido no grupo já estava *${st[h.decision?.finalStatus] || h.decision?.finalStatus}* no portal${h.decision?.decidedByName ? ` por ${h.decision.decidedByName}` : ""}${h.decision?.decidedAt ? ` às ${quando(h.decision.decidedAt)}` : ""}. Não fiz nada.`
+          : `🔎 Pedido *${sol.pedido}* (filial ${sol.filial ?? "?"}) pedido no grupo não está nos pendentes do Ed nem no histórico (número/filial errado ou não precisou de aprovação). Não fiz nada.`);
       }
       continue;
     }

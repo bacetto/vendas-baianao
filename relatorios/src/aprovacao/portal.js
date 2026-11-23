@@ -88,6 +88,8 @@ export async function abrirPortal() {
       }
       return out;
     },
+    // histórico (já decididos) de um número de pedido
+    historico: async (pedido) => (await chamar("get", `/regras-desconto/historico-orcamentos?aba=analisados&page=1&pageSize=10&search=${encodeURIComponent(pedido)}`)).items || [],
     fechar: () => browser.close().catch(() => {}),
   };
 }
