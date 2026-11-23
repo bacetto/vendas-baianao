@@ -167,24 +167,37 @@ const brl = (n) => (typeof n === "number" ? n.toLocaleString("pt-BR", { style: "
 export function textoAviso(item, regional, d, e, resultado, base) {
   const proj = projetar(item, base);
   const ev = item.evaluation || {};
+  const g = e.regras[regional] || {};
   const prod = (item.products || []).map((p) => p.description || p.name || p.productName).filter(Boolean)[0];
-  const cab = {
-    APROVAR: resultado === "ok" ? "✅ *APROVADO pelo robô*" : "❌ *Falhou ao aprovar* — aprove no portal",
-    MANUAL: /^fora da regra/.test(d.motivo) ? "⛔ *NÃO LIBERADO pelo robô* — fica pro Ed (nada foi feito no portal)" : "⏳ *AGUARDANDO O ED* (no portal)",
-  }[d.acao];
-  const regra = e.regras[regional]?.min != null ? num2(e.regras[regional].min) : null;
-  return [
-    `${cab} · #${item.orderNumber}`,
-    `🏬 ${item.branchName || item.branchCode} · *${regional || "?"}*`,
-    prod ? `📦 ${String(prod).slice(0, 60)}` : null,
-    `💸 Desconto: *${pct(item.discountPercentage)}* (${brl(item.discountValue)})`,
-    `📊 Margem do ${regional}: ${pct(proj?.margemAtual ?? ev.regionalMargin)} hoje → *${pct(proj?.margemCom)}* com o pedido`,
-    proj ? `🛠️ Serviços do ${regional}: ${pct(proj.servAtual)} hoje → *${pct(proj.servCom)}* com o pedido` : null,
-    `📝 ${d.motivo}`,
-    d.acao === "MANUAL"
-      ? (regional && REGIONAIS.includes(regional) ? `👉 Pra eu decidir os do ${regional}: *${regional} - M40 - D30 - S7*` : null)
-      : `👉 Regra atual: ${textoRegra(regional, e)} — pra mudar mande no mesmo formato, ex.: *${regional} - M${regra ?? 40}*`,
-  ].filter(Boolean).join("\n");
+  const foraRegra = d.acao === "MANUAL" && /^fora da regra/.test(d.motivo);
+  const cab = d.acao === "APROVAR"
+    ? (resultado === "ok" ? "✅ *APROVADO*" : "❌ *NÃO CONSEGUI APROVAR* — aprove no portal")
+    : foraRegra ? "⛔ *NÃO LIBERADO* — fica pro Ed" : "⏳ *FICA PRO ED*";
+  const L = "━━━━━━━━━━━━━━";
+  const out = [
+    cab,
+    "",
+    `*#${item.orderNumber}* · *${regional || "?"}*`,
+    `🏬 ${String(item.branchName || item.branchCode).replace(/^BAIANAO\s*\/\s*/i, "")}`,
+    prod ? `📦 ${String(prod).slice(0, 45)}` : null,
+    `💸 ${brl(item.discountValue)} de desconto`,
+  ];
+  const temRegras = [g.min, g.max, g.serv].every((n) => typeof n === "number");
+  const mc = proj?.margemCom, sc = proj?.servCom, dc = item.discountPercentage;
+  if (temRegras && typeof mc === "number" && typeof sc === "number") {
+    const linha = (ok, nome, valor, lim) => `${ok ? "✅" : "❌"} ${nome}: *${pct(valor)}*  _(${lim})_`;
+    out.push("", L, `*REGRAS DO ${regional}*`,
+      linha(dc <= g.max + 1e-9, "Desconto", dc, `máx. ${num2(g.max)}%`),
+      linha(mc >= g.min, "Margem", mc, `mín. ${num2(g.min)}%`),
+      linha(sc >= g.serv, "Serviços", sc, `mín. ${num2(g.serv)}%`),
+      L,
+      `_Margem e serviços do ${regional} já contando este pedido (hoje: ${pct(proj.margemAtual)} e ${pct(proj.servAtual)})_`);
+  } else {
+    out.push("", `📝 ${d.motivo}`);
+    if (regional && REGIONAIS.includes(regional) && !temRegras) out.push("", `👉 Pra o robô decidir o ${regional}, mande: *${regional} - M40 - D20 - S7*`);
+  }
+  if (d.acao === "APROVAR" && resultado !== "ok") out.push("", `📝 ${d.motivo}`);
+  return out.filter((x) => x !== null).join("\n");
 }
 
 // Lê os pedidos de uma mensagem do grupo LIBERAÇÃO DESCONTO ("Filial: 33 / Pedido: 036403 / ...").
