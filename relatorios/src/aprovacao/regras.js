@@ -113,9 +113,11 @@ export function projetar(item, base) {
   // base = números do DIA do regional (venda, lucro, custo, pacote de serviços). Margem do portal = lucro / custo.
   if (!base || !(base.venda > 0) || !(base.custo > 0) || typeof base.lucro !== "number") return null;
   const prods = item.products || [];
-  const pl = prods.reduce((a, p) => a + (Number(p.profit) || 0), 0);
+  // lucro do item: o do portal; se não vier, valor final − custo
+  const lucroItem = (p) => { const v = p.profit; if (v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v))) return Number(v); return (Number(p.finalValue) || 0) - (Number(p.unitCost) || 0) * (Number(p.quantity) || 0); };
+  const pl = prods.reduce((a, p) => a + lucroItem(p), 0);
   const pc = prods.reduce((a, p) => a + (Number(p.unitCost) || 0) * (Number(p.quantity) || 0), 0);
-  const fv = Number(item.finalValue) || prods.reduce((a, p) => a + (Number(p.finalValue) || 0), 0);
+  const fv = Number(item.finalValue) > 0 ? Number(item.finalValue) : prods.reduce((a, p) => a + (Number(p.finalValue) || 0), 0);
   const sv = (item.services || []).reduce((a, s) => a + (Number(s.finalValue) || 0), 0);
   return {
     margemAtual: (100 * base.lucro) / base.custo,
@@ -128,8 +130,8 @@ export function projetar(item, base) {
 // Só entra na automação o pedido que APENAS o Ednilson pode liberar (grupo aprovador "... (Apenas Ednilson)").
 // Se mais alguém puder aprovar (Gerentes, Regionais, Compras...) ou o portal não disser quem aprova: fica fora (nem avisa).
 export function soEdnilson(item) {
-  const gs = item?.evaluation?.approverGroups;
-  return Array.isArray(gs) && gs.length > 0 && gs.every((g) => /apenas\s+ednilson/i.test(String(g)));
+  // dentro das 3 regras, não importa mais nada: entra todo pedido pendente na fila do Ed que ele pode decidir
+  return item?.decision?.canDecide !== false;
 }
 
 // Decide um pedido pendente. item = objeto do portal; regional = "R1".."R4".
@@ -144,10 +146,9 @@ export function decidir(item, regional, e, base) {
   if (!ok(regra.min) || !ok(regra.max) || !ok(regra.serv)) return { acao: "MANUAL", motivo: `${regional} sem as 3 regras (M, D e S) cadastradas` };
   if (!ok(desc) || desc < 0 || desc > 100) return { acao: "MANUAL", motivo: "portal não trouxe o % de desconto" };
   // pedido sem custo/lucro dos produtos não dá pra projetar margem
-  const num0 = (v) => v !== null && v !== undefined && v !== "" && ok(Number(v));
+  // só precisa do que entra na conta das 3 regras (custo e lucro dos produtos, valor da venda); item sem custo (brinde) entra normal
   const prods = item.products || [];
-  if (!prods.length || prods.some((p) => !num0(p.profit) || !num0(p.unitCost) || !num0(p.quantity) || Number(p.unitCost) < 0 || Number(p.quantity) <= 0) || !(prods.reduce((a, p) => a + Number(p.unitCost) * Number(p.quantity), 0) > 0)) return { acao: "MANUAL", motivo: "pedido sem custo/lucro dos produtos" };
-  if (!num0(item.finalValue) || Number(item.finalValue) <= 0) return { acao: "MANUAL", motivo: "pedido sem valor final" };
+  if (!prods.length) return { acao: "MANUAL", motivo: "portal não trouxe os produtos do pedido" };
   const proj = projetar(item, base);
   if (!proj) return { acao: "ESPERAR", motivo: "sem os números do dia do regional" };
   const margem = proj.margemCom, serv = proj.servCom;

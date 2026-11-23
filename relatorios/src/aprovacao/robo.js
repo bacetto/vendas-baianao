@@ -225,7 +225,21 @@ async function ciclo() {
   }
 }
 
+// atualização automática: se subir código novo no GitHub, este turno encerra e o próximo já sobe com o código novo
+const MEU_SHA = process.env.GITHUB_SHA || "";
+let shaEm = 0;
+async function temCodigoNovo() {
+  if (!MEU_SHA || !process.env.GITHUB_REPOSITORY || Date.now() - shaEm < 2 * 60e3) return false;
+  shaEm = Date.now();
+  try {
+    const r = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/commits/main`, { headers: { Accept: "application/vnd.github.sha", ...(process.env.GH_TOKEN ? { Authorization: `Bearer ${process.env.GH_TOKEN}` } : {}) } });
+    const sha = r.ok ? (await r.text()).trim() : "";
+    return /^[0-9a-f]{40}$/.test(sha) && sha !== MEU_SHA;
+  } catch { return false; }
+}
+
 while (true) {
+  if (await temCodigoNovo()) { console.log("▶ Código novo no GitHub: encerrando este turno pra subir a versão nova"); break; }
   if (wa.desconectado()) { avisar("❌ O WhatsApp do robô foi desconectado. Precisa conectar de novo."); break; }
   try {
     await ciclo();
