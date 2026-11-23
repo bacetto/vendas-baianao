@@ -93,8 +93,8 @@ jobs:
         id: robo
         if: steps.vez.outputs.seguir == '1' && env.ACAO != 'conectar-whatsapp-robo'
         env:
-          ED_CPF: ${{ secrets.ED_CPF }}
-          ED_SENHA: ${{ secrets.ED_SENHA }}
+          ED_CPF: ${{ secrets.ED_CPF || secrets.PORTAL_CPF }}
+          ED_SENHA: ${{ secrets.ED_SENHA || secrets.PORTAL_SENHA }}
           EDNILSON_NUM: ${{ secrets.EDNILSON_NUM }}
           AVISAR_ED: ${{ vars.AVISAR_ED }}
           GRUPO_AVISOS: ${{ vars.GRUPO_AVISOS }}
