@@ -9,6 +9,7 @@ import { abrirPortal } from "./portal.js";
 import { carregar, salvar } from "./estado.js";
 import { zap } from "./zap.js";
 import { comando, decidir, regionalDe, textoAviso, textoRegras, lerPedidos, bate, soEdnilson } from "./regras.js";
+import { textoBoletim, BOLETIM_HORAS } from "./boletim.js";
 
 const CICLO = 15000;
 const SIMULAR = process.env.SIMULAR === "1"; // teste: lê e avisa o que faria, sem mexer no portal nem no grupo
@@ -96,6 +97,29 @@ function atualizarServicos() {
 }
 const servDe = (reg) => (Date.now() - serv.em < 60 * 60e3 ? serv.regs[reg] : null);
 
+// Boletim pro Ed de 2 em 2 horas (margem / serviços do mês por regional). Roda em paralelo, sem segurar as aprovações;
+// tenta de novo a cada 2 min até :50 da hora; "est.boletim" evita mandar 2x (inclusive na troca de turno).
+const bol = { carregando: false, tentou: 0, avisou: null };
+function boletim() {
+  const h = hora(), min = bahia().getUTCMinutes(), chave = `${hoje()}-${h}`;
+  if (SIMULAR || !portal || !BOLETIM_HORAS.includes(h) || est.boletim === chave) return;
+  if (min >= 50) {
+    if (bol.avisou !== chave) { bol.avisou = chave; wa.enviar("eu", `⚠️ *Boletim margem/serviços das ${h}h* não saiu pro Ed (portal não respondeu). Sigo tentando na próxima.`); }
+    return;
+  }
+  if (bol.carregando || Date.now() - bol.tentou < 2 * 60e3) return;
+  bol.carregando = true; bol.tentou = Date.now();
+  portal.servicosMes().then((r) => {
+    const t = textoBoletim(r, h);
+    if (!t) throw new Error("números dos regionais incompletos");
+    wa.enviar(ED || "eu", t);
+    est.boletim = chave; sujo = true;
+    if (Object.keys(r).length) { serv.regs = r; serv.em = Date.now(); }
+    console.log(`✅ Boletim das ${h}h enviado${ED ? "" : " (sem EDNILSON_NUM: foi pra você)"}`);
+  }).catch((e) => console.log("⚠️ boletim não saiu:", String(e.message).slice(0, 80)))
+    .finally(() => { bol.carregando = false; });
+}
+
 async function ciclo() {
   // grupo de avisos criado depois: procura de novo a cada 10 min
   if (!avisosId && Date.now() - avisosEm > 10 * 60e3 && (await acharAvisos())) avisar(`✅ Grupo de avisos conectado.\n\n${textoRegras(est)}\n\nMande *ajuda* pra ver os comandos.`);
@@ -107,6 +131,7 @@ async function ciclo() {
     filiaisEm = Date.now();
   }
   atualizarServicos();
+  boletim();
   // lê DIRETO os pendentes do Ed no portal (não espera o grupo): decide assim que o pedido cai lá
   const itens = await portal.pendentes();
   for (const it of itens) {
@@ -183,6 +208,7 @@ if (!SIMULAR && hora() >= 23 && est.resumo !== hoje()) {
   avisar(`🌙 *Resumo do robô de descontos — hoje*\n✅ Aprovados: *${a}*\n\n${textoRegras(est)}`);
   await salvar(est).catch(() => {});
 }
+if (sujo && !SIMULAR) await salvar(est).catch(() => {}); // garante que o próximo turno saiba o que já foi enviado
 console.log(`▶ Fim do turno: ${cont.aprov} aprovados, ${cont.reprov} reprovados, ${cont.manual} pro Ed`);
 await portal?.fechar();
 await wa.fechar();

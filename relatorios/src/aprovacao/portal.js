@@ -5,6 +5,15 @@ import { chromium } from "playwright";
 const BASE = "https://universobaianao.com.br";
 const TELA = `${BASE}/portal/colaborador/processos/vendas/orcamentos-aprovacao`;
 
+// margem do regional como o portal mostra (margem.percentual; vem em fração 0,40 ou em % 40). Sem ela: lucro / custo.
+export function margemPct(m, venda) {
+  let v = Number(m?.percentual);
+  if (Number.isFinite(v) && v !== 0) v = Math.abs(v) <= 1.5 ? v * 100 : v;
+  else if (typeof m?.lucro === "number" && venda - m.lucro > 0) v = (100 * m.lucro) / (venda - m.lucro);
+  else return null;
+  return Number.isFinite(v) && v > -100 && v < 100 ? v : null;
+}
+
 export async function abrirPortal() {
   const { ED_CPF, ED_SENHA } = process.env;
   if (!ED_CPF || !ED_SENHA) throw new Error("Faltam os secrets ED_CPF e ED_SENHA");
@@ -84,7 +93,7 @@ export async function abrirPortal() {
       const out = {};
       for (const g of r?.porRegional || []) {
         const venda = g.mercantil?.venda || 0, pac = g.pacoteServicos?.valor || 0;
-        if (/^R[1-9]$/.test(g.regional) && venda > 0) out[g.regional] = { venda, pacote: pac, lucro: g.margem?.lucro ?? null, pct: (100 * pac) / venda };
+        if (/^R[1-9]$/.test(g.regional) && venda > 0) out[g.regional] = { venda, pacote: pac, lucro: g.margem?.lucro ?? null, pct: (100 * pac) / venda, margem: margemPct(g.margem, venda) };
       }
       return out;
     },
