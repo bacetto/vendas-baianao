@@ -143,7 +143,7 @@ async function ciclo() {
 
     if (d.acao !== "APROVAR") continue; // o robô SÓ aprova; nunca reprova
     const decisao = "APROVADO";
-    const nota = `${d.acao === "APROVAR" ? "Aprovado" : "Reprovado"} automaticamente pela regra do Ednilson (${reg}): ${d.motivo}.`;
+    const nota = process.env.NOTA_APROVACAO || "Venda"; // descrição que vai no portal ao aprovar (igual o Ed usa)
     try {
       await portal.decidir(it, decisao, nota);
       d.acao === "APROVAR" ? cont.aprov++ : cont.reprov++;
