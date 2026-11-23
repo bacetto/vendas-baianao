@@ -34,8 +34,9 @@ export const pct = (n) => (n == null ? "—" : `${Number(n).toLocaleString("pt-B
 
 export function textoRegra(r, e) {
   const g = e.regras[r] || {};
-  if (g.min == null) return `*${r}* · manual (fica pro Ed)`;
-  return `*${r}* · M${num2(g.min)} · ${g.max != null ? `D${num2(g.max)}` : "D livre"} · ${g.serv != null ? `S${num2(g.serv)}` : "S livre"}`;
+  if (g.min == null && g.max == null && g.serv == null) return `*${r}* · manual (fica pro Ed)`;
+  const t = `*${r}* · ${g.min != null ? `M${num2(g.min)}` : "M ?"} · ${g.max != null ? `D${num2(g.max)}` : "D ?"} · ${g.serv != null ? `S${num2(g.serv)}` : "S ?"}`;
+  return g.min != null && g.max != null && g.serv != null ? t : `${t} — ⚠️ incompleta: fica pro Ed`;
 }
 const num2 = (n) => Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 export function textoRegras(e) {
@@ -71,7 +72,7 @@ export function comando(texto, e) {
     for (const [, k, v] of partes) { const n = num(v); if (n == null || n > 100) return { resposta: "⚠️ Não entendi. Ex.: *R1 - M40 - D30 - S7*", mudou: false }; g[{ m: "min", d: "max", s: "serv" }[k]] = n; }
     g.em = new Date().toISOString();
     e.regras[r] = g;
-    return { resposta: `✅ ${textoRegra(r, e)}${g.min == null ? `\n⚠️ Falta o M (margem). Sem ele o ${r} fica pro Ed.` : ""}${e.pausado ? "\n⏸️ Robô pausado — mande *ligar*." : ""}`, mudou: true };
+    return { resposta: `✅ ${textoRegra(r, e)}${e.pausado ? "\n⏸️ Robô pausado — mande *ligar*." : ""}`, mudou: true };
   }
   if ((m = low.match(/^r\s*([1-4])\s*(?:(\d{1,2}(?:[.,]\d{1,2})?)\s*%?\s*)?(?:max|maximo|desc|desconto)\s*[:=-]?\s*(\d{1,2}(?:[.,]\d{1,2})?|off|sem)\s*%?$/))) {
     const r = `R${m[1]}`;
@@ -137,28 +138,32 @@ export function projetar(item, base) {
 
 // Decide um pedido pendente. item = objeto do portal; regional = "R1".."R4".
 export function decidir(item, regional, e, base) {
-  const proj = projetar(item, base);
-  const margem = proj?.margemCom;
-  const serv = proj ? { pct: proj.servCom } : null;
+  // REGRA DE OURO: só APROVA se M, D e S estiverem cadastrados E os 3 forem cumpridos com números confiáveis.
+  // Qualquer dado faltando, estranho ou dúvida -> MANUAL (não faz nada no portal; o Ed decide).
+  const ok = (n) => typeof n === "number" && Number.isFinite(n);
+  const regra = e.regras[regional] || {};
   const desc = item?.discountPercentage;
-  const regra = e.regras[regional];
   if (e.pausado) return { acao: "MANUAL", motivo: "robô pausado" };
   if (!REGIONAIS.includes(regional)) return { acao: "MANUAL", motivo: `loja sem regional (${regional || "?"})` };
-  if (!regra || regra.min == null) return { acao: "MANUAL", motivo: `${regional} sem regra` };
+  if (!ok(regra.min) || !ok(regra.max) || !ok(regra.serv)) return { acao: "MANUAL", motivo: `${regional} sem as 3 regras (M, D e S) cadastradas` };
+  if (!ok(desc) || desc < 0 || desc > 100) return { acao: "MANUAL", motivo: "portal não trouxe o % de desconto" };
+  // pedido sem custo/lucro dos produtos não dá pra projetar margem
+  const num0 = (v) => v !== null && v !== undefined && v !== "" && ok(Number(v));
+  const prods = item.products || [];
+  if (!prods.length || prods.some((p) => !num0(p.profit) || !num0(p.unitCost) || !num0(p.quantity) || Number(p.unitCost) <= 0 || Number(p.quantity) <= 0)) return { acao: "MANUAL", motivo: "pedido sem custo/lucro dos produtos" };
+  if (!num0(item.finalValue) || Number(item.finalValue) <= 0) return { acao: "MANUAL", motivo: "pedido sem valor final" };
+  const proj = projetar(item, base);
   if (!proj) return { acao: "ESPERAR", motivo: "sem os números do mês do regional" };
-  if (typeof margem !== "number" || !Number.isFinite(margem)) return { acao: "MANUAL", motivo: "não deu pra calcular a margem do regional com o pedido" };
-  if (e.teto != null && typeof desc === "number" && desc > e.teto) return { acao: "MANUAL", motivo: `desconto ${pct(desc)} acima do teto ${pct(e.teto)}` };
+  const margem = proj.margemCom, serv = proj.servCom;
+  if (!ok(margem) || margem <= 0 || margem > 100) return { acao: "MANUAL", motivo: "não deu pra calcular com segurança a margem do regional com o pedido" };
+  if (!ok(serv) || serv < 0 || serv > 100) return { acao: "MANUAL", motivo: "não deu pra calcular com segurança os serviços do regional com o pedido" };
   const fora = (motivo) => (e.abaixo === "manual" ? { acao: "MANUAL", motivo } : { acao: "REPROVAR", motivo });
-  if (regra.max != null) {
-    if (typeof desc !== "number" || !Number.isFinite(desc)) return { acao: "MANUAL", motivo: "portal não trouxe o % de desconto" };
-    if (desc > regra.max + 1e-6) return fora(`desconto do pedido ${pct(desc)} acima do D${num2(regra.max)}`);
-  }
-  if (margem < regra.min) return fora(`margem do regional com o pedido ${pct(margem)} abaixo do M${num2(regra.min)}`);
-  const sm = regra.serv ?? null;
-  if (sm != null) {
-    if (serv.pct < sm) return fora(`serviços do ${regional} com o pedido em ${pct(serv.pct)} das vendas do mês, abaixo do S${num2(sm)}`);
-  }
-  return { acao: "APROVAR", motivo: `com o pedido: margem ${pct(margem)} ≥ M${num2(regra.min)}${regra.max != null ? ` · desconto ${pct(desc)} ≤ D${num2(regra.max)}` : ""}${sm != null ? ` · serviços ${pct(serv.pct)} ≥ S${num2(sm)}` : ""}` };
+  const falhas = [];
+  if (desc > regra.max + 1e-9) falhas.push(`desconto ${pct(desc)} acima do D${num2(regra.max)}`);
+  if (margem < regra.min) falhas.push(`margem com o pedido ${pct(margem)} abaixo do M${num2(regra.min)}`);
+  if (serv < regra.serv) falhas.push(`serviços com o pedido ${pct(serv)} abaixo do S${num2(regra.serv)}`);
+  if (falhas.length) return fora(falhas.join(" · "));
+  return { acao: "APROVAR", motivo: `com o pedido: margem ${pct(margem)} ≥ M${num2(regra.min)} · desconto ${pct(desc)} ≤ D${num2(regra.max)} · serviços ${pct(serv)} ≥ S${num2(regra.serv)}` };
 }
 
 const brl = (n) => (typeof n === "number" ? n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—");

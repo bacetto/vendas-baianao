@@ -108,7 +108,12 @@ async function ciclo() {
   atualizarServicos();
   const itens = await portal.pendentes();
   for (const sol of sols) {
-    const it = itens.find((i) => bate(sol, i));
+    const achados = itens.filter((i) => bate(sol, i));
+    if (achados.length > 1) { // mesmo número de pedido em mais de uma loja: na dúvida, não faz nada
+      if (!sol.avisado) { sol.avisado = true; sujo = true; avisar(`⚠️ Pedido *${sol.pedido}* aparece em ${achados.length} lojas no portal e a mensagem não deixa claro qual é. Não fiz nada — fica pro Ed.`); }
+      continue;
+    }
+    const it = achados[0];
     if (!it) {
       if (!sol.semPortal && Date.now() - sol.t > ESPERA_PORTAL) {
         sol.semPortal = true; sujo = true;
