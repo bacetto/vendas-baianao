@@ -101,6 +101,8 @@ const $=(s,e=document)=>e.querySelector(s);
 const brl=(v,d=0)=>(v<0?"-":"")+"R$ "+Math.abs(v||0).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
 const mil=v=>Math.abs(v)>=1e6?"R$ "+(v/1e6).toLocaleString("pt-BR",{maximumFractionDigits:2})+" mi":Math.abs(v)>=1e3?"R$ "+(v/1e3).toLocaleString("pt-BR",{maximumFractionDigits:1})+" mil":brl(v);
 const num=v=>(v||0).toLocaleString("pt-BR",{maximumFractionDigits:0});
+// % de um serviço sobre a venda (Sorte, Garantia, Pacote)
+const pServ=(v,venda)=>venda>0?`<span style="display:block;font-size:12px;font-weight:600;color:var(--muted,#6b7280);margin-top:2px">${((v||0)/venda*100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}% das vendas</span>`:"";
 const pct=(v,d=1)=>((v||0)*100).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d})+"%";
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const delta=(a,b)=>{if(!b)return"";const d=a/b-1;return `<span class="${d>=0?"up":"down"}">${d>=0?"↑ +":"↓ "}${pct(d)}</span>`};
@@ -261,7 +263,7 @@ function hero(p){
   ${comp}
   <div class="linha"><b>${num(p.pedidos)}</b> pedidos · ticket médio <b>${brl(p.ticket)}</b> · devoluções <b>${mil(p.devolucoes)}</b></div>
   <div class="dest">Lucro bruto <b>${mil(g.lucro)}</b> · ${pct(g.margem)}</div>
-  <div class="mini" style="margin-top:12px"><div><span class="sub">Sorte Dobrada</span><b>${num(g.sorteQtd)} · ${mil(g.sorteValor)}</b></div><div><span class="sub">Garantia</span><b>${mil(g.garantia)}</b></div><div><span class="sub">Pacote serviços</span><b>${mil(g.pacote)}</b></div></div>
+  <div class="mini" style="margin-top:12px"><div><span class="sub">Sorte Dobrada</span><b>${num(g.sorteQtd)} · ${mil(g.sorteValor)}</b>${pServ(g.sorteValor,g.venda)}</div><div><span class="sub">Garantia</span><b>${mil(g.garantia)}</b>${pServ(g.garantia,g.venda)}</div><div><span class="sub">Pacote serviços</span><b>${mil(g.pacote)}</b>${pServ(g.pacote,g.venda)}</div></div>
   </div>`;
 }
 function regionais(p){
