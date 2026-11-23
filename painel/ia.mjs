@@ -79,14 +79,18 @@ export async function analiseIA(D) {
   let cache = null;
   try { cache = JSON.parse(fs.readFileSync(CACHE, "utf8")); } catch (e) {}
   // a cada 30 min (o limite grátis é por dia); reaproveita a última análise no meio-tempo
-  if (cache?.geradoEm && Date.now() - new Date(cache.geradoEm).getTime() < 29 * 60e3 && cache.dia === D.periodos.hoje.inicio) return cache;
+  // de hora em hora (a cota grátis diária da Cloudflare não comporta de 30 em 30 + o chat)
+  if (cache?.geradoEm && Date.now() - new Date(cache.geradoEm).getTime() < 59 * 60e3 && cache.dia === D.periodos.hoje.inicio) return cache;
+  let pausa = 0; try { pausa = Number(fs.readFileSync("saida/ia-pausa.txt", "utf8")) || 0; } catch (e) {}
+  if (Date.now() < pausa) return cache && cache.dia === D.periodos.hoje.inicio ? cache : null;
   const obj = contexto(D), ctx = JSON.stringify(obj), idx = indice(obj);
   const chamar = async (modelo, mensagens) => {
     const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/v1/chat/completions`, {
       method: "POST", headers: { Authorization: `Bearer ${CF_AI_TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: modelo, temperature: 0.2, max_tokens: 6000, reasoning_effort: "low", messages: mensagens }),
+      body: JSON.stringify({ model: modelo, temperature: 0.2, max_tokens: 3000, reasoning_effort: "low", messages: mensagens }),
       signal: AbortSignal.timeout(120000),
     });
+    if (r.status === 429) { fs.writeFileSync("saida/ia-pausa.txt", String(Date.now() + 60 * 60e3)); throw new Error("cota grátis do dia esgotada (429): tenta de novo em 1 h"); }
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = await r.json(), msg = j.choices?.[0]?.message || {};
     const txt = String(msg.content || msg.reasoning_content || "");
@@ -118,7 +122,7 @@ export async function analiseIA(D) {
       fs.writeFileSync(CACHE, JSON.stringify(res));
       console.log(`✅ Análise da IA atualizada (${res.modelo}${erros.length ? `, ${erros.length} trecho(s) removido(s)` : ", números conferidos"})`);
       return res;
-    } catch (e) { console.log(`⚠️ IA ${modelo}: ${String(e.message).slice(0, 100)}`); }
+    } catch (e) { console.log(`⚠️ IA ${modelo}: ${String(e.message).slice(0, 100)}`); if (/429/.test(e.message)) break; }
   }
   return cache && cache.dia === D.periodos.hoje.inicio ? cache : null;
 }

@@ -59,7 +59,7 @@ svg text{font:11px system-ui,sans-serif;fill:var(--mut)}
 .leg{display:flex;gap:14px;font-size:12px;color:var(--mut);align-items:center}
 .leg i{display:inline-block;width:18px;height:0;border-top:2.5px solid var(--navy);vertical-align:middle;margin-right:5px}.leg i.d{border-top:2px dashed #9aa1b5}.leg i.m{border-top-color:var(--meta)}
 #tip{position:fixed;pointer-events:none;background:var(--ink);color:#fff;padding:6px 9px;border-radius:7px;font-size:12px;display:none;z-index:9}
-.secs button{text-transform:none}.secs button.on{background:var(--navy)}
+.secs button{text-transform:none}.tabs{max-width:100%;overflow-x:auto;scrollbar-width:none}.tabs button{white-space:nowrap}.secs button.on{background:var(--navy)}
 .kpi .kv{font-size:28px;font-weight:900;letter-spacing:-.5px;margin:4px 0}
 .ia{border:1px solid #c9d2f5;background:linear-gradient(135deg,#f5f7ff,#fff 60%)}.ia p{margin:8px 0 0;font-size:15px;line-height:1.55}.iat{font-weight:800;font-size:15px}
 .alertas{display:flex;flex-direction:column;gap:8px;margin-top:10px}.al{border-left:4px solid var(--line);padding:6px 10px;background:#fafbfe;border-radius:6px}
@@ -452,21 +452,21 @@ function alertas(){
     const caindo=(m.vendedores||[]).map(v=>{const a=ant[v.cod+"|"+v.loja];if(!a||a.venda<40000)return null;const r=((v.venda+(zv[nz(v.nome)]||0))/d)/(a.venda/nAnt);return r<.6?{...v,r}:null}).filter(Boolean).sort((a,b)=>a.r-b.r);
     if(caindo.length)A.push({nivel:"medio",t:`${caindo.length} vendedor${caindo.length>1?"es":""} vendendo bem menos que no mês passado`,d:caindo.slice(0,6).map(v=>`${esc(v.nome)} <b style="color:var(--bad)">${fmtPct(v.r-1)}</b>`).join(" · ")+` <span class="sub">(venda por dia no Universo + ZepSystem, este mês x ${P.mesAnt.label})</span>`})}
   // 7) ZepSystem
-  const z=D.zep?.periodos?.mes;if(z&&z.pedidosTotal){if(z.taxaCancelamento>.3)A.push({nivel:"alto",t:`ZepSystem: <b>${fmtPct(z.taxaCancelamento)}</b> dos pedidos do mês foram cancelados`,d:`${num(z.pedidosCancelados)} cancelados (${mil(z.cancelado)}) de ${num(z.pedidosTotal)} pedidos. Vale entender o motivo: pagamento recusado, desistência ou erro de cadastro.`});
-    if(z.aguardando>0)A.push({nivel:"medio",t:`ZepSystem: ${num(z.pedidosAguardando)} pedidos aguardando (${mil(z.aguardando)})`,d:`Ainda não contam como venda. Cobrar a finalização com os vendedores.`})}
+  const z=D.zep?.periodos?.mes;if(z&&z.pedidosTotal){if(z.taxaCancelamento>.3)A.push({nivel:"alto",t:`BaianãoEletro: <b>${fmtPct(z.taxaCancelamento)}</b> dos pedidos do mês foram cancelados`,d:`${num(z.pedidosCancelados)} cancelados (${mil(z.cancelado)}) de ${num(z.pedidosTotal)} pedidos. Vale entender o motivo: pagamento recusado, desistência ou erro de cadastro.`});
+    if(z.aguardando>0)A.push({nivel:"medio",t:`BaianãoEletro: ${num(z.pedidosAguardando)} pedidos aguardando (${mil(z.aguardando)})`,d:`Contam nas vendas (como no ZepSystem), mas ainda podem ser cancelados: cobrar a finalização com os vendedores.`})}
   const ordem={alto:0,medio:1,bom:2};return A.sort((a,b)=>ordem[a.nivel]-ordem[b.nivel]);
 }
 // resumo escrito (regras; a fase 2 troca por IA generativa)
 function resumoTexto(){
   const P=D.periodos,h=P.hoje.resumo?.geral,m=P.mes.resumo?.geral,o=P.ontem.resumo?.geral,pr=projecao(),z=D.zep?.periodos;
   const f=[];
-  if(h)f.push(`Hoje a rede vendeu <b>${mil(h.venda+(z?.hoje?.vendido||0))}</b>${z?.hoje?.vendido?` (Universo ${mil(h.venda)} + ZepSystem ${mil(z.hoje.vendido)})`:""}, <b>${fmtPct(h.pct)}</b> da meta do dia no Universo.`);
+  if(h)f.push(`Hoje a rede vendeu <b>${mil(h.venda+(z?.hoje?.vendido||0))}</b>${z?.hoje?.vendido?` (Universo ${mil(h.venda)} + BaianãoEletro ${mil(z.hoje.vendido)})`:""}, <b>${fmtPct(h.pct)}</b> da meta do dia no Universo.`);
   if(o)f.push(`Ontem fechou em ${mil(o.venda)} (${fmtPct(o.pct)} da meta).`);
   if(m&&pr)f.push(`No mês são <b>${mil(m.venda)}</b>, ${fmtPct(m.pct)} da meta até hoje. Mantido o ritmo dos últimos 7 dias, o mês fecha em <b>${mil(pr.proj)}</b> (${fmtPct(pr.pctProj)} da meta de ${mil(pr.metaMes)}).`);
   const regs=(P.mes.resumo?.regionais||[]).slice().sort((a,b)=>b.pct-a.pct);if(regs.length>1)f.push(`Melhor regional no mês: <b>${regs[0].reg} · ${esc(regs[0].lider)}</b> (${fmtPct(regs[0].pct)}); a mais atrás: <b>${regs.at(-1).reg} · ${esc(regs.at(-1).lider)}</b> (${fmtPct(regs.at(-1).pct)}).`);
   const lh=(P.hoje.resumo?.lojas||[]).filter(l=>l.venda>0).sort((a,b)=>b.venda-a.venda)[0];if(lh)f.push(`Loja que mais vendeu hoje: ${esc(nomeLoja(lh.cod))} (${mil(lh.venda)}).`);
   const vh=(P.hoje.vendedores||[])[0];if(vh)f.push(`Vendedor destaque hoje: ${esc(vh.nome)} (${mil(vh.venda)}).`);
-  if(z?.mes?.vendido)f.push(`ZepSystem no mês: ${mil(z.mes.vendido)} vendidos em ${num(z.mes.pedidos)} pedidos (ticket ${brl(z.mes.ticket)}).`);
+  if(z?.mes?.vendido)f.push(`BaianãoEletro no mês: ${mil(z.mes.vendido)} vendidos em ${num(z.mes.pedidos)} pedidos (ticket ${brl(z.mes.ticket)}).`);
   return f.join(" ");
 }
 
@@ -499,16 +499,16 @@ function secGeral(){
   const regs=(D.regionaisComparativo?.regionais||[]).map(r=>({...r,p:projecao(r.reg)}));
   return `${cardIA()}
   <div class="grid g4" style="margin-top:14px">
-    ${kpi("Hoje · rede (Universo + Zep)",mil((h.venda||0)+(z?.hoje?.vendido||0)),`Universo ${mil(h.venda)} · ${fmtPct(h.pct)} da meta`)}
-    ${kpi("Mês · rede (Universo + Zep)",mil((m.venda||0)+(z?.mes?.vendido||0)),`Universo ${fmtPct(m.pct)} da meta até hoje`)}
-    ${kpi("Projeção de fechamento",pr?.proj?mil(pr.proj):"—",pr?.pctProj?`<b style="color:${cor(pr.pctProj)}">${fmtPct(pr.pctProj)}</b> da meta de ${mil(pr.metaMes)}`:"")}
+    ${kpi("Hoje · rede (Universo + BaianãoEletro)",mil((h.venda||0)+(z?.hoje?.vendido||0)),`Universo ${mil(h.venda)} · ${fmtPct(h.pct)} da meta`)}
+    ${kpi("Mês · rede (Universo + BaianãoEletro)",mil((m.venda||0)+(z?.mes?.vendido||0)),`Universo ${fmtPct(m.pct)} da meta até hoje`)}
+    ${kpi("Projeção de fechamento",pr?.proj?mil(pr.proj):"—",pr?.pctProj?`<b style="color:${cor(pr.pctProj)}">${fmtPct(pr.pctProj)}</b> da meta de ${mil(pr.metaMes)}${pr.projAnt?` · no ritmo de ${D.periodos.mesAnt.label}: ${mil(pr.projAnt)}`:""}`:"")}
     ${kpi("Precisa vender por dia",pr?mil(pr.porDia):"—",pr?`nos ${pr.diasRest} dias que faltam, pra bater a meta`:"")}
   </div>
   <div class="hero" style="margin-top:14px;grid-template-columns:1.1fr 1fr">
     <div class="card"><b>Alertas e oportunidades</b><div class="alertas">${A.map(a=>`<div class="al ${a.nivel}"><div>${ico[a.nivel]} ${a.t}</div><div class="sub">${a.d}</div></div>`).join("")||'<div class="sub">Nada fora do normal agora.</div>'}</div></div>
     <div class="card"><b>Projeção por regional</b>
       ${tabelaSimples([{t:"Regional",l:1,f:r=>`<b>${r.reg}</b> · ${esc(r.lider)}`},{t:"Vendido",f:r=>mil(r.venda)},{t:"Meta mês",f:r=>mil(r.metaMes)},{t:"Projeção",f:r=>r.p?.proj?`<b>${mil(r.p.proj)}</b>`:"—"},{t:"% proj.",f:r=>r.p?.pctProj?`<b style="color:${cor(r.p.pctProj)}">${fmtPct(r.p.pctProj)}</b>`:"—"},{t:"Precisa/dia",f:r=>r.p?mil(r.p.porDia):"—"}],regs)}
-      <div class="nota">Projeção = vendido até ontem + meta dos dias que faltam × eficiência dos últimos 7 dias (respeita sábados, domingos e datas fortes, que já estão na meta diária).</div>
+      <div class="nota">Projeção = vendido até ontem + meta dos dias que faltam × eficiência dos últimos 7 dias (respeita sábados, domingos e datas fortes como a Black Friday, que já estão na meta diária). Se as datas fortes renderem menos que a meta prevê, o fechamento tende a ficar mais perto do ritmo do mês passado (${D.regionaisComparativo?.rede?.anteriorMesmoPeriodo?mil(projecao()?.projAnt||0):"—"}).</div>
     </div>
   </div>
   <div class="card sec"><b>Ritmo das lojas no mês</b> <span class="sub">· % da meta até hoje. Clique em "Universo Baianão" pra ver o detalhe.</span>
@@ -707,19 +707,19 @@ function contextoChat(){
   const lojas=k=>(P[k].resumo?.lojas||[]).filter(l=>l.venda||l.meta).map(l=>({loja:nomeLoja(l.cod),regional:regLoja(l.cod),venda:fR(l.venda),[k==="mes"?"metaAteHoje":"meta"]:fR(l.meta),[k==="mes"?"pctDaMetaAteHoje":"pctMeta"]:l.meta?fP(l.pct):"sem meta",margem:fP(l.margem),pedidos:P[k].pedidosPorLoja?.[l.cod]||0}));
   const vend=(k,n)=>(P[k].vendedores||[]).slice(0,n).map(v=>({nome:v.nome,loja:nomeLoja(v.loja),venda:fR(v.venda),pedidos:v.pedidos,devolucao:fR(v.devol)}));
   const pr=projecao(),z=D.zep?.periodos,zp=x=>x?{vendido:fR(x.vendido),pedidos:x.pedidos,ticket:fR(x.ticket),aguardando:fR(x.aguardando),cancelado:fR(x.cancelado),taxaCancelamento:fP(x.taxaCancelamento),
-    vendedores:x.vendedores.slice(0,25).map(v=>({nome:v.nome,loja:v.loja?nomeLoja(v.loja):"não identificada",venda:fR(v.venda),pedidos:v.pedidos,cancelados:v.cancelados})),
+    vendedores:x.vendedores.slice(0,15).map(v=>({nome:v.nome,loja:v.loja?nomeLoja(v.loja):"não identificada",venda:fR(v.venda),pedidos:v.pedidos,cancelados:v.cancelados})),
     lojas:x.lojas.map(l=>({loja:nomeLoja(l.cod),venda:fR(l.venda),pedidos:l.pedidos})),pagamentos:x.pagamentos.map(p=>({nome:p.nome,valor:fR(p.valor),pedidos:p.pedidos})),
-    produtos:x.produtos.slice(0,15).map(p=>({nome:p.nome,qtd:p.qtd,valor:fR(p.valor)}))}:null;
+    produtos:x.produtos.slice(0,8).map(p=>({nome:p.nome,qtd:p.qtd,valor:fR(p.valor)}))}:null;
   const loc=new Date(new Date(D.geradoEm).getTime()-3*3600e3);
   return {dadosDe:`${String(loc.getUTCHours()).padStart(2,"0")}:${String(loc.getUTCMinutes()).padStart(2,"0")} de ${P.hoje.inicio.split("-").reverse().join("/")}`,
-    universo:{hoje:{geral:g(P.hoje.resumo?.geral),pedidos:P.hoje.pedidos,ticket:fR(P.hoje.ticket),regionais:(P.hoje.resumo?.regionais||[]).map(r=>({reg:r.reg,lider:r.lider,...g(r)})),lojas:lojas("hoje"),vendedores:vend("hoje",30)},
+    universo:{hoje:{geral:g(P.hoje.resumo?.geral),pedidos:P.hoje.pedidos,ticket:fR(P.hoje.ticket),regionais:(P.hoje.resumo?.regionais||[]).map(r=>({reg:r.reg,lider:r.lider,...g(r)})),lojas:lojas("hoje"),vendedores:vend("hoje",15)},
       ontem:{geral:g(P.ontem.resumo?.geral),regionais:(P.ontem.resumo?.regionais||[]).map(r=>({reg:r.reg,lider:r.lider,...g(r)}))},
       mes:{periodo:`${P.mes.label} até dia ${Number(P.mes.fim.slice(8))}`,geral:g(P.mes.resumo?.geral),pedidos:P.mes.pedidos,ticket:fR(P.mes.ticket),devolucoes:fR(P.mes.devolucoes),
         projecao:pr?{fechamento:fR(pr.proj),projecaoEmPctDaMetaDoMesInteiro:fP(pr.pctProj),metaDoMesInteiro:fR(pr.metaMes),precisaPorDia:fR(pr.porDia),diasRestantes:pr.diasRest,eficiencia7dias:fP(pr.efic)}:null,
         regionais:(D.regionaisComparativo?.regionais||[]).map(r=>{const p=projecao(r.reg);return {reg:r.reg,lider:r.lider,vendaNoMesAteAgora:fR(r.venda),metaAteHoje:fR(r.metaAteHoje),pctDaMetaAteHoje:r.metaAteHoje?fP(r.venda/r.metaAteHoje):null,metaDoMesInteiro:fR(r.metaMes),mesPassadoMesmoPeriodo:fR(r.anteriorMesmoPeriodo),projecaoDeFechamento:p?fR(p.proj):null,projecaoEmPctDaMetaDoMesInteiro:p?fP(p.pctProj):null}}),
         categorias:(P.mes.resumo?.categorias||[]).map(c=>({nome:c.nome,venda:fR(c.venda),pctMeta:c.meta?fP(c.venda/c.meta):"sem meta"})),
-        lojas:lojas("mes"),vendedores:vend("mes",40),
-        grupos:(P.mes.grupos||[]).slice(0,12).map(x=>({nome:x.nome,valor:fR(x.valor)})),marcas:(P.mes.marcas||[]).slice(0,12).map(x=>({nome:x.nome,valor:fR(x.valor)})),
+        lojas:lojas("mes"),vendedores:vend("mes",25),
+        grupos:(P.mes.grupos||[]).slice(0,8).map(x=>({nome:x.nome,valor:fR(x.valor)})),marcas:(P.mes.marcas||[]).slice(0,8).map(x=>({nome:x.nome,valor:fR(x.valor)})),
         servicos:P.mes.resumo?.geral?{garantia:fR(P.mes.resumo.geral.garantia),pacote:fR(P.mes.resumo.geral.pacote),sorteDobradaQtd:P.mes.resumo.geral.sorteQtd,sorteDobradaValor:fR(P.mes.resumo.geral.sorteValor)}:null},
       mesPassado:{periodo:P.mesAnt.label,geral:g(P.mesAnt.resumo?.geral)},
       leads:{hoje:D.leads?.hoje?{contatos:D.leads.hoje.contatos,leads:D.leads.hoje.leads,convertidos:D.leads.hoje.leadsConvertidos,conversao:fP((D.leads.hoje.taxaConversao||0)/100),vendido:fR(D.leads.hoje.valorVendido)}:null,
@@ -739,7 +739,7 @@ async function perguntar(q){
   q=q.trim();if(!q)return;$(".sug")?.remove();addMsg("u",esc(q));const w=addMsg("a p","Analisando os números…");
   try{const ctx=contextoChat(),k=await chave(),idx=indice(ctx);
     const pede=async(pergunta,hist)=>{const r=await fetch(CHAT_URL,{method:"POST",headers:{"Content-Type":"application/json","X-Chave":k},body:JSON.stringify({pergunta,contexto:ctx,historico:hist})});
-      const j=await r.json();if(!r.ok||!j.resposta)throw new Error(j.erro||"erro");return j};
+      const j=await r.json();if(r.status===429)throw new Error("COTA");if(!r.ok||!j.resposta)throw new Error(j.erro||"erro");return j};
     let j=await pede(q,HIST),resp=j.resposta,erros=verificar(resp,ctx,idx),rodadas=0;
     // conferência automática: número que não bate com os dados volta pra IA corrigir (até 2 vezes)
     while(erros.length&&rodadas<2){rodadas++;w.innerHTML=`Conferindo os números com os dados… (correção ${rodadas})`;
@@ -748,7 +748,7 @@ async function perguntar(q){
     if(erros.length)resp=limpar(resp,erros);
     w.className="m a";w.innerHTML=md(resp)+`<span class="mod">IA · ${esc(j.modelo||"")} · dados de ${esc(ctx.dadosDe.slice(0,5))} · ✔ números conferidos com os dados${erros.length?` (${erros.length} trecho(s) sem base nos dados foram retirados)`:""}</span>`;
     HIST.push({role:"user",content:q},{role:"assistant",content:resp});
-  }catch(e){w.className="m a";w.innerHTML=`Não consegui responder agora (${esc(e.message)}). Tente de novo em instantes.`}
+  }catch(e){w.className="m a";w.innerHTML=e.message==="COTA"?"O limite grátis diário da IA acabou por hoje. Ele renova às 21h. Os números do painel continuam atualizando normalmente.":`Não consegui responder agora (${esc(e.message)}). Tente de novo em instantes.`}
   $("#msgs").scrollTop=1e9;
 }
 function ligaChat(){
@@ -850,13 +850,13 @@ async function iaRegional(){
 **Destaques** (até 3 itens: lojas/vendedores que puxam pra cima, com número)
 **Atenção** (até 3 itens: lojas/vendedores atrás, com número)
 **Ações** (3 itens: quem faz o quê — líder ${i.lider} ou gerente da loja X — baseado num número dos dados; sem metas ou números inventados)`;
-    const pede=async(pergunta,hist)=>{const r=await fetch(CHAT_URL,{method:"POST",headers:{"Content-Type":"application/json","X-Chave":k},body:JSON.stringify({pergunta,contexto:ctx,historico:hist})});const j=await r.json();if(!r.ok||!j.resposta)throw new Error(j.erro||"erro");return j};
+    const pede=async(pergunta,hist)=>{const r=await fetch(CHAT_URL,{method:"POST",headers:{"Content-Type":"application/json","X-Chave":k},body:JSON.stringify({pergunta,contexto:ctx,historico:hist})});const j=await r.json();if(r.status===429)throw new Error("COTA");if(!r.ok||!j.resposta)throw new Error(j.erro||"erro");return j};
     let j=await pede(q,[]),resp=j.resposta,erros=verificar(resp,ctx,idx),n=0;
     while(erros.length&&n<2){n++;j=await pede(`Sua resposta tem números que NÃO batem com os dados:\n${textoErros(erros)}\nReescreva a análise INTEIRA da regional ${reg}, corrigindo esses pontos e usando somente números do JSON ligados à loja/regional/vendedor e ao período certos.`,[{role:"user",content:q},{role:"assistant",content:resp}]);resp=j.resposta;erros=verificar(resp,ctx,idx)}
     window.__iaErros=erros;window.__iaBruta=resp; // pra diagnóstico
     if(erros.length)resp=limpar(resp,erros);
     IAREG[reg]={html:`<div class="m a" style="max-width:none;margin-top:10px">${md(resp)}<span class="mod">IA · ${esc(j.modelo||"")} · dados de ${esc(ctx.dadosDe.slice(0,5))} · ✔ números conferidos com os dados${erros.length?` (${erros.length} trecho(s) sem base retirados)`:""}</span></div>`};
-  }catch(e){IAREG[reg]={html:`<p class="sub">Não consegui analisar agora (${esc(e.message)}). Tente de novo em instantes.</p>`}}
+  }catch(e){IAREG[reg]={html:`<p class="sub">${e.message==="COTA"?"O limite grátis diário da IA acabou por hoje. Ele renova às 21h.":`Não consegui analisar agora (${esc(e.message)}). Tente de novo em instantes.`}</p>`}}
   reRender();
 }
 

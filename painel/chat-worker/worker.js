@@ -41,6 +41,7 @@ export default {
           method: "POST", headers: { Authorization: `Bearer ${env.CF_AI_TOKEN}`, "Content-Type": "application/json" },
           body: JSON.stringify({ model, messages, temperature: 0.2, max_tokens: 4000, reasoning_effort: "low" }),
         });
+        if (r.status === 429) return json({ erro: "limite", detalhe: "cota grátis diária da IA esgotada" }, 429, origin);
         if (!r.ok) continue;
         const j = await r.json();
         const txt = String(j.choices?.[0]?.message?.content || "").trim();
