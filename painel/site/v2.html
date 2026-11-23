@@ -835,6 +835,7 @@ async function iaRegional(){
     const pede=async(pergunta,hist)=>{const r=await fetch(CHAT_URL,{method:"POST",headers:{"Content-Type":"application/json","X-Chave":k},body:JSON.stringify({pergunta,contexto:ctx,historico:hist})});const j=await r.json();if(!r.ok||!j.resposta)throw new Error(j.erro||"erro");return j};
     let j=await pede(q,[]),resp=j.resposta,erros=verificar(resp,ctx,idx),n=0;
     while(erros.length&&n<2){n++;j=await pede(`Sua resposta tem números que NÃO batem com os dados:\n${textoErros(erros)}\nReescreva a análise INTEIRA da regional ${reg}, corrigindo esses pontos e usando somente números do JSON ligados à loja/regional/vendedor e ao período certos.`,[{role:"user",content:q},{role:"assistant",content:resp}]);resp=j.resposta;erros=verificar(resp,ctx,idx)}
+    window.__iaErros=erros;window.__iaBruta=resp; // pra diagnóstico
     if(erros.length)resp=limpar(resp,erros);
     IAREG[reg]={html:`<div class="m a" style="max-width:none;margin-top:10px">${md(resp)}<span class="mod">IA · ${esc(j.modelo||"")} · dados de ${esc(ctx.dadosDe.slice(0,5))} · ✔ números conferidos com os dados${erros.length?` (${erros.length} trecho(s) sem base retirados)`:""}</span></div>`};
   }catch(e){IAREG[reg]={html:`<p class="sub">Não consegui analisar agora (${esc(e.message)}). Tente de novo em instantes.</p>`}}
