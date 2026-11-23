@@ -96,6 +96,8 @@ function agregarPainel(raw) {
       ontem: periodo("ontem", p.ontem.inicio.slice(0, 7) === p.hoje.inicio.slice(0, 7) ? raw.dados.atual : raw.dados.anterior),
       mes: periodo("mes", raw.dados.atual),
       mesAnt: periodo("mesAnt", raw.dados.anterior),
+      // mês até ontem (dias fechados): as análises do mês não contam o dia em andamento
+      ...(p.mesAteOntem ? { mesAteOntem: { label: p.mes.label, ...p.mesAteOntem, resumo: resumo(raw.resumo.mesAteOntem), ...itens(raw.dados.atual, p.mesAteOntem.inicio, p.mesAteOntem.fim) } } : {}),
     },
     comparativos: p.mesAntParcial ? (() => {
       const a = itens(raw.dados.atual, p.mesAteOntem.inicio, p.mesAteOntem.fim);

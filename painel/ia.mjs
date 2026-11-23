@@ -37,27 +37,45 @@ function projecao(D, reg) {
 }
 
 // resumo compacto e só agregado pro modelo
+// mês ATÉ ONTEM (só dias fechados): mês − hoje. O dia de hoje ainda está acontecendo, então não entra no mês.
+function mesAteOntem(D) {
+  const P = D.periodos, d = Number(P.hoje.fim.slice(8));
+  if (d <= 1) return { resumo: P.mes.resumo, vendedores: P.mes.vendedores || [], ateDia: d, antGeral: 0, antReg: {}, antLojas: {} };
+  const sub = (a, b) => { const v = (a?.venda || 0) - (b?.venda || 0), m = (a?.meta || 0) - (b?.meta || 0), lu = (a?.lucro || 0) - (b?.lucro || 0); return { ...a, venda: v, meta: m, lucro: lu, pct: m ? v / m : 0, margem: v ? lu / v : 0 }; };
+  const h = P.hoje.resumo || {}, by = (arr, k) => Object.fromEntries((arr || []).map((x) => [x[k], x]));
+  const hR = by(h.regionais, "reg"), hL = by(h.lojas, "cod"), hC = by(h.categorias, "nome"), hV = Object.fromEntries((P.hoje.vendedores || []).map((v) => [v.cod + "|" + v.loja, v]));
+  const antLojas = D.comparativos?.lojasAnterior || {}, antReg = {};
+  for (const [c, v] of Object.entries(antLojas)) { const g = D.lojas[c]?.regional; if (g) antReg[g] = (antReg[g] || 0) + v; }
+  return {
+    ateDia: d - 1, antGeral: D.comparativos?.anterior?.venda || 0, antReg, antLojas,
+    resumo: { geral: sub(P.mes.resumo?.geral, h.geral), regionais: (P.mes.resumo?.regionais || []).map((r) => ({ ...sub(r, hR[r.reg]), reg: r.reg, lider: r.lider })),
+      lojas: (P.mes.resumo?.lojas || []).map((l) => ({ ...sub(l, hL[l.cod]), cod: l.cod })),
+      categorias: (P.mes.resumo?.categorias || []).map((c) => { const v = c.venda - (hC[c.nome]?.venda || 0), m = (c.meta || 0) - (hC[c.nome]?.meta || 0); return { ...c, venda: v, meta: m, pct: m ? v / m : 0 }; }) },
+    vendedores: (P.mes.vendedores || []).map((v) => { const x = hV[v.cod + "|" + v.loja]; return x ? { ...v, venda: v.venda - x.venda } : v; }).sort((a, b) => b.venda - a.venda),
+  };
+}
+
 function contexto(D) {
+  const F = mesAteOntem(D), cr = (a, b) => (b ? p1(a / b - 1) : null);
   const P = D.periodos, nome = (c) => { const l = D.lojas[c]; return l ? `${String(l.num).padStart(2, "0")} ${l.nome}` : c; };
   const g = (r) => r ? { venda: r0(r.venda), meta: r0(r.meta), pctMeta: p1(r.pct), margem: p1(r.margem) } : null;
   const lojas = (r) => (r?.lojas || []).filter((l) => l.meta > 0).map((l) => ({ loja: nome(l.cod), reg: D.lojas[l.cod]?.regional, venda: r0(l.venda), pctMeta: p1(l.pct), margem: p1(l.margem), _p: l.pct })).sort((a, b) => b._p - a._p).map(({ _p, ...x }) => x);
-  const lm = lojas(P.mes.resumo), lh = lojas(P.hoje.resumo);
+  const lm = lojas(F.resumo), lh = lojas(P.hoje.resumo);
   const g7 = new Date(new Date(D.geradoEm).getTime() - 3 * 3600e3);
   const z = D.zep?.periodos;
   const zp = (x) => x ? { vendido: r0(x.vendido), pedidos: x.pedidos, ticket: r0(x.ticket), aguardando: r0(x.aguardando), cancelado: r0(x.cancelado), taxaCancelamento: p1(x.taxaCancelamento), topVendedores: x.vendedores.slice(0, 5).map((v) => ({ nome: v.nome, venda: r0(v.venda) })), pagamentos: x.pagamentos.map((p) => ({ nome: p.nome, valor: r0(p.valor) })) } : null;
   return {
     agora: `${String(g7.getUTCHours()).padStart(2, "0")}:${String(g7.getUTCMinutes()).padStart(2, "0")} de ${P.hoje.inicio.split("-").reverse().join("/")}`,
     universo: {
-      hoje: g(P.hoje.resumo?.geral), ontem: g(P.ontem.resumo?.geral), mesAteHoje: g(P.mes.resumo?.geral),
-      mesPassadoMesmoPeriodo: D.regionaisComparativo ? r0(D.regionaisComparativo.rede.anteriorMesmoPeriodo) : null,
+      hoje: g(P.hoje.resumo?.geral), ontem: g(P.ontem.resumo?.geral), mesAteOntem: { periodo: `dia 1 até dia ${F.ateDia} (só dias fechados)`, ...g(F.resumo.geral), mesPassadoMesmoPeriodo: r0(F.antGeral), crescimento: cr(F.resumo.geral.venda, F.antGeral) },
       mesPassadoFechado: D.regionaisComparativo ? r0(D.regionaisComparativo.rede.anteriorFechado) : null,
       projecaoMes: projecao(D),
-      regionais: (P.mes.resumo?.regionais || []).map((r) => ({ reg: r.reg, lider: r.lider, mes: g(r), hoje: g(P.hoje.resumo?.regionais?.find((x) => x.reg === r.reg)), projecao: projecao(D, r.reg) })),
-      categoriasMes: (P.mes.resumo?.categorias || []).map((c) => ({ nome: c.nome, venda: r0(c.venda), pctMeta: c.meta ? p1(c.venda / c.meta) : "sem meta" })),
-      lojasMes: { melhores: lm.slice(0, 6), piores: lm.slice(-8).reverse() },
+      regionais: (F.resumo.regionais || []).map((r) => ({ reg: r.reg, lider: r.lider, mesAteOntem: { ...g(r), crescimento: cr(r.venda, F.antReg[r.reg]) }, hoje: g(P.hoje.resumo?.regionais?.find((x) => x.reg === r.reg)), projecao: projecao(D, r.reg) })),
+      categoriasMesAteOntem: (F.resumo.categorias || []).map((c) => ({ nome: c.nome, venda: r0(c.venda), pctMeta: c.meta ? p1(c.venda / c.meta) : "sem meta" })),
+      lojasMesAteOntem: { melhores: lm.slice(0, 6), piores: lm.slice(-8).reverse() },
       lojasHoje: { melhores: lh.slice(0, 5), piores: lh.slice(-5).reverse() },
       topVendedoresHoje: (P.hoje.vendedores || []).slice(0, 5).map((v) => ({ nome: v.nome, loja: nome(v.loja), venda: r0(v.venda) })),
-      topVendedoresMes: (P.mes.vendedores || []).slice(0, 8).map((v) => ({ nome: v.nome, loja: nome(v.loja), venda: r0(v.venda) })),
+      topVendedoresMesAteOntem: (F.vendedores || []).slice(0, 8).map((v) => ({ nome: v.nome, loja: nome(v.loja), venda: r0(v.venda) })),
       pedidosHoje: P.hoje.pedidos, ticketHoje: r0(P.hoje.ticket), ticketMes: r0(P.mes.ticket), devolucoesMes: r0(P.mes.devolucoes),
       leadsHoje: D.leads?.hoje ? { contatos: D.leads.hoje.contatos, convertidos: D.leads.hoje.leadsConvertidos, conversao: p1((D.leads.hoje.taxaConversao || 0) / 100) } : null,
       servicosMes: P.mes.resumo?.geral ? { garantia: r0(P.mes.resumo.geral.garantia), pacote: r0(P.mes.resumo.geral.pacote), sorteDobradaQtd: P.mes.resumo.geral.sorteQtd } : null,
@@ -69,8 +87,8 @@ function contexto(D) {
 const INSTRUCOES = `Você é o analista de vendas sênior da rede Baianão Móveis e Eletro (cerca de 40 lojas na Bahia, divididas nas regionais R1 a R4, cada uma com um líder).
 As vendas acontecem em duas plataformas: Universo Baianão (principal, com metas) e ZepSystem (outra plataforma, mesmas lojas e vendedores, sem meta própria).
 Você recebe os números do momento em JSON. Os valores JÁ VÊM FORMATADOS (ex.: "R$ 586,2 mil", "R$ 6,7 mi", "65,4%"): copie exatamente como estão, NUNCA converta, some ou recalcule valores. Escreva para o dono da rede e os gestores: português do Brasil, direto, profissional, sem enrolação.
-Os blocos hoje, ontem, mesAteHoje e mesPassado são períodos diferentes: nunca misture números de um com outro e sempre diga o período. "hoje" é o dia em andamento (parcial até o horário em "agora"); "mesAteHoje" é o acumulado do mês; "projecaoMes" é a estimativa de fechamento.
-"categoriasMes" e "servicosMes" são da REDE inteira (não de uma loja); cada número pertence só ao item onde aparece no JSON: nunca atribua um número da rede a uma loja ou regional.
+Os blocos hoje, ontem, mesAteOntem e mesPassado são períodos diferentes: nunca misture números de um com outro e sempre diga o período. "hoje" é o dia em andamento (parcial até o horário em "agora", NÃO julgue a meta do mês por ele); "mesAteOntem" é o acumulado do mês SÓ COM DIAS FECHADOS (do dia 1 até ontem), com meta até ontem e crescimento vs o mesmo período do mês passado: ao falar do mês diga "até ontem"; "projecaoMes" é a estimativa de fechamento.
+"categoriasMesAteOntem" e "servicosMes" são da REDE inteira (não de uma loja); cada número pertence só ao item onde aparece no JSON: nunca atribua um número da rede a uma loja ou regional.
 Regras: use SOMENTE os números do JSON, não invente nada; cite lojas, regionais e vendedores pelo nome quando ajudar; não repita o mesmo número em vários lugares; se algo for incerto, diga.
 Responda APENAS um JSON válido neste formato:
 {"manchete": "uma frase curta com a situação mais importante agora",

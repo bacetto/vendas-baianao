@@ -111,7 +111,7 @@ export function agregarZep(pedidos, itens, dados) {
   const ehCancel = (s) => /cancel/i.test(s);
   const ehAguard = (s) => /aguard/i.test(s);
   const P = dados.periodos;
-  const nDias = (k) => k === "mes" ? Number(P.mes.fim.slice(8)) : k === "mesAnt" ? Number(P.mesAnt.fim.slice(8)) : 1;
+  const nDias = (k) => k.startsWith("mes") ? Number(P[k].fim.slice(8)) : 1;
   function periodo(k) {
     const { inicio, fim } = P[k];
     const sel = pedidos.filter((p) => p.data >= inicio && p.data <= fim);
@@ -157,6 +157,6 @@ export function agregarZep(pedidos, itens, dados) {
   return {
     geradoEm: new Date().toISOString(),
     inicioPlataforma: pedidos.map((p) => p.data).filter((d) => /^\d{4}-/.test(d)).sort()[0] || null,
-    periodos: { hoje: periodo("hoje"), ontem: periodo("ontem"), mes: periodo("mes"), mesAnt: periodo("mesAnt") },
+    periodos: { hoje: periodo("hoje"), ontem: periodo("ontem"), mes: periodo("mes"), mesAnt: periodo("mesAnt"), ...(P.mesAteOntem ? { mesF: periodo("mesAteOntem") } : {}) },
   };
 }

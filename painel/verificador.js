@@ -23,12 +23,12 @@ export function numeros(txt) {
 const PER = [["mesPassado", /\b(m[eê]s passado|m[eê]s anterior|outubro|setembro|agosto|julho|junho|maio|abril|mar[cç]o|fevereiro|janeiro|dezembro)\b/i],
   ["ontem", /\bontem\b/i], ["hoje", /\b(hoje|do dia|no dia|agora)\b/i], ["mes", /\b(m[eê]s|mensal|acumulad|novembro)\b/i]];
 export const periodoTexto = (t0) => {
-  const t = String(t0).replace(/\bat[eé]\s+(o\s+dia\s+de\s+)?hoje\b/gi, " "); // "meta até hoje" é do mês, não de hoje
+  const t = String(t0).replace(/\bat[eé]\s+(o\s+dia\s+de\s+)?hoje\b/gi, " ").replace(/\bat[eé]\s+ontem\b/gi, " mês "); // "meta até hoje" é do mês, não de hoje
   const achou = PER.filter(([, re]) => re.test(t)).map(([p]) => p);
   if (achou.includes("hoje") && achou.includes("mes")) return ""; // frase mistura hoje e mês: não julga pelo período
   return achou[0] || "";
 };
-const periodoChave = (k) => ({ hoje: "hoje", ontem: "ontem", mes: "mes", mesAteHoje: "mes", mesPassado: "mesPassado", mesAnt: "mesPassado" })[k] || "";
+const periodoChave = (k) => ({ hoje: "hoje", ontem: "ontem", mes: "mes", mesAteHoje: "mes", mesAteOntem: "mes", mesF: "mes", mesPassado: "mesPassado", mesAnt: "mesPassado" })[k] || "";
 const igual = (a, b) => a.t === b.t && (a.t === "P" ? Math.abs(a.v - b.v) <= (a.inteiro || b.inteiro ? 1 : 0.6) : Math.abs(a.v - b.v) <= Math.max(600, Math.abs(b.v) * 0.025));
 
 // índice: entidade -> valores; entidade "REDE" = números gerais (sem loja/regional/vendedor)
@@ -36,7 +36,7 @@ export function indice(ctx) {
   const ents = new Map();
   const ent = (id, nome, aliases, global = false) => { if (!ents.has(id)) ents.set(id, { id, nome, aliases, global, vals: [] }); return ents.get(id); };
   ent("REDE", "a rede inteira", {}, true);
-  const GLOBAIS = ["categorias", "categoriasMes", "grupos", "marcas", "pagamentos", "produtos", "servicos", "servicosMes"];
+  const GLOBAIS = ["categorias", "categoriasMes", "categoriasMesAteOntem", "grupos", "marcas", "pagamentos", "produtos", "servicos", "servicosMes"];
   const lojaDe = (s) => {
     const n = norm(s), m = n.match(/^(\d{1,3})\s*[·.\-]?\s*(.*)$/), num = m ? String(Number(m[1])) : "", nome = (m ? m[2] : n).trim();
     return ent("LOJA:" + (num || nome), s, { num, nome });
