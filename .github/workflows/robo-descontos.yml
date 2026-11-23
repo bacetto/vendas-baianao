@@ -87,7 +87,8 @@ jobs:
         if: steps.vez.outputs.seguir == '1' && env.ACAO == 'conectar-whatsapp-robo'
         env:
           SESSAO_DIR: sessao-aprov
-        run: rm -rf sessao-aprov && node src/conectar.js 2>&1 | grep -E '^(✅|❌|  CÓDIGO|  No celular|  Conectar aparelho|=)'
+          CONECTAR_MS: "540000"
+        run: rm -rf sessao-aprov && node src/conectar.js 2>&1 | grep --line-buffered -E '^(✅|❌|  CÓDIGO|  No celular|  Conectar aparelho|=|Error)'
 
       - name: Robô
         id: robo
