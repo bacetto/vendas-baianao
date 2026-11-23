@@ -84,6 +84,7 @@ if (!SIMULAR && est.dia !== hoje()) {
 }
 
 const visto = new Set(), primeiraVez = {};
+let falhasSenha = 0;
 let portal = null, filial = {}, filiaisEm = 0, falhas = 0, avisoFalhaEm = 0;
 const tentativas = {}, cont = { aprov: 0, reprov: 0, manual: 0 };
 // % de serviços do mês por regional: consulta pesada, atualiza a cada 10 min em paralelo (não segura a decisão)
@@ -232,14 +233,17 @@ while (true) {
     falhas++;
     const msg = String(e.message || e);
     console.log(`⚠️ ciclo falhou (${falhas}): ${msg.slice(0, 120)}`);
-    if ((/LOGIN/.test(msg) || falhas >= 3) && Date.now() - avisoFalhaEm > 3600e3) {
+    const senha = /^SENHA/.test(msg);
+    falhasSenha = senha ? falhasSenha + 1 : 0;
+    // senha: só alarma se o portal recusar 2x seguidas; resto (portal instável): só depois de 3 falhas seguidas
+    if ((falhasSenha >= 2 || falhas >= 3) && Date.now() - avisoFalhaEm > 3600e3) {
       avisoFalhaEm = Date.now();
-      avisar(/LOGIN/.test(msg)
-        ? "❌ *Robô de descontos*: o portal recusou o login do Ed (senha trocada?). Os pedidos ficam no manual até atualizar o secret ED_SENHA."
-        : `⚠️ *Robô de descontos* não está conseguindo ler o portal (${msg.slice(0, 80)}). Os pedidos ficam no manual; sigo tentando.`);
+      avisar(falhasSenha >= 2
+        ? "❌ *Robô de descontos*: o portal recusou o login do Ed 2 vezes seguidas (senha trocada?). Os pedidos ficam pro Ed até atualizar a senha no GitHub."
+        : `⚠️ *Robô de descontos* não está conseguindo ler o portal (${msg.replace(/^\w+: /, "").slice(0, 80)}). Os pedidos ficam pro Ed; sigo tentando.`);
     }
     await portal?.fechar(); portal = null;
-    if (/LOGIN/.test(msg)) await dorme(5 * 60e3);
+    if (senha) await dorme(3 * 60e3);
   }
   if (sujo && !SIMULAR) { sujo = false; await salvar(est).catch((e) => console.log("⚠️ estado:", e.message)); }
   if (Date.now() - INICIO > DURACAO || hora() >= 23) break;

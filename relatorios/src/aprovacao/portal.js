@@ -38,11 +38,16 @@ export async function abrirPortal() {
       page.waitForURL((u) => !/\/login/.test(u.pathname), { timeout: 30000 }),
     ]).catch(() => {});
     await page.waitForURL((u) => !/\/login/.test(u.pathname), { timeout: 45000 }).catch(() => {});
-    if (/\/login/.test(page.url())) throw new Error("LOGIN: o portal não aceitou o login do Ed");
+    if (/\/login/.test(page.url())) {
+      // só é "senha errada" se o portal disser isso na tela; senão é o portal instável (tenta de novo sem alarme)
+      const tela = (await page.locator("body").innerText().catch(() => "")).replace(/\s+/g, " ");
+      if (/inv[aá]lid|incorret|n[aã]o confere|senha errad|bloquead|usu[aá]rio n[aã]o encontrad/i.test(tela)) throw new Error("SENHA: o portal recusou o login do Ed");
+      throw new Error("PORTAL: o login não completou (portal lento/instável)");
+    }
     await page.goto(TELA, { waitUntil: "domcontentloaded" });
     await page.waitForFunction(() => !!self.webpackChunk_N_E, null, { timeout: 90000 });
     await page.waitForTimeout(2000);
-    if (/\/login/.test(page.url())) throw new Error("LOGIN: caiu no login ao abrir a tela");
+    if (/\/login/.test(page.url())) throw new Error("PORTAL: caiu no login ao abrir a tela");
   }
 
   // chama a API do portal de dentro da página logada
