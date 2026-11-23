@@ -55,6 +55,13 @@ jobs:
                   gh workflow run relatorios.yml --ref main -R "$REPO" -f acao=auto >/dev/null 2>&1 && touch "$m" && echo "disparo relatórios $(TZ=America/Bahia date +%H:%M)"
                 fi
               done
+              # robô de descontos: o agendamento do GitHub falha muito; daqui (job vivo o dia todo) garante que ele está ligado 07h–23h
+              H=$((10#$(TZ=America/Bahia date +%H))); M=$((10#$(TZ=America/Bahia date +%M)))
+              if [ "$H" -ge 7 ] && [ "$H" -lt 23 ] && [ $((M % 5)) -eq 0 ] && [ ! -f "/tmp/robo-$dia-$H-$M" ]; then
+                touch "/tmp/robo-$dia-$H-$M"
+                VIVO=$(gh run list -R "$REPO" -w robo-descontos.yml -L 10 --json status --jq '[.[]|select(.status!="completed")]|length' 2>/dev/null)
+                if [ "$VIVO" = "0" ]; then gh workflow run robo-descontos.yml --ref main -R "$REPO" -f acao=rodar >/dev/null 2>&1 && echo "robô de descontos religado $(TZ=America/Bahia date +%H:%M)"; fi
+              fi
               sleep 30
             done
           }
