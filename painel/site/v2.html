@@ -487,7 +487,7 @@ function cardIA(){
   if(!ia||ia.dia!==D.periodos.hoje.inicio||!ia.resumo)return `<div class="card ia"><div class="iat">✨ Resumo do dia <span class="sub">· automático</span></div><p>${resumoTexto()}</p></div>`;
   const g=new Date(new Date(ia.geradoEm).getTime()-3*3600e3),hh=String(g.getUTCHours()).padStart(2,"0")+":"+String(g.getUTCMinutes()).padStart(2,"0");
   const lst=(t,a,c)=>a&&a.length?`<div class="ialst ${c}"><b>${t}</b><ul>${a.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:"";
-  return `<div class="card ia"><div class="iat">✨ Análise da IA <span class="sub">· ${esc((ia.modelo||"").split("/").pop().toUpperCase())} · atualizada às ${hh} · a cada 30 min${ia.conferido?" · ✔ números conferidos com os dados":""}</span></div>
+  return `<div class="card ia"><div class="iat">✨ Análise da IA <span class="sub">· ${esc((ia.modelo||"").split("/").pop().toUpperCase())} · atualizada às ${hh} · a cada 1 hora${ia.conferido?" · ✔ números conferidos com os dados":""}</span></div>
   ${ia.manchete?`<div class="iam">${esc(ia.manchete)}</div>`:""}<p>${esc(ia.resumo)}</p>
   <div class="iagrid">${lst("👍 Destaques",ia.destaques,"ok")}${lst("⚠️ Atenção",ia.atencao,"at")}${lst("🎯 O que fazer",ia.acoes,"ac")}</div></div>`;
 }
