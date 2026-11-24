@@ -63,3 +63,18 @@ export function textoLeads(antes, agora, abertas, h) {
   for (const l of ls) { if (l.reg !== r) { r = l.reg; out.push("", `*${r}*`); } out.push(`• ${String(l.n).padStart(2, "0")} · ${curto(l.nome)} — ${l.c ? `${l.c} contato${l.c > 1 ? "s" : ""}` : "❌ *nenhum contato*"}`); }
   return out.join("\n");
 }
+
+// Lojas que NÃO venderam R$ 5 mil NO DIA (venda do dia até a hora do envio, sem descontar devolução). Enviado de 2 em 2h.
+// agora: { num: foto } (foto com detalhe: b = vendido no dia); info: { num: { reg, nome } }
+export function textoDia(agora, info, h) {
+  const ls = Object.entries(agora).filter(([n]) => /^R[1-4]$/.test(info[n]?.reg || ""))
+    .map(([n, x]) => { const g = val(x); return { n, reg: info[n].reg, nome: info[n].nome, v: g.b != null ? g.b : Math.max(0, g.v) }; })
+    .filter((l) => l.v < LIMITE_JANELA)
+    .sort((a, b) => a.reg.localeCompare(b.reg) || a.v - b.v);
+  const cab = `📉 *Lojas abaixo de R$ 5 mil no dia* — até ${String(h).padStart(2, "0")}h`;
+  if (!ls.length) return `${cab}\n\n✅ Todas as lojas já venderam R$ 5 mil hoje.`;
+  const out = [cab];
+  let r = null;
+  for (const l of ls) { if (l.reg !== r) { r = l.reg; out.push("", `*${r}*`); } out.push(`• ${curto(l.nome)} — ${brl(l.v)}`); }
+  return out.join("\n");
+}

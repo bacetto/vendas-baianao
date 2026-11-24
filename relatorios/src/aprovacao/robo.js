@@ -9,7 +9,7 @@ import { abrirPortal } from "./portal.js";
 import { carregar, salvar } from "./estado.js";
 import { zap } from "./zap.js";
 import { comando, decidir, regionalDe, textoAviso, textoRegras, lerPedidos, bate, soEdnilson } from "./regras.js";
-import { textoBoletim, BOLETIM_HORAS, textoJanela, JANELA_HORAS, FOTO_HORAS, textoLeads, LEADS_HORAS } from "./boletim.js";
+import { textoBoletim, BOLETIM_HORAS, textoJanela, textoDia, JANELA_HORAS, FOTO_HORAS, textoLeads, LEADS_HORAS } from "./boletim.js";
 import { detalheLojas, leadsLojas } from "./painel-snap.js";
 
 const CICLO = 15000;
@@ -119,7 +119,6 @@ function janela() {
   const chave = `${hoje()}-${h}`;
   if (est.fotos[h]) {
     if (!JANELA_HORAS.includes(h) || est.janela === chave) return;
-    if (!est.fotos[h - 2]) { if (jan.avisou !== chave) { jan.avisou = chave; est.janela = chave; sujo = true; wa.enviar("eu", `⚠️ *Lojas abaixo de R$ 5 mil (${h}h)* não saiu pro Ed: faltou a leitura das ${h - 2}h.`); } return; }
     if (jan.enviando) return;
     jan.enviando = true;
     // leitura sem o detalhe (vendido/devolução/pedidos): completa com a publicação do painel daquele horário
@@ -130,11 +129,11 @@ function janela() {
       for (const n of Object.keys(f)) if (typeof f[n] === "number") f[n] = { v: f[n], ...(s.lojas[n] || { b: 0, d: 0, p: 0 }) }; // loja fora do painel = nenhuma venda até ali
       sujo = true;
     };
-    Promise.allSettled([completa(h - 2), completa(h)]).then((r) => {
+    Promise.allSettled([completa(h)]).then((r) => {
       for (const x of r) if (x.status === "rejected") console.log("⚠️ detalhe das lojas não completado:", String(x.reason?.message || x.reason).slice(0, 80));
       const info = {};
       for (const n of Object.keys(est.fotos[h])) info[n] = { reg: est.fotos.reg?.[n], nome: nomeLoja[n] || `Loja ${n}` };
-      wa.enviar(ED || "eu", textoJanela(est.fotos[h - 2], est.fotos[h], info, h));
+      wa.enviar(ED || "eu", textoDia(est.fotos[h], info, h)); // 24/11: venda do DIA (não das últimas 2h), de 2 em 2h
       est.janela = chave; sujo = true;
       console.log(`✅ Lojas abaixo de 5 mil (${h}h) enviado`);
     }).finally(() => { jan.enviando = false; });
