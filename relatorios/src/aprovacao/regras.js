@@ -135,7 +135,13 @@ export function projetar(item, base) {
 export function soEdnilson(item) {
   if (item?.decision?.canDecide === false) return false;
   const gs = item?.evaluation?.approverGroups;
-  return Array.isArray(gs) && gs.length > 0 && gs.every((g) => /apenas\s+ednilson/i.test(String(g)));
+  if (!Array.isArray(gs) || !gs.length) return false;
+  const ed = (g) => /apenas\s+ednilson/i.test(String(g));
+  if (gs.every(ed)) return true;
+  // 24/11 (Gabriel): gerente ou regional pode aprovar -> fora. Sem gerente/regional e desconto ACIMA de 20% -> só o Ed (entra).
+  if (gs.some((g) => /gerente|regiona(l|is)/i.test(String(g)))) return false;
+  const desc = Number(item?.discountPercentage);
+  return Number.isFinite(desc) && desc > 20;
 }
 
 // Decide um pedido pendente. item = objeto do portal; regional = "R1".."R4".
