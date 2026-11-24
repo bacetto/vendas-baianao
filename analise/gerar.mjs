@@ -205,7 +205,7 @@ const ldRede = { contatos: soma(lojas, (l) => l.leads?.contatos), convertidos: s
 const rede = { ...indicadores({ ...g, metaMes: metaMes.rede || g.meta, bruto: brutoRede, devol: soma(vendedores, (v) => v.devol), itens: soma(vendedores, (v) => v.itens),
   pedidos: B.pedidos || 0, anterior: C?.anterior?.venda || null, leads: ldRede.contatos ? ldRede : null,
   eletro: Z ? { venda: Z.vendido || 0, pedidos: Z.pedidos || 0 } : null }),
-  eletroCancel: Z ? r4(Z.taxaCancelamento || 0) : null, ref: Object.fromEntries(Object.entries(REF).map(([k, v]) => [k, r4(v)])),
+  eletroCancel: Z ? r4(Z.taxaCancelamento || 0) : null, eletroPerdidos: Z?.criterio === "confirmado" ? { clientes: Z.clientesPerdidos || 0, valor: r2(Z.valorPerdido), aguardando: r2(Z.aguardando) } : null, ref: Object.fromEntries(Object.entries(REF).map(([k, v]) => [k, r4(v)])),
   status: { critica: lojas.filter((l) => l.status === "critica").length, atencao: lojas.filter((l) => l.status === "atencao").length, perto: lojas.filter((l) => l.status === "perto").length, ok: lojas.filter((l) => l.status === "ok").length },
   nLojas: lojas.length, nVend: new Set(vendedores.filter((v) => v.venda > 0).map((v) => v.cod)).size };
 
@@ -274,6 +274,7 @@ const top = [...lojas].sort((a, b) => b.pct - a.pct).slice(0, 5);
 if (top.length) fortes.push({ titulo: "Lojas destaque (maior % da meta)", txt: top.map((l) => `${l.nome} (${pc(l.pct)})`).join(", ") });
 const cresceu = lojas.filter((l) => l.cresc != null && l.cresc > 0.1).sort((a, b) => b.cresc - a.cresc).slice(0, 5);
 if (cresceu.length) fortes.push({ titulo: "Lojas que mais cresceram sobre o mês passado", txt: cresceu.map((l) => `${l.nome} (+${pc(l.cresc)})`).join(", ") });
+if (rede.eletroPerdidos?.clientes) fracos.push({ nivel: "medio", titulo: `Baianão Eletro: ${rede.eletroPerdidos.clientes} clientes não finalizaram a compra (${mil(rede.eletroPerdidos.valor)})`, txt: `Pedidos cancelados sem nenhuma compra depois — a maioria no cartão de crédito. A lista pra recuperar está no painel de vendas, aba BaianãoEletro.` });
 if (vendList[0]) fortes.push({ titulo: "Vendedores destaque da rede", txt: vendList.slice(0, 5).map((v) => `${v.nome} — ${v.lojaNome} (${mil(v.venda)})`).join(" · ") });
 const servBom = lojas.filter((l) => l.fortes.some((f) => f.tipo === "servico")).sort((a, b) => b.servPct - a.servPct).slice(0, 4);
 if (servBom.length) fortes.push({ titulo: "Referência em serviço (copiar o jeito dessas lojas)", txt: servBom.map((l) => `${l.nome} (${pc(l.servPct, 1)})`).join(", ") });

@@ -147,7 +147,7 @@ function geral(){
     ${kpi("Serviços",pc(r.servPct,1),`garantia ${mil(r.garantia)} · pacote ${mil(r.pacote)}`)}
     ${kpi("Ticket médio",brl(r.ticket),`${num(r.pedidos)} vendas · ${num(r.pa,2)} itens/venda`)}
     ${r.leads?kpi("Leads",pc(r.leads.taxa,1)+" convertidos",`${num(r.leads.convertidos)} de ${num(r.leads.contatos)} contatos`):""}
-    ${r.eletro?kpi("Baianão Eletro",mil(r.eletro.venda),`${num(r.eletro.pedidos)} pedidos${A.rede.eletroCancel!=null?` · ${pc(A.rede.eletroCancel)} cancelados`:""}`):""}
+    ${r.eletro?kpi("Baianão Eletro (pago)",mil(r.eletro.venda),A.rede.eletroPerdidos?`${num(r.eletro.pedidos)} pedidos · ${num(A.rede.eletroPerdidos.clientes)} clientes perdidos (${mil(A.rede.eletroPerdidos.valor)})`:`${num(r.eletro.pedidos)} pedidos${A.rede.eletroCancel!=null?` · ${pc(A.rede.eletroCancel)} cancelados`:""}`):""}
   </div>
   <div class="card"><h2>Situação das ${r.nLojas} lojas</h2>
     <div class="semaf">${["ok","perto","atencao","critica"].map(k=>`<div style="width:${st[k]/t*100}%;background:${COR[k]}" title="${STATUS[k]}: ${st[k]}"></div>`).join("")}</div>

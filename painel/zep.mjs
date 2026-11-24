@@ -29,11 +29,13 @@ async function lerZepNaPagina({ de, ate, jaTenho }) {
   }
   const cab = linhas.shift().map((x) => x.trim().toLowerCase());
   const ix = (n) => cab.findIndex((x) => x.startsWith(n));
-  const I = { id: ix("pedido"), cod: ix("c"), data: ix("data"), hora: ix("hora"), vend: ix("vendedor"), total: ix("total"), pag: ix("pagamento"), st: ix("status") };
+  const I = { id: ix("pedido"), cod: ix("cód"), cli: ix("cliente"), data: ix("data"), hora: ix("hora"), vend: ix("vendedor"), total: ix("total"), pag: ix("pagamento"), st: ix("status") };
+  // cliente vira só um código (hash): serve pra juntar tentativas do mesmo cliente, sem guardar nome
+  const hash = (s) => { s = String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase(); if (!s) return ""; let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
   const num = (s) => Number(String(s || "0").replace(/[^\d,-]/g, "").replace(",", ".")) || 0;
   const pedidos = linhas.map((c) => {
     const [d, m, y] = (c[I.data] || "").split("/");
-    return { id: String(c[I.id] || "").replace(/\D/g, ""), data: `${y}-${m}-${d}`, hora: Number((c[I.hora] || "0").split(":")[0]) || 0,
+    return { id: String(c[I.id] || "").replace(/\D/g, ""), cod: String(c[I.cod] || "").trim(), cli: hash(c[I.cli]), data: `${y}-${m}-${d}`, hora: Number((c[I.hora] || "0").split(":")[0]) || 0,
       vendedor: (c[I.vend] || "").trim(), total: num(c[I.total]), pagamento: (c[I.pag] || "").trim() || "Outro", status: (c[I.st] || "").trim() || "?" };
   });
   // itens dos pedidos não cancelados que ainda não temos
@@ -112,39 +114,65 @@ export function agregarZep(pedidos, itens, dados) {
   const ehAguard = (s) => /aguard/i.test(s);
   const P = dados.periodos;
   const nDias = (k) => k.startsWith("mes") ? Number(P[k].fim.slice(8)) : 1;
+  // Critério (24/11/2026, pedido do Gabriel): VENDA = só pedido com pagamento confirmado (Em processo, Enviado, Entregue).
+  // "Aguardando" (pagamento não confirmado) fica separado e não soma na venda. Cancelamento é analisado por cliente:
+  // tentativa repetida (o cliente comprou em outro pedido) x cliente perdido (só tem pedido cancelado).
   function periodo(k) {
     const { inicio, fim } = P[k];
     const sel = pedidos.filter((p) => p.data >= inicio && p.data <= fim);
     const status = {}, pag = {}, vend = {}, lojas = {}, prods = {}, porHora = Array(24).fill(0), porDia = Array(nDias(k)).fill(0), pedDia = Array(nDias(k)).fill(0), porDiaReg = {};
+    const cancPag = {};
     let vendido = 0, aguardando = 0, cancelado = 0, nVal = 0, nCanc = 0, nAg = 0;
+    // por cliente: o que aconteceu com ele no período
+    const cli = {};
+    for (const p of sel) { const c = p.cli || "pedido-" + p.id; (cli[c] ||= []).push(p); }
+    const situacao = {};   // cli -> "comprou" | "aguardando" | "perdido"
+    for (const c in cli) { const os = cli[c]; situacao[c] = os.some((o) => !ehCancel(o.status) && !ehAguard(o.status)) ? "comprou" : os.some((o) => ehAguard(o.status)) ? "aguardando" : "perdido"; }
     for (const p of sel) {
       status[p.status] = (status[p.status] || 0) + 1;
-      const c = ehCancel(p.status), a = ehAguard(p.status);
+      const c = ehCancel(p.status), a = ehAguard(p.status), sc = situacao[p.cli || "pedido-" + p.id];
       const loja = achaLoja(p.vendedor);
       const kv = norm(p.vendedor) || "LOJA (SEM VENDEDOR)";
-      vend[kv] ??= { nome: p.vendedor || "Loja (sem vendedor)", loja, pedidos: 0, venda: 0, aguardando: 0, cancelados: 0, valorCancelado: 0 };
-      if (c) { cancelado += p.total; nCanc++; vend[kv].cancelados++; vend[kv].valorCancelado += p.total; continue; }
-      // mesmo critério do ZepSystem ("vendas realizadas"): tudo que não foi cancelado; "aguardando" fica destacado à parte
-      if (a) { aguardando += p.total; nAg++; vend[kv].aguardando += p.total; }
-      { vendido += p.total; nVal++; vend[kv].pedidos++; vend[kv].venda += p.total;
-        pag[p.pagamento] ??= { nome: p.pagamento, pedidos: 0, valor: 0 }; pag[p.pagamento].pedidos++; pag[p.pagamento].valor += p.total;
-        porHora[p.hora] += p.total;
-        const d = Number(p.data.slice(8)) - 1; if (k.startsWith("mes") && d >= 0 && d < porDia.length) { porDia[d] += p.total; pedDia[d]++; }
-        if (loja) { lojas[loja] ??= { cod: loja, venda: 0, pedidos: 0 }; lojas[loja].venda += p.total; lojas[loja].pedidos++;
-          const rg = dados.lojas?.[loja]?.regional; if (/^R\d$/.test(rg || "") && k.startsWith("mes") && d >= 0 && d < porDia.length) { porDiaReg[rg] ??= Array(porDia.length).fill(0); porDiaReg[rg][d] += p.total; } }
-        for (const it of itens[p.id] || []) {
-          const kp = it.sku || norm(it.nome);
-          prods[kp] ??= { sku: it.sku, nome: it.nome, qtd: 0, valor: 0, pedidos: 0 };
-          prods[kp].qtd += it.qtd; prods[kp].valor += it.total; prods[kp].pedidos++;
-        }
+      vend[kv] ??= { nome: p.vendedor || "Loja (sem vendedor)", loja, pedidos: 0, venda: 0, aguardando: 0, pedidosAguardando: 0, cancelados: 0, valorCancelado: 0, clientesPerdidos: 0 };
+      if (c) { cancelado += p.total; nCanc++; vend[kv].cancelados++; vend[kv].valorCancelado += p.total; cancPag[p.pagamento] ??= { nome: p.pagamento, pedidos: 0, valor: 0 }; cancPag[p.pagamento].pedidos++; cancPag[p.pagamento].valor += p.total; continue; }
+      if (a) { if (sc !== "comprou") nAg++; vend[kv].aguardando += p.total; vend[kv].pedidosAguardando++; continue; }
+      vendido += p.total; nVal++; vend[kv].pedidos++; vend[kv].venda += p.total;
+      pag[p.pagamento] ??= { nome: p.pagamento, pedidos: 0, valor: 0 }; pag[p.pagamento].pedidos++; pag[p.pagamento].valor += p.total;
+      porHora[p.hora] += p.total;
+      const d = Number(p.data.slice(8)) - 1; if (k.startsWith("mes") && d >= 0 && d < porDia.length) { porDia[d] += p.total; pedDia[d]++; }
+      if (loja) { lojas[loja] ??= { cod: loja, venda: 0, pedidos: 0 }; lojas[loja].venda += p.total; lojas[loja].pedidos++;
+        const rg = dados.lojas?.[loja]?.regional; if (/^R\d$/.test(rg || "") && k.startsWith("mes") && d >= 0 && d < porDia.length) { porDiaReg[rg] ??= Array(porDia.length).fill(0); porDiaReg[rg][d] += p.total; } }
+      for (const it of itens[p.id] || []) {
+        const kp = it.sku || norm(it.nome);
+        prods[kp] ??= { sku: it.sku, nome: it.nome, qtd: 0, valor: 0, pedidos: 0 };
+        prods[kp].qtd += it.qtd; prods[kp].valor += it.total; prods[kp].pedidos++;
       }
     }
+    // clientes perdidos: só tiveram pedido cancelado. Valor perdido = o maior pedido de cada um (não soma as tentativas)
+    const perdidos = [];
+    let tentativas = 0;
+    for (const c in cli) {
+      const os = cli[c], canc = os.filter((o) => ehCancel(o.status));
+      if (situacao[c] !== "perdido") { tentativas += canc.length; continue; }
+      const maior = canc.reduce((m, o) => (o.total > m.total ? o : m), canc[0]), ult = canc.reduce((m, o) => (o.data + o.hora > m.data + m.hora ? o : m), canc[0]);
+      const loja = achaLoja(ult.vendedor);
+      perdidos.push({ pedido: ult.cod || ult.id, data: ult.data, vendedor: ult.vendedor || "Loja (sem vendedor)", loja, valor: r2(maior.total), pagamento: ult.pagamento, tentativas: canc.length });
+      const kv = norm(ult.vendedor) || "LOJA (SEM VENDEDOR)"; if (vend[kv]) vend[kv].clientesPerdidos++;
+    }
+    // aguardando pagamento: 1 valor por cliente (o maior pedido), sem somar tentativas repetidas nem quem já comprou
+    for (const c in cli) if (situacao[c] === "aguardando") aguardando += Math.max(...cli[c].filter((o) => ehAguard(o.status)).map((o) => o.total));
+    perdidos.sort((a, b) => (b.data > a.data ? 1 : b.data < a.data ? -1 : b.valor - a.valor));
+    const nCli = Object.keys(cli).length, nComprou = Object.values(situacao).filter((x) => x === "comprou").length;
     const semLoja = Object.values(vend).filter((v) => !v.loja && v.venda > 0).reduce((s, v) => s + v.venda, 0);
     return {
-      label: P[k].label, inicio, fim,
-      vendido: r2(vendido), confirmado: r2(vendido - aguardando), aguardando: r2(aguardando), cancelado: r2(cancelado),
+      label: P[k].label, inicio, fim, criterio: "confirmado",
+      vendido: r2(vendido), confirmado: r2(vendido), aguardando: r2(aguardando), cancelado: r2(cancelado),
       pedidos: nVal, pedidosAguardando: nAg, pedidosCancelados: nCanc, pedidosTotal: sel.length,
       ticket: nVal ? r2(vendido / nVal) : 0, taxaCancelamento: sel.length ? nCanc / sel.length : 0,
+      clientes: nCli, clientesCompraram: nComprou, clientesAguardando: Object.values(situacao).filter((x) => x === "aguardando").length,
+      clientesPerdidos: perdidos.length, valorPerdido: r2(perdidos.reduce((s, x) => s + x.valor, 0)), taxaPerda: nCli ? perdidos.length / nCli : 0,
+      cancelTentativas: tentativas, cancelPorPagamento: Object.values(cancPag).map((x) => ({ ...x, valor: r2(x.valor) })).sort((a, b) => b.pedidos - a.pedidos),
+      recuperar: perdidos.slice(0, 150),
       status, pagamentos: Object.values(pag).map((x) => ({ ...x, valor: r2(x.valor) })).sort((a, b) => b.valor - a.valor),
       vendedores: Object.values(vend).map((x) => ({ ...x, venda: r2(x.venda), aguardando: r2(x.aguardando), valorCancelado: r2(x.valorCancelado) })).sort((a, b) => b.venda - a.venda),
       lojas: Object.values(lojas).map((x) => ({ ...x, venda: r2(x.venda) })).sort((a, b) => b.venda - a.venda),
