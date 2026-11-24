@@ -223,6 +223,14 @@ async function ciclo() {
   boletim();
   janela();
   leadsJanela();
+  // 24/11: Gabriel pediu pra reenviar ao Ed a lista das 15h–17h no formato novo (uma vez só)
+  if (!SIMULAR && !est.ajustes.includes("reenvio-2026-11-24-17") && est.fotos?.dia === "2026-11-24" && est.fotos[15] && est.fotos[17] && Object.keys(nomeLoja).length) {
+    const info = {};
+    for (const n of Object.keys(est.fotos[17])) info[n] = { reg: est.fotos.reg?.[n], nome: nomeLoja[n] || `Loja ${n}` };
+    wa.enviar(ED || "eu", textoJanela(est.fotos[15], est.fotos[17], info, 17));
+    est.ajustes.push("reenvio-2026-11-24-17"); sujo = true;
+    console.log("✅ Reenvio das 15h–17h pro Ed");
+  }
   // lê DIRETO os pendentes do Ed no portal (não espera o grupo): decide assim que o pedido cai lá
   const itens = await portal.pendentes();
   for (const it of itens) {
