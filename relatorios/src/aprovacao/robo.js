@@ -30,8 +30,16 @@ if (hora() < 7 || hora() >= 23) { console.log("Fora do horário (07h–23h)"); p
 
 const est = await carregar();
 est.solicitados ||= {};
+// Ajustes de regra pedidos fora do grupo (aplicados uma vez só; o id fica salvo no estado)
+est.ajustes ||= [];
+const AJUSTES = [
+  // 24/11: Gabriel pediu desconto máximo de 20% -> 25% (sem mexer pelo grupo)
+  { id: "2026-11-24-d20-d25", aplicar: (e) => { let n = 0; for (const r of Object.keys(e.regras)) if (e.regras[r]?.max === 20) { e.regras[r].max = 25; e.regras[r].em = new Date().toISOString(); n++; } return n; } },
+];
+let ajustouAgora = false;
+for (const a of AJUSTES) if (!est.ajustes.includes(a.id)) { const n = a.aplicar(est); est.ajustes.push(a.id); ajustouAgora = true; console.log(`✅ Ajuste ${a.id}: ${n} regional(is)`); }
 console.log(`▶ Regras carregadas (${Object.keys(est.regras).length} regionais com regra${est.pausado ? ", pausado" : ""})`);
-let sujo = false, acordar = null, grupoId = null, avisosId = null, avisosEm = 0;
+let sujo = ajustouAgora, acordar = null, grupoId = null, avisosId = null, avisosEm = 0;
 let wa = null; const antes = [];
 const avisar = (t0) => { const t = SIMULAR ? `🧪 *SIMULAÇÃO* (nada foi feito no portal)\n${t0}` : t0; (avisosId ? [avisosId] : DEST).forEach((d) => (wa ? wa.enviar(d, t) : antes.push([d, t]))); };
 
