@@ -9,8 +9,8 @@ import { abrirPortal } from "./portal.js";
 import { carregar, salvar } from "./estado.js";
 import { zap } from "./zap.js";
 import { comando, decidir, regionalDe, textoAviso, textoRegras, lerPedidos, bate, soEdnilson } from "./regras.js";
-import { textoBoletim, BOLETIM_HORAS, textoJanela, JANELA_HORAS, FOTO_HORAS } from "./boletim.js";
-import { detalheLojas } from "./painel-snap.js";
+import { textoBoletim, BOLETIM_HORAS, textoJanela, JANELA_HORAS, FOTO_HORAS, textoLeads, LEADS_HORAS } from "./boletim.js";
+import { detalheLojas, leadsLojas } from "./painel-snap.js";
 
 const CICLO = 15000;
 const SIMULAR = process.env.SIMULAR === "1"; // teste: lê e avisa o que faria, sem mexer no portal nem no grupo
@@ -157,6 +157,26 @@ function janela() {
 // Boletim pro Ed de 2 em 2 horas (parcial do DIA: margem / serviços por regional). Roda em paralelo, sem segurar as aprovações;
 // tenta de novo a cada 2 min até :50 da hora; "est.boletim" evita mandar 2x (inclusive na troca de turno).
 const bol = { carregando: false, tentou: 0, avisou: null };
+// Lojas com menos de 3 contatos com leads nas últimas 3h (pro Ed, 12h/15h/18h/21h). Contatos vêm do painel de vendas
+// (Painel Vendas Leads do Universo, lido a cada ~1 min), comparando a publicação da hora cheia com a de 3h antes.
+// Não usa o portal do Ed. "est.leads" evita mandar 2x (inclusive na troca de turno). 1ª vez: cópia pro Gabriel conferir.
+const ld = { carregando: false, tentou: 0, avisou: null };
+function leadsJanela() {
+  const h = hora(), min = bahia().getUTCMinutes(), chave = `${hoje()}-${h}`;
+  if (SIMULAR || !LEADS_HORAS.includes(h) || est.leads === chave || ld.carregando || Date.now() - ld.tentou < 60e3) return;
+  if (min >= 50) { if (ld.avisou !== chave) { ld.avisou = chave; wa.enviar("eu", `⚠️ *Lojas com menos de 3 contatos de leads (${h}h)* não saiu pro Ed: o painel não respondeu.`); } return; }
+  ld.carregando = true; ld.tentou = Date.now();
+  const alvo = (hh) => Date.parse(`${hoje()}T${String(hh).padStart(2, "0")}:00:30-03:00`);
+  Promise.all([leadsLojas(alvo(h - 3), hoje()), leadsLojas(alvo(h), hoje())]).then(([a, g]) => {
+    const t = textoLeads(a.contatos, g.contatos, g.abertas, h);
+    wa.enviar(ED || "eu", t);
+    if (!est.leadsTeste) { wa.enviar("eu", `🧪 *Cópia pra você conferir — o Ed recebeu agora:*\n\n${t}`); est.leadsTeste = Date.now(); }
+    est.leads = chave; sujo = true;
+    console.log(`✅ Lojas com menos de 3 contatos de leads (${h}h) enviado`);
+  }).catch((e) => console.log("⚠️ leads das lojas falhou:", String(e.message).slice(0, 80)))
+    .finally(() => { ld.carregando = false; });
+}
+
 function boletim() {
   const h = hora(), min = bahia().getUTCMinutes(), chave = `${hoje()}-${h}`;
   // 1ª vez: manda uma prévia só pro Gabriel ("você mesmo") pra ele conferir antes do Ed receber
@@ -202,6 +222,7 @@ async function ciclo() {
   atualizarServicos();
   boletim();
   janela();
+  leadsJanela();
   // lê DIRETO os pendentes do Ed no portal (não espera o grupo): decide assim que o pedido cai lá
   const itens = await portal.pendentes();
   for (const it of itens) {

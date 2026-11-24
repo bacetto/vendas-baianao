@@ -53,3 +53,19 @@ export function textoJanela(antes, agora, info, h) {
   for (const l of ls) { if (l.reg !== r) { r = l.reg; out.push("", `*${r}*`); } out.push(linha(l)); }
   return out.join("\n");
 }
+
+// Lojas com menos de 3 CONTATOS com leads nas últimas 3 horas (contato com o lead, não venda). Pro Ed, de 3 em 3h.
+export const LEADS_HORAS = [12, 15, 18, 21];
+export const LIMITE_LEADS = 3;
+// antes/agora: { num: contatos acumulados no dia }; abertas: { num: { reg, nome } }
+export function textoLeads(antes, agora, abertas, h) {
+  const hh = (x) => `${String(x).padStart(2, "0")}h`;
+  const ls = Object.entries(abertas).map(([n, i]) => ({ n, ...i, c: Math.max(0, (agora[n] || 0) - (antes[n] || 0)) }))
+    .filter((l) => l.c < LIMITE_LEADS).sort((a, b) => a.reg.localeCompare(b.reg) || a.c - b.c || Number(a.n) - Number(b.n));
+  const cab = `📞 *Lojas com menos de ${LIMITE_LEADS} contatos com leads* — ${hh(h - 3)} às ${hh(h)}`;
+  if (!ls.length) return `${cab}\n\n✅ Todas as lojas fizeram ${LIMITE_LEADS} ou mais contatos.`;
+  const out = [cab];
+  let r = null;
+  for (const l of ls) { if (l.reg !== r) { r = l.reg; out.push("", `*${r}*`); } out.push(`• ${String(l.n).padStart(2, "0")} · ${l.nome} — ${l.c ? `${l.c} contato${l.c > 1 ? "s" : ""}` : "❌ *nenhum contato*"}`); }
+  return out.join("\n");
+}
