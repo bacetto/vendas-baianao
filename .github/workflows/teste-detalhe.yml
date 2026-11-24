@@ -1,0 +1,25 @@
+name: Conferência estado do robô (temporário)
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  t:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults: { run: { working-directory: relatorios } }
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      SENHA: ${{ secrets.PAINEL_SENHA }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: |
+          node -e '
+          import("./src/aprovacao/estado.js").then(async ({ carregar }) => {
+            const e = await carregar(); const f = e.fotos || {};
+            const tipo = (h) => f[h] ? (Object.values(f[h]).every(x => typeof x === "object") ? "com detalhe" : "só total") : "não tem";
+            console.log(`✅ janela=${e.janela} leads=${e.leads} leadsTeste=${!!e.leadsTeste} · foto15: ${tipo(15)} · foto17: ${tipo(17)} · lojas17: ${f[17]?Object.keys(f[17]).length:0}`);
+            const z = f[17] ? Object.values(f[17]).filter(x => typeof x==="object" && x.p===0 && x.b===0).length : 0; console.log(`✅ lojas sem pedido no dia às 17h: ${z}`);
+          }).catch(e => { console.log("❌", e.message); process.exit(1); });'
