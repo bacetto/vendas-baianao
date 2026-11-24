@@ -1,0 +1,27 @@
+name: Conferência pendentes do Ed (temporário)
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  t:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    defaults: { run: { working-directory: relatorios } }
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      SENHA: ${{ secrets.PAINEL_SENHA }}
+      ED_CPF: ${{ secrets.ED_CPF || secrets.PORTAL_CPF }}
+      ED_SENHA: ${{ secrets.ED_SENHA || secrets.PORTAL_SENHA }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: relatorios/package-lock.json }
+      - run: npm ci --no-audit --no-fund > /dev/null 2>&1
+      - run: |
+          node -e '
+          Promise.all([import("./src/aprovacao/portal.js"), import("./src/aprovacao/regras.js"), import("./src/aprovacao/estado.js")]).then(async ([p, r, s]) => {
+            const e = await s.carregar(); const portal = await p.abrirPortal(); const its = await portal.pendentes();
+            for (const it of its) console.log(`✅ pedido ${String(it.orderNumber).slice(-4)} · desc ${Math.round(it.discountPercentage)}% · grupos ${JSON.stringify(it.evaluation?.approverGroups)} · canDecide ${it.decision?.canDecide} · final ${it.decision?.finalStatus} · soEd ${r.soEdnilson(it)} · avisado ${!!e.avisados?.[it.id]}`);
+            process.exit(0);
+          }).catch(e => { console.log("❌", e.message); process.exit(1); });' 2>&1 | grep -E "^(✅|❌)"
