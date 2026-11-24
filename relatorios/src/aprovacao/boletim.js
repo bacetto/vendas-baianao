@@ -55,7 +55,7 @@ export function textoJanela(antes, agora, info, h) {
 }
 
 // Lojas com menos de 3 CONTATOS com leads nas últimas 3 horas (contato com o lead, não venda). Pro Ed, de 3 em 3h.
-export const LEADS_HORAS = [12, 15, 18, 21];
+export const LEADS_HORAS = [11, 14, 17, 20]; // janelas 08–11, 11–14, 14–17, 17–20
 export const LIMITE_LEADS = 3;
 // antes/agora: { num: contatos acumulados no dia }; abertas: { num: { reg, nome } }
 export function textoLeads(antes, agora, abertas, h) {

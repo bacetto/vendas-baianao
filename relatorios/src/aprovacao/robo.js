@@ -157,7 +157,7 @@ function janela() {
 // Boletim pro Ed de 2 em 2 horas (parcial do DIA: margem / serviços por regional). Roda em paralelo, sem segurar as aprovações;
 // tenta de novo a cada 2 min até :50 da hora; "est.boletim" evita mandar 2x (inclusive na troca de turno).
 const bol = { carregando: false, tentou: 0, avisou: null };
-// Lojas com menos de 3 contatos com leads nas últimas 3h (pro Ed, 12h/15h/18h/21h). Contatos vêm do painel de vendas
+// Lojas com menos de 3 contatos com leads nas últimas 3h (pro Ed, 11h/14h/17h/20h). Contatos vêm do painel de vendas
 // (Painel Vendas Leads do Universo, lido a cada ~1 min), comparando a publicação da hora cheia com a de 3h antes.
 // Não usa o portal do Ed. "est.leads" evita mandar 2x (inclusive na troca de turno). 1ª vez: cópia pro Gabriel conferir.
 const ld = { carregando: false, tentou: 0, avisou: null };
