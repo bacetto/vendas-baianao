@@ -554,26 +554,38 @@ function secZep(){
   prepararMesF();const k=["hoje","ontem","mes","mesAnt"].includes(S.per)?S.per:"mes",p=k==="mes"&&z.periodos.mesF&&!z.periodos.mesF.aprox?z.periodos.mesF:z.periodos[k];
   const st=Object.entries(p.status||{}).sort((a,b)=>b[1]-a[1]);
   const labDia=p.porDia.map((_,i)=>String(i+1));
-  const novo=p.criterio==="confirmado";
-  return `<div class="grid g4">
-    ${kpi(novo?"Vendas confirmadas":"Vendas realizadas",mil(p.vendido),`${num(p.pedidos)} pedidos pagos · ticket ${brl(p.ticket)}`)}
-    ${kpi("Aguardando pagamento",mil(p.aguardando),novo?`${num(p.clientesAguardando)} clientes · <b>não entra na venda</b> até confirmar`:`${num(p.pedidosAguardando)} pedidos`)}
+  const novo=p.criterio==="confirmado",temListas=!!p.listaPagos;
+  const ZT=[["resumo","Resumo"],["pagos",`Pagos (${num(p.pedidos)})`],["aguard",`Aguardando pagamento (${num(p.listaAguardando?.length||p.pedidosAguardando||0)})`],["canc",`Cancelados e motivos (${num(p.pedidosCancelados)})`],["perd",`Clientes perdidos (${num(p.clientesPerdidos||0)})`]];
+  if(!temListas||!ZT.some(x=>x[0]===S.zt))S.zt="resumo";
+  const zlink=r=>r.id?`<a href="https://gestao.zepsystem.com.br/pedido/${encodeURIComponent(r.id)}" target="_blank" rel="noopener">${esc(r.pedido)}</a>`:esc(r.pedido);
+  const dt=r=>`${r.data.split("-").reverse().slice(0,2).join("/")}${r.hora!=null?` ${String(r.hora).padStart(2,"0")}h`:""}`;
+  const cBase=[{t:"Data",f:dt},{t:"Pedido",f:zlink},{t:"Vendedor",l:1,n:1,f:r=>esc(r.vendedor)},{t:"Loja",l:1,f:r=>r.loja?esc(nomeLoja(r.loja)):'<span class="sub">—</span>'},{t:"Valor",f:r=>mil(r.valor)},{t:"Forma",f:r=>esc(r.pagamento)}];
+  const abas=temListas?`<div class="tabs" style="margin:0 0 12px;flex-wrap:wrap">${ZT.map(([a,t])=>`<button class="${S.zt===a?"on":""}" onclick="S.zt='${a}';render()">${t}</button>`).join("")}</div>`:"";
+  const kpis=`<div class="grid g4">
+    ${kpi(novo?"Vendas pagas":"Vendas realizadas",mil(p.vendido),`${num(p.pedidos)} pedidos com pagamento confirmado · ticket ${brl(p.ticket)}`)}
+    ${kpi("Aguardando pagamento",mil(p.aguardando),novo?`${num(p.clientesAguardando)} clientes · <b>não entra na venda</b> até pagar`:`${num(p.pedidosAguardando)} pedidos`)}
     ${novo?kpi("Clientes perdidos",`<span style="color:var(--bad)">${num(p.clientesPerdidos)}</span>`,`${mil(p.valorPerdido)} que não viraram venda · ${fmtPct(p.taxaPerda)} dos clientes`):""}
     ${kpi("Pedidos cancelados",`<span style="color:var(--bad)">${num(p.pedidosCancelados)}</span>`,novo?`${num(p.cancelTentativas)} eram tentativas repetidas de quem comprou · ${fmtPct(p.taxaCancelamento)} dos pedidos`:`${fmtPct(p.taxaCancelamento)} do total`)}
   </div>
-  <div class="nota" style="margin-top:6px">Pedidos no período: ${num(p.pedidosTotal)} · ${st.map(([s,n])=>`${esc(s)} ${n}`).join(" · ")}</div>
-  ${novo&&p.recuperar?.length?`<div class="card sec"><b>🔁 Recuperar vendas</b> <span class="sub">· clientes que tentaram comprar e só têm pedido cancelado. O vendedor acha o cliente no ZepSystem pelo número do pedido.</span>
-    ${tabelaSimples([{t:"Data",f:r=>r.data.split("-").reverse().slice(0,2).join("/")},{t:"Pedido",f:r=>esc(r.pedido)},{t:"Vendedor",l:1,n:1,f:r=>esc(r.vendedor)},{t:"Loja",l:1,f:r=>r.loja?esc(nomeLoja(r.loja)):'<span class="sub">—</span>'},{t:"Valor",f:r=>mil(r.valor)},{t:"Pagamento",f:r=>esc(r.pagamento)},{t:"Tentativas",f:r=>r.tentativas>1?`<b style="color:var(--bad)">${r.tentativas}</b>`:"1"}],p.recuperar,{max:150})}</div>`:""}
-  ${novo&&p.cancelPorPagamento?.length?`<div class="card sec"><b>Cancelamentos por forma de pagamento</b>${tabelaSimples([{t:"Pagamento",l:1,f:r=>esc(r.nome)},{t:"Pedidos cancelados",f:r=>num(r.pedidos)},{t:"% dos cancelamentos",f:r=>fmtPct(p.pedidosCancelados?r.pedidos/p.pedidosCancelados:0)},{t:"Valor",f:r=>mil(r.valor)}],p.cancelPorPagamento)}<div class="nota">Muito cancelamento no cartão de crédito costuma ser recusa do banco ou do antifraude: vale conferir com o meio de pagamento.</div></div>`:""}
-  <div class="hero" style="margin-top:14px;grid-template-columns:1fr 1fr">
-    ${k.startsWith("mes")?`<div class="card"><b>Venda por dia</b>${barras(p.porDia,labDia,{dest:k==="mes"?hoje()-1:-1})}</div>`:""}
-    <div class="card"><b>Venda por hora</b>${barras(p.porHora.slice(7,23),[...Array(16)].map((_,i)=>i+7+"h"))}</div>
-    <div class="card"><b>Forma de pagamento</b>${tabelaSimples([{t:"Pagamento",l:1,f:r=>esc(r.nome)},{t:"Pedidos",f:r=>num(r.pedidos)},{t:"Valor",f:r=>mil(r.valor)},{t:"%",f:r=>fmtPct(p.vendido?r.valor/p.vendido:0)}],p.pagamentos)}</div>
-    <div class="card"><b>Por loja</b> <span class="sub">(pelo cadastro do vendedor no Universo)</span>${tabelaSimples([{t:"Loja",l:1,n:1,f:r=>esc(nomeLoja(r.cod))},{t:"Pedidos",f:r=>num(r.pedidos)},{t:"Vendido",f:r=>mil(r.venda)}],p.lojas)}${p.vendaSemLoja?`<div class="nota">${mil(p.vendaSemLoja)} de vendedores sem loja identificada.</div>`:""}</div>
+  <div class="nota" style="margin:6px 0 12px">Pedidos no período: ${num(p.pedidosTotal)} · ${st.map(([s,n])=>`${esc(s)} ${n}`).join(" · ")}. Clique no número do pedido pra abrir no ZepSystem (lá aparecem o cliente e o telefone).</div>`;
+  let corpo="";
+  if(S.zt==="pagos")corpo=`<div class="card sec"><b>✅ Pedidos pagos</b> <span class="sub">· pagamento confirmado no ZepSystem: é isso que conta como venda</span>${tabelaSimples([...cBase,{t:"Pedido está",f:r=>esc(r.status)}],p.listaPagos,{max:400})}</div>`;
+  else if(S.zt==="aguard")corpo=`<div class="card sec"><b>⏳ Aguardando pagamento</b> <span class="sub">· ainda não pagos, não entram na venda. "Já comprou" = o cliente já tem outro pedido pago (provável tentativa repetida).</span>${tabelaSimples([...cBase,{t:"Situação",f:r=>r.jaComprou?'<span class="sub">já comprou em outro pedido</span>':'<b style="color:var(--warn)">cobrar pagamento</b>'}],p.listaAguardando,{max:300})}</div>`;
+  else if(S.zt==="canc")corpo=`<div class="hero" style="grid-template-columns:1fr 1fr">
+      <div class="card"><b>Motivos de cancelamento</b>${tabelaSimples([{t:"Motivo",l:1,n:1,f:r=>esc(r.motivo)},{t:"Pedidos",f:r=>num(r.pedidos)},{t:"%",f:r=>fmtPct(p.pedidosCancelados?r.pedidos/p.pedidosCancelados:0)},{t:"Valor",f:r=>mil(r.valor)}],p.motivos||[])}<div class="nota">O ZepSystem não informa o motivo exato da recusa do cartão (banco/antifraude ou cliente que desistiu no meio). Estorno traz o motivo que foi escrito no pedido.</div></div>
+      <div class="card"><b>Por forma de pagamento</b>${tabelaSimples([{t:"Forma",l:1,f:r=>esc(r.nome)},{t:"Cancelados",f:r=>num(r.pedidos)},{t:"%",f:r=>fmtPct(p.pedidosCancelados?r.pedidos/p.pedidosCancelados:0)},{t:"Valor",f:r=>mil(r.valor)}],p.cancelPorPagamento||[])}</div></div>
+    <div class="card sec"><b>Pedidos cancelados</b> <span class="sub">· "Tentativa repetida" = o cliente comprou ou ainda pode pagar em outro pedido</span>${tabelaSimples([...cBase,{t:"Motivo",l:1,f:r=>esc(r.motivo)},{t:"",f:r=>r.repetido?'<span class="sub">tentativa repetida</span>':'<b style="color:var(--bad)">cliente perdido</b>'}],p.listaCancelados,{max:400})}</div>`;
+  else if(S.zt==="perd")corpo=`<div class="card sec"><b>🔁 Clientes perdidos — ligar e recuperar</b> <span class="sub">· tentaram comprar e só têm pedido cancelado (nenhum pago nem aguardando). Valor = o maior pedido do cliente.</span>${tabelaSimples([...cBase,{t:"Motivo",l:1,f:r=>esc(r.motivo||"")},{t:"Tentativas",f:r=>r.tentativas>1?`<b style="color:var(--bad)">${r.tentativas}</b>`:"1"}],p.recuperar||[],{max:300})}</div>`;
+  else corpo=`<div class="hero" style="grid-template-columns:1fr 1fr">
+    ${k.startsWith("mes")?`<div class="card"><b>Venda paga por dia</b>${barras(p.porDia,labDia,{dest:k==="mes"?hoje()-1:-1})}</div>`:""}
+    <div class="card"><b>Venda paga por hora</b>${barras(p.porHora.slice(7,23),[...Array(16)].map((_,i)=>i+7+"h"))}</div>
+    <div class="card"><b>Forma de pagamento (pagos)</b>${tabelaSimples([{t:"Pagamento",l:1,f:r=>esc(r.nome)},{t:"Pedidos",f:r=>num(r.pedidos)},{t:"Valor",f:r=>mil(r.valor)},{t:"%",f:r=>fmtPct(p.vendido?r.valor/p.vendido:0)}],p.pagamentos)}</div>
+    <div class="card"><b>Por loja</b> <span class="sub">(pelo cadastro do vendedor no Universo)</span>${tabelaSimples([{t:"Loja",l:1,n:1,f:r=>esc(nomeLoja(r.cod))},{t:"Pedidos",f:r=>num(r.pedidos)},{t:"Vendido",f:r=>mil(r.venda)}],p.lojas)}${p.vendaSemLoja?`<div class="nota">${mil(p.vendaSemLoja)} de vendas sem vendedor (pelo site), fora dos regionais.</div>`:""}</div>
   </div>
-  <div class="card sec"><b>Vendedores</b>${tabelaSimples([{t:"#",f:(r,i)=>i+1},{t:"Vendedor",l:1,n:1,f:r=>esc(r.nome)},{t:"Loja",l:1,f:r=>r.loja?esc(nomeLoja(r.loja)):'<span class="sub">não identificada</span>'},{t:"Pedidos",f:r=>num(r.pedidos)},{t:"Vendido",f:r=>mil(r.venda)},{t:"Aguardando",f:r=>r.aguardando?mil(r.aguardando):"—"},{t:"Cancelados",f:r=>r.cancelados?`${r.cancelados} · ${mil(r.valorCancelado)}`:"—"},{t:"Clientes perdidos",f:r=>r.clientesPerdidos?`<b style="color:var(--bad)">${r.clientesPerdidos}</b>`:"—"}],p.vendedores.filter(v=>v.venda||v.aguardando||v.cancelados),{max:200})}</div>
-  <div class="card sec"><b>Produtos</b>${tabelaSimples([{t:"#",f:(r,i)=>i+1},{t:"Produto",l:1,n:1,f:r=>esc(r.nome)},{t:"SKU",f:r=>esc(r.sku)},{t:"Qtd",f:r=>num(r.qtd)},{t:"Valor",f:r=>mil(r.valor)}],p.produtos,{max:100})}</div>
-  <div class="nota">ZepSystem desde ${z.inicioPlataforma?z.inicioPlataforma.split("-").reverse().join("/"):"—"}. ${p.criterio==="confirmado"?"Venda = só pedido com pagamento confirmado (Em processo, Enviado, Entregue). \"Aguardando\" fica separado e só entra quando o pagamento confirmar. Por isso o número é menor que o \"Vendas realizadas\" do ZepSystem, que soma os aguardando e as tentativas repetidas.":"\"Vendas realizadas\" segue o ZepSystem: todos os pedidos não cancelados (inclui os aguardando)."}</div>`;
+  <div class="card sec"><b>Vendedores</b>${tabelaSimples([{t:"#",f:(r,i)=>i+1},{t:"Vendedor",l:1,n:1,f:r=>esc(r.nome)},{t:"Loja",l:1,f:r=>r.loja?esc(nomeLoja(r.loja)):'<span class="sub">não identificada</span>'},{t:"Pagos",f:r=>num(r.pedidos)},{t:"Vendido",f:r=>mil(r.venda)},{t:"Aguardando",f:r=>r.aguardando?mil(r.aguardando):"—"},{t:"Cancelados",f:r=>r.cancelados?`${r.cancelados} · ${mil(r.valorCancelado)}`:"—"},{t:"Clientes perdidos",f:r=>r.clientesPerdidos?`<b style="color:var(--bad)">${r.clientesPerdidos}</b>`:"—"}],p.vendedores.filter(v=>v.venda||v.aguardando||v.cancelados),{max:200})}</div>
+  <div class="card sec"><b>Produtos (pagos)</b>${tabelaSimples([{t:"#",f:(r,i)=>i+1},{t:"Produto",l:1,n:1,f:r=>esc(r.nome)},{t:"SKU",f:r=>esc(r.sku)},{t:"Qtd",f:r=>num(r.qtd)},{t:"Valor",f:r=>mil(r.valor)}],p.produtos,{max:100})}</div>`;
+  return `${kpis}${abas}${corpo}
+  <div class="nota">ZepSystem desde ${z.inicioPlataforma?z.inicioPlataforma.split("-").reverse().join("/"):"—"}. ${novo?"Venda = só pedido com pagamento \"Pago\" no ZepSystem. \"Aguardando pagamento\" fica separado e só entra quando pagar. Por isso o número é menor que o \"Vendas realizadas\" do ZepSystem, que soma os não pagos e as tentativas repetidas.":"\"Vendas realizadas\" segue o ZepSystem: todos os pedidos não cancelados (inclui os aguardando)."}</div>`;
 }
 function regZep(k){const R={};for(const l of D.zep?.periodos?.[k]?.lojas||[]){const g=regLoja(l.cod);if(/^R\d$/.test(g))R[g]=(R[g]||0)+l.venda}return R}
 function barrasReg(rows){
@@ -922,7 +934,7 @@ function render(){
 }
 
 // versão nova do painel publicada? recarrega sozinho (o navegador guarda a página antiga em cache por alguns minutos)
-const VERSAO="2026-11-24b";
+const VERSAO="2026-11-24c";
 async function confereVersao(){try{const h=await fetch(location.pathname+"?v="+Date.now(),{cache:"no-store"}).then(r=>r.text());const m=h.match(/const VERSAO="([^"]+)"/);if(m&&m[1]!==VERSAO)location.reload()}catch(e){}}
 setInterval(confereVersao,3*60*1000);setTimeout(confereVersao,5000);
 carrega();setInterval(carrega,20*1000); // sem dado novo o GitHub responde 304 (não conta no limite)setInterval(()=>D&&cabecalho(),60*1000);
