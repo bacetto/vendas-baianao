@@ -1,0 +1,69 @@
+name: Guardião dos horários
+
+# O agendamento (cron) do GitHub atrasa ou pula execuções em repositório público — às vezes por horas.
+# Este job fica vivo o tempo todo e chama as automações no horário certo (a regra de cada uma não muda):
+#   - Status da Central ........ a cada 5 min
+#   - Vigia do painel ........... 07:07 a 23:52, a cada 15 min (o vigia continua com as mesmas regras)
+#   - Análise de Vendas ......... 00:05 e 00:40 (reserva; a análise pula se já publicou no dia)
+#   - Coleta do painel .......... se não houver coleta rodando/na fila, religa (24h)
+# Ele e a Coleta se vigiam: se um cair, o outro religa. O cron abaixo é só a 3ª camada de segurança.
+# Não usa portal nem WhatsApp. Grupo de concorrência próprio. Repositório público = minutos grátis.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      sucessor:
+        description: "(uso interno)"
+        required: false
+        default: "0"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: guardiao
+  cancel-in-progress: false
+
+jobs:
+  guardiao:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 355
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Já tem guardião?
+        id: vez
+        run: |
+          N=$(gh run list -R "$REPO" -w guardiao.yml -L 20 --json databaseId,status --jq "[.[]|select(.databaseId != ${{ github.run_id }} and .status == \"in_progress\")]|length")
+          if [ "$N" != "0" ]; then echo "Guardião já está rodando — nada a fazer"; echo "seguir=0" >> "$GITHUB_OUTPUT"; else echo "seguir=1" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Vigiar horários (~5h40)
+        if: steps.vez.outputs.seguir == '1'
+        run: |
+          INICIO=$(date +%s)
+          chama() { gh workflow run "$1" -R "$REPO" --ref main "${@:2}" >/dev/null 2>&1 && echo "▶ $(TZ=America/Bahia date +%H:%M) $1"; }
+          ativos() { gh run list -R "$REPO" -w "$1" -L 10 --json status --jq '[.[]|select(.status=="in_progress" or .status=="queued" or .status=="pending" or .status=="waiting" or .status=="requested")]|length' 2>/dev/null || echo "?"; }
+          while [ $(( $(date +%s) - INICIO )) -lt 20400 ]; do
+            dia=$(TZ=America/Bahia date +%F); H=$((10#$(TZ=America/Bahia date +%H))); M=$((10#$(TZ=America/Bahia date +%M))); A=$((H*60+M))
+            mk() { local f="/tmp/m-$dia-$1"; [ -f "$f" ] && return 1; touch "$f"; }
+            # Central de Automações: status a cada 5 min
+            if [ $((M % 5)) -eq 0 ] && mk "st-$A"; then chama status.yml; fi
+            # Vigia do painel: 07:07..23:52 nos minutos 7/22/37/52
+            if [ "$A" -ge 427 ] && [ "$A" -le 1432 ] && [ $((M % 15)) -eq 7 ] && mk "vg-$A"; then chama vigia.yml; fi
+            # Análise de Vendas: 00:05 e 00:40 (janela de 10 min se o minuto exato passar)
+            if [ "$A" -ge 5 ] && [ "$A" -lt 15 ] && mk an1; then chama analise.yml -f agenda=1; fi
+            if [ "$A" -ge 40 ] && [ "$A" -lt 50 ] && mk an2; then chama analise.yml -f agenda=1; fi
+            # Coleta do painel: tem que existir sempre (ela mesma decide quando lê o portal)
+            if [ $((M % 2)) -eq 0 ] && mk "co-$A"; then
+              [ "$(ativos coleta.yml)" = "0" ] && { chama coleta.yml; echo "⚠️ coleta estava parada — religada"; }
+            fi
+            sleep 20
+          done
+          echo "✅ turno encerrado"
+
+      - name: Chamar o próximo turno
+        if: always() && steps.vez.outputs.seguir == '1'
+        run: gh workflow run guardiao.yml -R "$REPO" --ref main -f sucessor=1 && echo "▶ próximo turno chamado"

@@ -302,6 +302,10 @@ const A = [
     desc: "Análise completa do mês até ontem: pontos fracos e fortes, plano de ação com responsável e prazo, situação de cada regional, loja e vendedor, categorias e produtos.",
     quando: ["00:05 todo dia", "reserva 00:40"], regras: ["Só dias fechados: o dia de hoje não entra", "Roda quando as outras automações estão paradas (não disputa o portal nem o WhatsApp)", "Confere sozinha se a página abre antes de publicar", "Dados criptografados: só abre com a senha"],
     trava: "Se o portal não responder, usa a última leitura do painel; se falhar de novo às 00:40, avisa o Gabriel no WhatsApp.", link: "../analise/" },
+  { id: "guardiao", em: "⏰", nome: "Guardião dos horários", quem: "Interno · garante que tudo rode na hora",
+    desc: "O agendamento do GitHub atrasa ou pula execuções. O Guardião fica ligado 24h e chama no horário certo o status desta Central, o Vigia e a Análise de Vendas, e religa a coleta do painel se ela parar.",
+    quando: ["24h", "confere a cada 20 s"], regras: ["Não muda a regra de nenhuma automação: só garante o horário", "Ele e a coleta do painel se vigiam: se um cair, o outro religa", "Não usa o portal nem o WhatsApp"],
+    trava: "A coleta religa o Guardião em até 5 minutos (e o agendamento do GitHub é a 3ª camada)." },
   { id: "vigia", em: "🛡️", nome: "Vigia do painel", quem: "Avisa o Gabriel no WhatsApp",
     desc: "Confere a cada 15 minutos se o painel está recebendo dados novos. Se parou, religa e avisa.",
     quando: ["07h às 23h", "a cada 15 min"], regras: ["Dados com mais de 15 min = painel parado", "No máximo 1 aviso por hora", "Não atrapalha relatório que estiver saindo"],
@@ -370,6 +374,13 @@ function avaliar(runs, dadosISO, fotos, an) {
     } else if (ok) st.rel = { s: n < 6 * 60 + 40 ? "off" : "ok", txt: `${n < 6 * 60 + 40 ? "Começa às 06:50 · " : ""}Última rodada ok às ${horaBR(ok.updated_at)} (${ha(ok.updated_at)})` };
     else st.rel = { s: "warn", txt: "Sem rodadas recentes registradas" };
   }
+  // Guardião dos horários
+  {
+    const rs = por("guardiao.yml"), v = rs.filter((r) => r.status === "in_progress");
+    if (v.length) st.guardiao = { s: "ok", txt: `Ligado desde ${horaBR(v[v.length - 1].run_started_at || v[v.length - 1].created_at)}` };
+    else if (vivo(rs).length) st.guardiao = { s: "warn", txt: "Trocando de turno — volta em instantes" };
+    else st.guardiao = { s: "bad", txt: "Desligado — a coleta religa em até 5 min" };
+  }
   // Análise de Vendas (1x por dia, 00:05)
   if (an) {
     const fs = feitos(an), u = fs[0], hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
@@ -416,14 +427,14 @@ async function atualizar() {
     const r = await fetch(`${STATUS_URL}?t=${Math.floor(Date.now() / 60e3)}`, { cache: "no-store" });
     if (!r.ok) throw new Error("http " + r.status);
     const j = await r.json();
-    const runs = [...conv(j.coleta, "coleta.yml"), ...conv(j.vigia, "vigia.yml"), ...conv(j.robo_vivo, "robo-descontos.yml"), ...conv(j.robo_fila, "robo-descontos.yml"), ...conv(j.robo, "robo-descontos.yml"), ...conv(j.rel, "relatorios.yml")];
+    const runs = [...conv(j.coleta, "coleta.yml"), ...conv(j.vigia, "vigia.yml"), ...conv(j.robo_vivo, "robo-descontos.yml"), ...conv(j.robo_fila, "robo-descontos.yml"), ...conv(j.robo, "robo-descontos.yml"), ...conv(j.rel, "relatorios.yml"), ...conv(j.guardiao, "guardiao.yml")];
     const an = j.analise ? Object.assign(conv(j.analise, "analise.yml"), { dataISO: j.analise_dados || "" }) : null;
     ST = avaliar(runs, j.dados || null, conv(j.fotos, "publicar.yml"), an);
     gerado = j.gerado; ultima = Date.now();
     const idade = (Date.now() - new Date(gerado)) / 60e3;
     if (idade > 25) for (const k in ST) if (ST[k].s === "ok") ST[k] = { s: "warn", txt: `${ST[k].txt} · (leitura de ${horaBR(gerado)}, o status está atrasado)` };
   } catch (e) {
-    for (const k of ["rel", "robo", "painel", "vigia", "fotos", "analise"]) if (!ST[k] || ST[k].s === "load") ST[k] = { s: "load", txt: "Status ao vivo indisponível no momento — tenta de novo em instantes" };
+    for (const k of ["rel", "robo", "painel", "vigia", "fotos", "analise", "guardiao"]) if (!ST[k] || ST[k].s === "load") ST[k] = { s: "load", txt: "Status ao vivo indisponível no momento — tenta de novo em instantes" };
   }
   cards(); banner(); rodape();
 }

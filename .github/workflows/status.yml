@@ -43,6 +43,7 @@ jobs:
             echo "\"robo_fila\":$(lista "$REPO" robo-descontos.yml 5 queued),"
             echo "\"rel\":$(lista "$REPO" relatorios.yml 10),"
             echo "\"analise\":$(lista "$REPO" analise.yml 3),"
+            echo "\"guardiao\":$(lista "$REPO" guardiao.yml 5),"
             echo "\"analise_dados\":\"$(gh api "repos/$REPO/commits/analise" --jq .commit.committer.date 2>/dev/null || echo "")\","
             echo "\"fotos\":$(lista bacetto/fotos-baianao publicar.yml 3)"
             echo "}"

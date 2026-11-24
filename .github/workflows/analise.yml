@@ -10,6 +10,11 @@ on:
     - cron: "5 3 * * *"    # 00:05 de Salvador
     - cron: "40 3 * * *"   # 00:40 (reserva: só roda se a das 00:05 não publicou)
   workflow_dispatch:
+    inputs:
+      agenda:
+        description: "1 = chamada do Guardião (pula se já publicou hoje); vazio = gerar de novo agora"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -32,7 +37,7 @@ jobs:
         id: vez
         run: |
           [ -n "$SENHA" ] || { echo "Falta o secret PAINEL_SENHA"; exit 1; }
-          if [ "${{ github.event_name }}" = "schedule" ]; then
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event.inputs.agenda }}" = "1" ]; then
             ULT=$(gh api "repos/$REPO/commits/analise" --jq .commit.committer.date 2>/dev/null || echo "")
             if [ -n "$ULT" ] && [ "$(TZ=America/Bahia date -d "$ULT" +%F)" = "$(TZ=America/Bahia date +%F)" ]; then echo "Análise de hoje já publicada"; echo "seguir=0" >> "$GITHUB_OUTPUT"; exit 0; fi
           fi
@@ -75,9 +80,12 @@ jobs:
             && git add analise.enc && git commit -qm "análise $(TZ=America/Bahia date +%F)" \
             && git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${REPO}" analise && echo "✅ análise publicada"
 
-      - name: Falhou → avisar no WhatsApp (só na última tentativa da noite)
-        if: failure() && (github.event_name == 'workflow_dispatch' || github.event.schedule == '40 3 * * *')
+      - name: Falhou → avisar no WhatsApp (só na última tentativa da noite ou se rodou à mão)
+        if: failure()
         run: |
+          A=$((10#$(TZ=America/Bahia date +%H)*60 + 10#$(TZ=America/Bahia date +%M)))
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.agenda }}" != "1" ]; then :;   # rodada manual: avisa
+          elif [ "$A" -lt 35 ]; then echo "Ainda tem a reserva das 00:40 — sem aviso"; exit 0; fi
           OCUP=$(gh run list -R "$REPO" -w relatorios.yml -L 10 --json status --jq '[.[]|select(.status!="completed")]|length')
           [ "$OCUP" = "0" ] || { echo "Relatório em andamento; sem aviso"; exit 0; }
           gh workflow run relatorios.yml -R "$REPO" --ref main -f acao=alerta -f texto="⚠️ *Análise de Vendas* não atualizou hoje. Veja: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" && echo "aviso pedido"
