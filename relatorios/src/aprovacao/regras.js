@@ -209,9 +209,9 @@ export function textoAviso(item, regional, d, e, resultado, base) {
     out.push("", L, `*REGRAS DO ${regional}*`,
       linha(dc <= g.max + 1e-9, "Desconto", dc, `máx. ${num2(g.max)}%`),
       linha(mc >= g.min, "Margem", mc, `mín. ${num2(g.min)}%`),
-      linha(sc >= g.serv, "Serviços", sc, `mín. ${num2(g.serv)}%`),
+      linha(proj.servAtual >= g.serv, "Serviços", proj.servAtual, `mín. ${num2(g.serv)}%`),
       L,
-      `_Margem do ${regional} no dia (real do Universo). Serviços já contando este pedido (antes dele: ${pct(proj.servAtual)})_`);
+      `_Serviços do ${regional} no dia se este pedido for aprovado: ${pct(sc)}_`);
   } else {
     out.push("", `📝 ${d.motivo}`);
     if (regional && REGIONAIS.includes(regional) && !temRegras) out.push("", `👉 Pra o robô decidir o ${regional}, mande: *${regional} - M40 - D20 - S7*`);
