@@ -33,20 +33,14 @@ export function textoJanela(antes, agora, info, h) {
         vend: det ? Math.max(0, g.b - a.b) : null, devol: det ? Math.max(0, g.d - a.d) : null, ped: det ? Math.max(0, g.p - a.p) : null };
     })
     .filter((l) => l.liq < LIMITE_JANELA)
-    .sort((a, b) => a.reg.localeCompare(b.reg) || a.liq - b.liq);
+    .sort((a, b) => a.reg.localeCompare(b.reg) || (a.det ? a.vend : a.liq) - (b.det ? b.vend : b.liq));
   const cab = `📉 *Lojas abaixo de R$ 5 mil* — ${hh(h - 2)} às ${hh(h)}`;
   if (!ls.length) return `${cab}\n\n✅ Nenhuma loja abaixo de R$ 5 mil.`;
   const nome = (l) => `${String(l.n).padStart(2, "0")} · ${l.nome}`;
+  // formato simples: quanto a loja vendeu no período; se teve devolução, só informa o valor dela
   const linha = (l) => {
-    if (l.det) {
-      const tot = l.vend - l.devol, sTot = `${tot < 0 ? "-" : ""}${brl(Math.abs(tot))}`;
-      if (!l.ped && !l.vend) return `• ${nome(l)} — ❌ *não vendeu nada*${l.devol ? ` · devolução ${brl(l.devol)} = *${sTot}*` : ""}`;
-      if (l.devol) return `• ${nome(l)} — venda ${brl(l.vend)} (${qtd(l.ped)}) - devolução ${brl(l.devol)} = *${sTot}*`;
-      return `• ${nome(l)} — vendeu ${brl(l.vend)} (${qtd(l.ped)})`;
-    }
-    if (l.liq < 0) return `• ${nome(l)} — -${brl(-l.liq)} (devolução/cancelamento maior que a venda)`;
-    if (l.liq === 0) return `• ${nome(l)} — ❌ *não vendeu nada*`;
-    return `• ${nome(l)} — ${brl(l.liq)}`;
+    if (l.det) return `• ${nome(l)} — ${brl(l.vend)}${l.devol ? ` · devolução ${brl(l.devol)}` : ""}`;
+    return `• ${nome(l)} — ${l.liq < 0 ? "-" : ""}${brl(Math.abs(l.liq))}`;
   };
   const out = [cab];
   let r = null;

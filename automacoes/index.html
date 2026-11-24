@@ -293,7 +293,7 @@ const A = [
     trava: "Se o portal não responder, o Gabriel é avisado e ele tenta no próximo horário." },
   { id: "robo", em: "📉", nome: "Lojas abaixo de R$ 5 mil", quem: "Ednilson",
     desc: "De 2 em 2 horas, as lojas que venderam menos de R$ 5 mil nas últimas 2 horas, separadas por regional, com o número da loja.",
-    quando: ["11h", "13h", "15h", "17h", "19h", "21h"], regras: ["Compara a venda do dia da loja agora com a de 2h atrás", "Mostra se a loja vendeu (valor e nº de pedidos) ou \"não vendeu nada\"", "Se teve devolução: venda - devolução = total", "Só lojas dos regionais R1 a R4", "Se nenhuma ficou abaixo, avisa que está tudo ok"],
+    quando: ["11h", "13h", "15h", "17h", "19h", "21h"], regras: ["Compara a venda do dia da loja agora com a de 2h atrás", "Mostra quanto a loja vendeu no período", "Se teve devolução, informa o valor dela ao lado", "Só lojas dos regionais R1 a R4", "Se nenhuma ficou abaixo, avisa que está tudo ok"],
     trava: "Se faltar a leitura anterior, o Gabriel é avisado." },
   { id: "robo", em: "📞", nome: "Lojas com menos de 3 contatos com leads", quem: "Ednilson",
     desc: "De 3 em 3 horas, as lojas que fizeram menos de 3 contatos com leads nas últimas 3 horas (contato com o lead, não a venda), por regional.",
