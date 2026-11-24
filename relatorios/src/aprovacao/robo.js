@@ -209,8 +209,7 @@ async function ciclo() {
         const ps = it.products || [];
         b.venda += Number(it.finalValue) || 0;
         b.pacote += (it.services || []).reduce((a, x) => a + (Number(x.finalValue) || 0), 0);
-        if (typeof b.lucro === "number") b.lucro += ps.reduce((a, x) => a + (Number(x.profit) || 0), 0);
-        if (typeof b.custo === "number") b.custo += ps.reduce((a, x) => a + (Number(x.unitCost) || 0) * (Number(x.quantity) || 0), 0);
+        // margem: não soma o pedido (custo do pedido é outra base); fica a margem real do Universo até a próxima leitura
       }
       est.avisados[it.id] = Date.now();
       est.historico.push({ t: Date.now(), tipo: "APROVADO", pedido: it.orderNumber, reg, desc: it.discountPercentage });

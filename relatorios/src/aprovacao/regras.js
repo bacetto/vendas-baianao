@@ -155,17 +155,19 @@ export function decidir(item, regional, e, base) {
   if (!prods.length) return { acao: "MANUAL", motivo: "portal não trouxe os produtos do pedido" };
   const proj = projetar(item, base);
   if (!proj) return { acao: "ESPERAR", motivo: "sem os números do dia do regional" };
-  const margem = proj.margemCom, serv = proj.servCom;
+  // M = margem real do regional no dia (resumo do Universo), sem o pedido: o Universo não dá o custo do pedido
+  // na mesma base. S continua contando o pedido (conta exata).
+  const margem = proj.margemAtual, serv = proj.servCom;
   // fora da regra: NUNCA reprova — não faz nada no portal e avisa (o Ed decide)
   const fora = (motivo) => ({ acao: "MANUAL", motivo: `fora da regra: ${motivo}` });
   const falhas = [];
   if (desc > regra.max + 1e-9) falhas.push(`desconto ${pct(desc)} acima do D${num2(regra.max)}`);
   if (ok(serv) && serv < regra.serv) falhas.push(`serviços com o pedido ${pct(serv)} abaixo do S${num2(regra.serv)}`);
-  if (ok(margem) && margem < regra.min) falhas.push(`margem com o pedido ${pct(margem)} abaixo do M${num2(regra.min)}`);
+  if (ok(margem) && margem < regra.min) falhas.push(`margem do regional ${pct(margem)} abaixo do M${num2(regra.min)}`);
   if (falhas.length) return fora(falhas.join(" · "));
-  if (!ok(margem) || margem <= 0 || margem > 100) return { acao: "MANUAL", motivo: "o Universo não dá o custo do pedido na mesma base da margem do regional — não dá pra calcular a margem com o pedido" };
+  if (!ok(margem) || margem <= 0 || margem > 100) return { acao: "MANUAL", motivo: "não deu pra ler com segurança a margem do regional" };
   if (!ok(serv) || serv < 0 || serv > 100) return { acao: "MANUAL", motivo: "não deu pra calcular com segurança os serviços do regional com o pedido" };
-  return { acao: "APROVAR", motivo: `com o pedido: margem ${pct(margem)} ≥ M${num2(regra.min)} · desconto ${pct(desc)} ≤ D${num2(regra.max)} · serviços ${pct(serv)} ≥ S${num2(regra.serv)}` };
+  return { acao: "APROVAR", motivo: `margem do regional ${pct(margem)} ≥ M${num2(regra.min)} · desconto ${pct(desc)} ≤ D${num2(regra.max)} · serviços ${pct(serv)} ≥ S${num2(regra.serv)}` };
 }
 
 const brl = (n) => (typeof n === "number" ? n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—");
@@ -201,28 +203,22 @@ export function textoAviso(item, regional, d, e, resultado, base) {
     textoServicosVenda(item),
   ];
   const temRegras = [g.min, g.max, g.serv].every((n) => typeof n === "number");
-  const mc = proj?.margemCom, sc = proj?.servCom, dc = item.discountPercentage;
-  const n = (v) => typeof v === "number" && Number.isFinite(v);
-  if (temRegras && proj) {
-    const bloco = (nome, lim, agora, depois, okDepois) => [
-      `*${nome} do ${regional} hoje*  _(${lim})_`,
-      `Agora: *${pct(agora)}*`,
-      n(depois) ? `${okDepois ? "✅" : "❌"} Com o pedido: *${pct(depois)}*` : null, // sem cálculo exato: não mostra
-    ];
+  const mc = proj?.margemAtual, sc = proj?.servCom, dc = item.discountPercentage;
+  if (temRegras && typeof mc === "number" && typeof sc === "number") {
+    const linha = (ok, nome, valor, lim) => `${ok ? "✅" : "❌"} ${nome}: *${pct(valor)}*  _(${lim})_`;
     out.push("", L, `*REGRAS DO ${regional}*`,
-      `${dc <= g.max + 1e-9 ? "✅" : "❌"} *Desconto:* *${pct(dc)}*  _(máx. ${num2(g.max)}%)_`,
-      "",
-      ...bloco("Margem", `mín. ${num2(g.min)}%`, proj.margemAtual, mc, n(mc) && mc >= g.min),
-      "",
-      ...bloco("Serviços", `mín. ${num2(g.serv)}%`, proj.servAtual, sc, n(sc) && sc >= g.serv),
-      L);
+      linha(dc <= g.max + 1e-9, "Desconto", dc, `máx. ${num2(g.max)}%`),
+      linha(mc >= g.min, "Margem", mc, `mín. ${num2(g.min)}%`),
+      linha(sc >= g.serv, "Serviços", sc, `mín. ${num2(g.serv)}%`),
+      L,
+      `_Margem do ${regional} no dia (real do Universo). Serviços já contando este pedido (antes dele: ${pct(proj.servAtual)})_`);
   } else {
     out.push("", `📝 ${d.motivo}`);
     if (regional && REGIONAIS.includes(regional) && !temRegras) out.push("", `👉 Pra o robô decidir o ${regional}, mande: *${regional} - M40 - D20 - S7*`);
   }
   if (d.acao === "APROVAR" && resultado !== "ok") out.push("", `📝 ${d.motivo}`);
   // não aprovado por motivo que NÃO é regra (dado faltando etc.): mostra o motivo
-  else if (d.acao !== "APROVAR" && !foraRegra && temRegras && proj) out.push("", `⚠️ *Por que não aprovei:* ${d.motivo}`);
+  else if (d.acao !== "APROVAR" && !foraRegra && temRegras && typeof mc === "number" && typeof sc === "number") out.push("", `⚠️ *Por que não aprovei:* ${d.motivo}`);
   return out.filter((x) => x !== null).join("\n");
 }
 
