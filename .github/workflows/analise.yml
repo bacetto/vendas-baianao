@@ -1,0 +1,83 @@
+name: Análise diária
+
+# Gera a "Análise de Vendas" (analise/index.html): pontos fracos, fortes, plano de ação, regionais, lojas e vendedores.
+# Roda 1x por dia à meia-noite de Salvador, quando as lojas já fecharam e as outras automações estão paradas
+# (coleta do painel 07h–23h, relatórios até 22:38, robô de descontos 07h–23h) — não disputa o portal nem o WhatsApp.
+# Isolado: grupo de concorrência próprio, ramo próprio ("analise"), não mexe no painel, nos relatórios nem no robô.
+# Repositório público = minutos grátis. Dados sempre CRIPTOGRAFADOS (mesma senha do painel); o registro só mostra contagens.
+on:
+  schedule:
+    - cron: "5 3 * * *"    # 00:05 de Salvador
+    - cron: "40 3 * * *"   # 00:40 (reserva: só roda se a das 00:05 não publicou)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: analise
+  cancel-in-progress: false
+
+jobs:
+  analise:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      SENHA: ${{ secrets.PAINEL_SENHA }}
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Já gerou hoje?
+        id: vez
+        run: |
+          [ -n "$SENHA" ] || { echo "Falta o secret PAINEL_SENHA"; exit 1; }
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            ULT=$(gh api "repos/$REPO/commits/analise" --jq .commit.committer.date 2>/dev/null || echo "")
+            if [ -n "$ULT" ] && [ "$(TZ=America/Bahia date -d "$ULT" +%F)" = "$(TZ=America/Bahia date +%F)" ]; then echo "Análise de hoje já publicada"; echo "seguir=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          fi
+          echo "seguir=1" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.vez.outputs.seguir == '1'
+      - uses: actions/setup-node@v4
+        if: steps.vez.outputs.seguir == '1'
+        with: { node-version: 22 }
+      - if: steps.vez.outputs.seguir == '1'
+        run: npm install --no-audit --no-fund > /dev/null 2>&1
+
+      - name: Ler o portal (até 3 tentativas)
+        if: steps.vez.outputs.seguir == '1'
+        env:
+          PORTAL_CPF: ${{ secrets.PORTAL_CPF }}
+          PORTAL_SENHA: ${{ secrets.PORTAL_SENHA }}
+          ZEP_EMAIL: ${{ secrets.ZEP_EMAIL }}
+          ZEP_SENHA: ${{ secrets.ZEP_SENHA }}
+          LEVE: "0"
+        run: |
+          for t in 1 2 3; do
+            rm -rf saida
+            timeout 900 node painel/coletar.js 2>&1 | grep --line-buffered -E '^(✅|⚠️|❌)' | sed -u -E 's/^(.{160}).*/\1/'
+            [ -s saida/dados.json ] && exit 0
+            echo "⚠️ leitura do portal falhou (tentativa $t)"; sleep 60
+          done
+          echo "⚠️ portal não respondeu: vai usar a última leitura do painel"
+
+      - name: Gerar, conferir e publicar
+        if: steps.vez.outputs.seguir == '1'
+        run: |
+          set -e
+          [ -s saida/dados.json ] || node analise/abrir.mjs saida/dados.json
+          node analise/gerar.mjs saida/dados.json saida/raw.json saida/analise.json
+          node analise/verificar.mjs saida/analise.json
+          rm -rf pub && mkdir pub && node painel/cifrar.js saida/analise.json pub/analise.enc
+          cd pub && git init -q -b analise && git config user.name "bacetto" && git config user.email "bacetto@users.noreply.github.com" \
+            && git add analise.enc && git commit -qm "análise $(TZ=America/Bahia date +%F)" \
+            && git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${REPO}" analise && echo "✅ análise publicada"
+
+      - name: Falhou → avisar no WhatsApp (só na última tentativa da noite)
+        if: failure() && (github.event_name == 'workflow_dispatch' || github.event.schedule == '40 3 * * *')
+        run: |
+          OCUP=$(gh run list -R "$REPO" -w relatorios.yml -L 10 --json status --jq '[.[]|select(.status!="completed")]|length')
+          [ "$OCUP" = "0" ] || { echo "Relatório em andamento; sem aviso"; exit 0; }
+          gh workflow run relatorios.yml -R "$REPO" --ref main -f acao=alerta -f texto="⚠️ *Análise de Vendas* não atualizou hoje. Veja: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" && echo "aviso pedido"

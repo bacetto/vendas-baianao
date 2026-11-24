@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="dados" content="https://raw.githubusercontent.com/bacetto/vendas-baianao/analise/analise.enc">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Análise de Vendas · Baianão</title>
+<style>
+:root{--bg:#f3f4f8;--card:#fff;--ink:#12172b;--mut:#687087;--line:#e3e6ee;--navy:#14246b;--navy2:#1d3290;--red:#e02b2b;--ok:#0e9f6e;--okbg:#e6f6ef;--perto:#b98900;--pertobg:#fdf5dc;--at:#e0700b;--atbg:#fdeedd;--bad:#d63b3b;--badbg:#fbe7e7;--soft:#eef0f7}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
+header{background:var(--navy);color:#fff;padding:14px 20px 0;position:sticky;top:0;z-index:5;box-shadow:0 2px 8px #0002}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;max-width:1280px;margin:0 auto}
+.logo{width:38px;height:38px;border-radius:10px;background:var(--red);display:grid;place-items:center;font-weight:900;font-size:20px;color:#fff;flex:none}
+h1{font-size:18px;margin:0}
+.hsub{font-size:12.5px;opacity:.8}
+.tabs{display:flex;gap:2px;max-width:1280px;margin:12px auto 0;overflow-x:auto;scrollbar-width:none}
+.tabs button{background:none;border:0;color:#c9d0f0;font:inherit;font-weight:600;padding:10px 14px;border-radius:8px 8px 0 0;cursor:pointer;white-space:nowrap}
+.tabs button.on{background:var(--bg);color:var(--navy)}
+main{max-width:1280px;margin:0 auto;padding:18px 20px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:14px}
+h2{font-size:16px;margin:0 0 12px}
+h3{font-size:14px;margin:0 0 8px}
+.sub{color:var(--mut);font-size:12.5px}
+.grid{display:grid;gap:12px}
+.k4{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.k2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.kpi b{display:block;font-size:22px;margin:2px 0}
+.kpi .sub{display:block}
+.res{font-size:15px;line-height:1.6}
+.res p{margin:0 0 6px}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap}
+.s-ok{background:var(--okbg);color:var(--ok)}.s-perto{background:var(--pertobg);color:var(--perto)}.s-atencao{background:var(--atbg);color:var(--at)}.s-critica{background:var(--badbg);color:var(--bad)}
+.c-ok{color:var(--ok)}.c-perto{color:var(--perto)}.c-atencao{color:var(--at)}.c-critica{color:var(--bad)}
+.item{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.item:first-of-type{border-top:0}
+.dot{width:10px;height:10px;border-radius:50%;margin-top:5px;flex:none}
+.d-alto{background:var(--bad)}.d-medio{background:var(--at)}.d-baixo{background:var(--perto)}.d-bom{background:var(--ok)}
+.item b{display:block}
+.semaf{display:flex;height:14px;border-radius:99px;overflow:hidden;margin:8px 0 6px}
+.semaf div{height:100%}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--mut)}
+.leg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--mut);font-weight:600;font-size:12px;padding:8px 8px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}
+td{padding:8px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+td.n,th.n{text-align:right;white-space:nowrap}
+tr.cl{cursor:pointer}tr.cl:hover td{background:#f7f8fc}
+.tw{overflow-x:auto}
+.bar{height:8px;background:var(--soft);border-radius:99px;overflow:hidden;min-width:70px}
+.bar div{height:100%;border-radius:99px}
+.filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.filtros button,select,input{font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 11px;cursor:pointer}
+.filtros button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+input{cursor:text}
+.reg{border-left:5px solid var(--navy)}
+.reghead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.big{font-size:28px;font-weight:800}
+.mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:12px 0}
+.mini div{background:var(--soft);border-radius:10px;padding:8px 10px}
+.mini b{display:block;font-size:15px}
+.tag{display:inline-block;background:var(--soft);border-radius:6px;padding:2px 8px;margin:2px 4px 2px 0;font-size:12.5px}
+.plano td:first-child{width:34px}
+.prio{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;font-size:13px}
+.p1{background:var(--bad)}.p2{background:var(--at)}.p3{background:var(--navy2)}
+.det{background:#fafbfe}
+.det td{padding:12px 14px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.up{color:var(--ok);font-weight:600}.down{color:var(--bad);font-weight:600}
+.chart svg{width:100%;height:auto;display:block}
+.help{background:#eef3ff;border:1px solid #d6e0ff;border-radius:12px;padding:10px 14px;font-size:13px;color:#2a3a78;margin-bottom:14px}
+.lock{max-width:380px;margin:80px auto;text-align:center}
+.lock input{width:100%;margin:12px 0 10px;padding:10px}
+.lock button{width:100%;padding:10px;border:0;border-radius:8px;background:var(--navy);color:#fff;font:inherit;font-weight:700;cursor:pointer}
+@media print{header{position:static}.tabs,.filtros{display:none}body{background:#fff}}
+@media(max-width:640px){main{padding:12px}.kpi b{font-size:19px}.big{font-size:23px}}
+</style>
+</head>
+<body>
+<div id="app"><div class="card lock">Carregando…</div></div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const brl=v=>"R$ "+Math.round(v||0).toLocaleString("pt-BR");
+const mil=v=>{const a=Math.abs(v||0),s=v<0?"-":"";return s+(a>=1e6?"R$ "+(a/1e6).toLocaleString("pt-BR",{maximumFractionDigits:2})+" mi":a>=1e3?"R$ "+(a/1e3).toLocaleString("pt-BR",{maximumFractionDigits:0})+" mil":brl(a))};
+const pc=(v,d=0)=>v==null?"—":((v||0)*100).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d})+"%";
+const num=(v,d=0)=>(v||0).toLocaleString("pt-BR",{maximumFractionDigits:d});
+const STATUS={ok:"No ritmo",perto:"Perto",atencao:"Atenção",critica:"Crítica"};
+const COR={ok:"var(--ok)",perto:"var(--perto)",atencao:"var(--at)",critica:"var(--bad)"};
+const stPct=p=>p>=1?"ok":p>=.9?"perto":p>=.8?"atencao":"critica";
+const pill=s=>`<span class="pill s-${s}">${STATUS[s]}</span>`;
+const cresc=c=>c==null?"<span class='sub'>—</span>":`<span class="${c>=0?"up":"down"}">${c>=0?"▲ +":"▼ "}${pc(c,1)}</span>`;
+const barra=p=>`<div class="bar"><div style="width:${Math.min(100,Math.max(2,(p||0)*100))}%;background:${COR[stPct(p)]}"></div></div>`;
+let A=null,S={aba:"geral",reg:"",st:"",q:"",sort:{},aberta:""};
+try{const x=JSON.parse(localStorage.getItem("analise-baianao")||"{}");if(x.aba)S.aba=x.aba}catch(e){}
+const salva=()=>{try{localStorage.setItem("analise-baianao",JSON.stringify({aba:S.aba}))}catch(e){}};
+const loja=c=>A.lojas.find(l=>l.cod===c);
+
+/* ---------- acesso (mesma senha do painel de vendas) ---------- */
+const URL_DADOS=(document.querySelector('meta[name="dados"]')||{}).content||"";
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function abre(enc,senha){
+  const k0=await crypto.subtle.importKey("raw",new TextEncoder().encode(senha),"PBKDF2",false,["deriveKey"]);
+  const k=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(enc.salt),iterations:enc.iter,hash:"SHA-256"},k0,{name:"AES-GCM",length:256},false,["decrypt"]);
+  const zip=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(enc.iv)},k,b64(enc.dados));
+  return JSON.parse(await new Response(new Blob([zip]).stream().pipeThrough(new DecompressionStream("gzip"))).text());
+}
+function pedeSenha(enc,erro){
+  $("#app").innerHTML=`<div class="card lock"><div class="logo" style="margin:0 auto 12px">B</div><b style="font-size:17px">Análise de Vendas</b><p class="sub">Acesso restrito. Use a mesma senha do painel de vendas.</p>
+  <form id="fS"><input type="password" id="iS" placeholder="Senha" autofocus><button>Entrar</button></form><p class="down" style="min-height:18px">${erro?"Senha incorreta.":""}</p></div>`;
+  $("#fS").onsubmit=async e=>{e.preventDefault();const s=$("#iS").value;try{A=await abre(enc,s);try{localStorage.setItem("painel-baianao-s",s)}catch(x){}render()}catch(x){pedeSenha(enc,true)}};
+}
+async function carrega(){
+  if(window.__ANALISE__){A=window.__ANALISE__;render();return}
+  try{const r=await fetch(URL_DADOS+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const enc=await r.json();let s="";try{s=localStorage.getItem("painel-baianao-s")||""}catch(x){}
+    if(s){try{A=await abre(enc,s);render();return}catch(x){}}pedeSenha(enc)}
+  catch(e){$("#app").innerHTML='<div class="card lock">A primeira análise ainda está sendo gerada. Volte em alguns minutos.</div>'}
+}
+
+/* ---------- moldura ---------- */
+const ABAS=[["geral","Visão geral"],["plano","Plano de ação"],["regionais","Regionais"],["lojas","Lojas"],["vendedores","Vendedores"],["produtos","Produtos e categorias"]];
+function render(){
+  const b=A.base,dt=s=>s.slice(8,10)+"/"+s.slice(5,7);
+  const ger=new Date(A.geradoEm).toLocaleString("pt-BR",{timeZone:"America/Bahia",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+  $("#app").innerHTML=`<header><div class="top"><div class="logo">B</div><div style="flex:1;min-width:200px"><h1>Análise de Vendas · ${esc(b.mes[0].toUpperCase()+b.mes.slice(1))}</h1>
+  <div class="hsub">${b.fechado?"Mês fechado":`Dias fechados: ${dt(b.inicio)} a ${dt(b.fim)} (${b.diasPassados} de ${b.diasMes} dias)`} · atualizada ${ger} · todo dia à meia-noite</div></div></div>
+  <div class="tabs">${ABAS.map(([k,t])=>`<button data-a="${k}" class="${S.aba===k?"on":""}">${t}</button>`).join("")}</div></header><main id="m"></main>`;
+  document.querySelectorAll(".tabs button").forEach(x=>x.onclick=()=>{S.aba=x.dataset.a;salva();render();scrollTo(0,0)});
+  ({geral,plano,regionais,lojas,vendedores,produtos})[S.aba]();
+}
+
+/* ---------- visão geral ---------- */
+function geral(){
+  const r=A.rede,b=A.base,st=r.status,t=st.ok+st.perto+st.atencao+st.critica||1;
+  $("#m").innerHTML=`
+  <div class="help">Como ler: <b>verde</b> = no ritmo da meta · <b style="color:var(--perto)">amarelo</b> = perto (90–99%) · <b style="color:var(--at)">laranja</b> = atenção (80–89%) · <b style="color:var(--bad)">vermelho</b> = crítico (abaixo de 80%). O dia de hoje não entra: só dias fechados.</div>
+  <div class="card res"><h2>Resumo</h2>${A.resumo.map(p=>`<p>${esc(p)}</p>`).join("")}</div>
+  <div class="grid k4" style="margin-bottom:14px">
+    ${kpi("Venda",mil(r.venda),`meta ${mil(r.meta)}`)}
+    ${kpi("% da meta",`<span class="c-${stPct(r.pct)}">${pc(r.pct)}</span>`,r.falta>0?`faltam ${mil(r.falta)}`:"meta em dia")}
+    ${b.fechado?"":kpi("Projeção do mês",`<span class="c-${stPct(r.projPct)}">${pc(r.projPct)}</span>`,`${mil(r.projetado)} de ${mil(r.metaMes)}`)}
+    ${b.fechado?"":kpi("Precisa por dia",mil(r.precisaDia),`hoje faz ${mil(r.mediaDia)}/dia`)}
+    ${r.cresc!=null?kpi("Vs mês passado",cresc(r.cresc),`mesmos ${b.diasPassados} dias: ${mil(r.anterior)}`):""}
+    ${kpi("Margem",pc(r.margem,1),`lucro ${mil(r.lucro)}`)}
+    ${kpi("Serviços",pc(r.servPct,1),`garantia ${mil(r.garantia)} · pacote ${mil(r.pacote)}`)}
+    ${kpi("Ticket médio",brl(r.ticket),`${num(r.pedidos)} vendas · ${num(r.pa,2)} itens/venda`)}
+    ${r.leads?kpi("Leads",pc(r.leads.taxa,1)+" convertidos",`${num(r.leads.convertidos)} de ${num(r.leads.contatos)} contatos`):""}
+    ${r.eletro?kpi("Baianão Eletro",mil(r.eletro.venda),`${num(r.eletro.pedidos)} pedidos${A.rede.eletroCancel!=null?` · ${pc(A.rede.eletroCancel)} cancelados`:""}`):""}
+  </div>
+  <div class="card"><h2>Situação das ${r.nLojas} lojas</h2>
+    <div class="semaf">${["ok","perto","atencao","critica"].map(k=>`<div style="width:${st[k]/t*100}%;background:${COR[k]}" title="${STATUS[k]}: ${st[k]}"></div>`).join("")}</div>
+    <div class="leg">${["ok","perto","atencao","critica"].map(k=>`<span><i style="background:${COR[k]}"></i>${STATUS[k]}: <b>${st[k]}</b></span>`).join("")}</div>
+    <div class="grid k4" style="margin-top:14px">${A.regionais.map(g=>`<div class="kpi" style="cursor:pointer" data-r="${g.reg}"><span class="sub">${g.reg} · ${esc(g.lider)}</span><b class="c-${stPct(g.pct)}">${pc(g.pct)}</b>${barra(g.pct)}<span class="sub" style="margin-top:6px">${mil(g.venda)} · ${g.status.critica} crítica(s)</span></div>`).join("")}</div>
+  </div>
+  <div class="grid k2">
+    <div class="card"><h2>🔴 Pontos fracos — onde melhorar</h2>${A.fracos.length?A.fracos.map(f=>`<div class="item"><span class="dot d-${f.nivel}"></span><div><b>${esc(f.titulo)}</b><span class="sub">${esc(f.txt)}</span></div></div>`).join(""):"<p class='sub'>Nenhum ponto fraco relevante.</p>"}</div>
+    <div class="card"><h2>🟢 Pontos fortes — onde incentivar</h2>${A.fortes.length?A.fortes.map(f=>`<div class="item"><span class="dot d-bom"></span><div><b>${esc(f.titulo)}</b><span class="sub">${esc(f.txt)}</span></div></div>`).join(""):"<p class='sub'>—</p>"}</div>
+  </div>
+  <div class="card chart"><h2>Venda dia a dia x meta do dia</h2>${grafDias()}</div>
+  ${A.semana.length?`<div class="card"><h2>Desempenho por dia da semana</h2><div class="tw"><table><tr><th>Dia</th><th class="n">Dias no mês</th><th class="n">Venda média</th><th class="n">% da meta</th><th></th></tr>
+    ${A.semana.map(s=>`<tr><td>${s.nome}</td><td class="n">${s.dias}</td><td class="n">${mil(s.media)}</td><td class="n c-${s.pct==null?"ok":stPct(s.pct)}">${pc(s.pct)}</td><td>${s.pct==null?"":barra(s.pct)}</td></tr>`).join("")}</table></div></div>`:""}`;
+  document.querySelectorAll("[data-r]").forEach(x=>x.onclick=()=>{S.aba="lojas";S.reg=x.dataset.r;S.st="";render()});
+}
+const kpi=(t,v,s)=>`<div class="kpi"><span class="sub">${t}</span><b>${v}</b><span class="sub">${s||""}</span></div>`;
+function grafDias(){
+  const d=A.dias;if(!d.length)return"<p class='sub'>Sem dias fechados ainda.</p>";
+  const W=900,H=220,pl=46,pb=24,mx=Math.max(...d.map(x=>Math.max(x.venda,x.meta)))*1.1||1,bw=(W-pl)/d.length;
+  const y=v=>H-pb-(v/mx)*(H-pb-10),DS=["D","S","T","Q","Q","S","S"];
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  for(let i=0;i<=4;i++){const v=mx*i/4;s+=`<line x1="${pl}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="#e3e6ee"/><text x="${pl-6}" y="${y(v)+4}" font-size="11" text-anchor="end" fill="#687087">${v>=1e6?(v/1e6).toFixed(1)+"mi":Math.round(v/1e3)+"k"}</text>`}
+  d.forEach((x,i)=>{const p=x.meta?x.venda/x.meta:1,c=x.meta?COR[stPct(p)]:"#14246b",X=pl+i*bw+bw*.15;
+    s+=`<rect x="${X}" y="${y(x.venda)}" width="${bw*.7}" height="${Math.max(0,H-pb-y(x.venda))}" rx="3" fill="${c}"><title>Dia ${x.d}: ${mil(x.venda)}${x.meta?` · meta ${mil(x.meta)} (${pc(p)})`:""}</title></rect>`;
+    if(x.meta)s+=`<line x1="${X-2}" x2="${X+bw*.7+2}" y1="${y(x.meta)}" y2="${y(x.meta)}" stroke="#12172b" stroke-width="2"/>`;
+    s+=`<text x="${X+bw*.35}" y="${H-8}" font-size="10" text-anchor="middle" fill="${x.w===0?"#d63b3b":"#687087"}">${x.d}${DS[x.w]}</text>`});
+  return s+`</svg><div class="leg" style="margin-top:6px"><span><i style="background:var(--ok)"></i>bateu a meta do dia</span><span><i style="background:var(--bad)"></i>abaixo</span><span>— traço preto = meta do dia</span></div>`;
+}
+
+/* ---------- plano de ação ---------- */
+function plano(){
+  $("#m").innerHTML=`<div class="help">Ações geradas automaticamente a partir dos números de ontem, em ordem de prioridade: <b style="color:var(--bad)">1 = urgente</b>, <b style="color:var(--at)">2 = importante</b>, <b style="color:var(--navy2)">3 = melhoria</b>.</div>
+  <div class="card"><h2>Plano de ação</h2><div class="tw"><table class="plano"><tr><th></th><th>O que fazer</th><th>Onde</th><th>Quem</th><th>Como</th><th>Indicador</th><th>Prazo</th></tr>
+  ${A.plano.map(p=>`<tr><td><div class="prio p${p.prioridade}">${p.prioridade}</div></td><td><b>${esc(p.oque)}</b><div class="sub">${esc(p.area)}</div></td><td>${p.onde.map(o=>`<span class="tag">${esc(o)}</span>`).join("")}</td><td>${esc(p.quem)}</td><td>${esc(p.como)}</td><td>${esc(p.indicador)}</td><td style="white-space:nowrap">${esc(p.prazo)}</td></tr>`).join("")}</table></div></div>
+  <div class="card"><h2>O que cada regional precisa atacar</h2><div class="cols">${A.regionais.map(g=>`<div><h3>${g.reg} · ${esc(g.lider)} <span class="sub">(${pc(g.pct)})</span></h3>${g.fracos.length?g.fracos.slice(0,5).map(f=>`<div class="item"><span class="dot d-medio"></span><div><b>${esc(f.titulo)}</b><span class="sub">${f.lojas.map(c=>esc(loja(c)?.nome||c)).join(", ")}</span></div></div>`).join(""):"<p class='sub'>Sem pontos fracos relevantes.</p>"}</div>`).join("")}</div></div>`;
+}
+
+/* ---------- regionais ---------- */
+function regionais(){
+  $("#m").innerHTML=A.regionais.map(g=>{const ls=A.lojas.filter(l=>l.reg===g.reg);return`<div class="card reg" style="border-left-color:${COR[stPct(g.pct)]}">
+    <div class="reghead"><div><h2 style="margin:0">${g.reg} · ${esc(g.lider)}</h2><span class="sub">${g.nLojas} lojas</span></div><div style="text-align:right"><div class="big c-${stPct(g.pct)}">${pc(g.pct)}</div><span class="sub">da meta até ontem</span></div></div>
+    <div class="mini"><div><span class="sub">Venda</span><b>${mil(g.venda)}</b></div><div><span class="sub">Falta</span><b>${mil(g.falta)}</b></div>
+    ${A.base.fechado?"":`<div><span class="sub">Projeção</span><b class="c-${stPct(g.projPct)}">${pc(g.projPct)}</b></div><div><span class="sub">Precisa/dia</span><b>${mil(g.precisaDia)}</b></div>`}
+    <div><span class="sub">Vs mês passado</span><b>${cresc(g.cresc)}</b></div><div><span class="sub">Margem</span><b>${pc(g.margem,1)}</b></div><div><span class="sub">Serviços</span><b>${pc(g.servPct,1)}</b></div><div><span class="sub">Ticket</span><b>${brl(g.ticket)}</b></div>
+    ${g.leads?`<div><span class="sub">Leads convertidos</span><b>${pc(g.leads.taxa,1)}</b></div>`:""}${g.eletro?`<div><span class="sub">Baianão Eletro</span><b>${mil(g.eletro.venda)}</b></div>`:""}</div>
+    <div class="leg" style="margin-bottom:10px">${["ok","perto","atencao","critica"].map(k=>`<span><i style="background:${COR[k]}"></i>${STATUS[k]}: <b>${g.status[k]}</b></span>`).join("")}</div>
+    <div class="cols"><div><h3>🟢 Melhores lojas</h3>${g.melhores.map(c=>{const l=loja(c);return l?`<div class="item"><div style="flex:1"><b>${esc(l.nome)}</b>${barra(l.pct)}</div><b class="c-${stPct(l.pct)}">${pc(l.pct)}</b></div>`:""}).join("")}</div>
+    <div><h3>🔴 Lojas que precisam de ajuda</h3>${g.piores.map(c=>{const l=loja(c);return l?`<div class="item"><div style="flex:1"><b>${esc(l.nome)}</b><span class="sub">${esc(l.fracos.slice(0,2).map(f=>f.titulo).join(" · ")||"—")}</span></div><b class="c-${stPct(l.pct)}">${pc(l.pct)}</b></div>`:""}).join("")}</div>
+    <div><h3>⚠️ Problemas mais comuns</h3>${g.fracos.slice(0,4).map(f=>`<div class="item"><div><b>${esc(f.titulo)}</b><span class="sub">${f.lojas.length} loja(s)</span></div></div>`).join("")||"<p class='sub'>—</p>"}</div></div>
+    <p style="margin:12px 0 0"><button class="vr" data-r="${g.reg}" style="font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;cursor:pointer">Ver as ${ls.length} lojas da ${g.reg} →</button></p></div>`}).join("");
+  document.querySelectorAll(".vr").forEach(x=>x.onclick=()=>{S.aba="lojas";S.reg=x.dataset.r;S.st="";render();scrollTo(0,0)});
+}
+
+/* ---------- lojas ---------- */
+function ordena(lista,chave,padrao){const o=S.sort[chave]||padrao;if(!o)return lista;const [k,dir]=o;return [...lista].sort((a,b)=>{const x=k.split(".").reduce((v,p)=>v?.[p],a),y=k.split(".").reduce((v,p)=>v?.[p],b);return (x==null?-1e18:typeof x==="string"?0:x)-(y==null?-1e18:typeof y==="string"?0:y)||String(x).localeCompare(String(y))}).map((v,i,arr)=>arr[dir<0?arr.length-1-i:i])}
+function lojas(){
+  let ls=A.lojas.filter(l=>(!S.reg||l.reg===S.reg)&&(!S.st||l.status===S.st)&&(!S.q||l.nome.toLowerCase().includes(S.q.toLowerCase())));
+  ls=ordena(ls,"lojas",null);
+  const col=[["nome","Loja"],["reg","Reg."],["pct","% meta"],["venda","Venda"],["falta","Falta"],...(A.base.fechado?[]:[["precisaDia","Precisa/dia"]]),["cresc","Vs mês ant."],["margem","Margem"],["servPct","Serviços"],["ticket","Ticket"],["leads.taxa","Leads"],["status","Situação"]];
+  $("#m").innerHTML=`<div class="filtros">
+    ${["","R1","R2","R3","R4"].map(r=>`<button data-f="${r}" class="${S.reg===r?"on":""}">${r||"Todas"}</button>`).join("")}
+    <select id="fs"><option value="">Todas as situações</option>${Object.entries(STATUS).map(([k,t])=>`<option value="${k}" ${S.st===k?"selected":""}>${t}</option>`).join("")}</select>
+    <input id="fq" placeholder="Buscar loja" value="${esc(S.q)}"></div>
+  <div class="help">Clique numa loja pra ver o diagnóstico: o que está fraco, o que está bom e o que fazer. Clique no título da coluna pra ordenar.</div>
+  <div class="card tw"><table><tr>${col.map(([k,t])=>`<th data-s="${k}" class="${k==="nome"||k==="reg"||k==="status"?"":"n"}">${t}</th>`).join("")}</tr>
+  ${ls.map(l=>`<tr class="cl" data-l="${l.cod}"><td><b>${esc(l.nome)}</b></td><td>${l.reg}</td><td class="n"><b class="c-${stPct(l.pct)}">${pc(l.pct)}</b>${barra(l.pct)}</td><td class="n">${mil(l.venda)}</td><td class="n">${l.falta>0?mil(l.falta):"—"}</td>${A.base.fechado?"":`<td class="n">${l.precisaDia>l.mediaDia*1.02?`<span class="down">${mil(l.precisaDia)}</span>`:mil(l.precisaDia)}</td>`}<td class="n">${cresc(l.cresc)}</td><td class="n">${pc(l.margem,1)}</td><td class="n">${pc(l.servPct,1)}</td><td class="n">${brl(l.ticket)}</td><td class="n">${l.leads?pc(l.leads.taxa,1):"—"}</td><td>${pill(l.status)}</td></tr>
+  ${S.aberta===l.cod?`<tr class="det"><td colspan="${col.length}">${detLoja(l)}</td></tr>`:""}`).join("")}</table>${ls.length?"":"<p class='sub'>Nenhuma loja com esse filtro.</p>"}</div>`;
+  document.querySelectorAll("[data-f]").forEach(x=>x.onclick=()=>{S.reg=x.dataset.f;lojas()});
+  $("#fs").onchange=e=>{S.st=e.target.value;lojas()};
+  $("#fq").oninput=e=>{S.q=e.target.value;const p=e.target.selectionStart;lojas();const i=$("#fq");i.focus();i.setSelectionRange(p,p)};
+  document.querySelectorAll("tr.cl").forEach(x=>x.onclick=()=>{S.aberta=S.aberta===x.dataset.l?"":x.dataset.l;lojas()});
+  document.querySelectorAll("th[data-s]").forEach(x=>x.onclick=()=>{const k=x.dataset.s,o=S.sort.lojas;S.sort.lojas=[k,o&&o[0]===k?-o[1]:(k==="nome"||k==="reg"?1:-1)];if(k==="status")S.sort.lojas=null;lojas()});
+}
+function detLoja(l){
+  return `<div class="mini"><div><span class="sub">Meta até ontem</span><b>${mil(l.meta)}</b></div><div><span class="sub">Meta do mês</span><b>${mil(l.metaMes)}</b></div>${A.base.fechado?"":`<div><span class="sub">Precisa/dia</span><b>${mil(l.precisaDia)}</b></div>`}<div><span class="sub">Faz por dia</span><b>${mil(l.mediaDia)}</b></div><div><span class="sub">Vendas</span><b>${num(l.pedidos)}</b></div><div><span class="sub">Itens/venda</span><b>${num(l.pa,2)}</b></div><div><span class="sub">Devolução</span><b>${pc(l.devolPct,1)}</b></div><div><span class="sub">Vendedores</span><b>${l.nVend}</b></div>${l.eletro?`<div><span class="sub">Baianão Eletro</span><b>${mil(l.eletro.venda)}</b></div>`:""}${l.leads?`<div><span class="sub">Leads</span><b>${num(l.leads.convertidos)}/${num(l.leads.contatos)}</b></div>`:""}</div>
+  <div class="cols"><div><h3>🔴 Pontos fracos</h3>${l.fracos.length?l.fracos.map(f=>`<div class="item"><span class="dot d-medio"></span><div><b>${esc(f.titulo)}</b><span class="sub">${esc(f.txt)}</span></div></div>`).join(""):"<p class='sub'>Nenhum ponto fraco relevante.</p>"}</div>
+  <div><h3>🟢 Pontos fortes</h3>${l.fortes.length?l.fortes.map(f=>`<div class="item"><span class="dot d-bom"></span><div>${esc(f.txt)}</div></div>`).join(""):"<p class='sub'>—</p>"}${l.topVend?`<p class="sub" style="margin-top:8px">Melhor vendedor: <b>${esc(l.topVend.nome)}</b> (${mil(l.topVend.venda)}, ${pc(l.topVend.share)} da loja)</p>`:""}</div>
+  <div><h3>✅ O que fazer</h3>${l.acoes.length?l.acoes.map((a,i)=>`<div class="item"><div class="prio p${i?2:1}" style="width:22px;height:22px;font-size:12px">${i+1}</div><div>${esc(a)}</div></div>`).join(""):"<p class='sub'>Manter o ritmo e reconhecer a equipe.</p>"}<p class="sub">Responsável: ${esc(l.lider)} (líder ${l.reg}) com o gerente da loja.</p></div></div>`;
+}
+
+/* ---------- vendedores ---------- */
+function vendedores(){
+  const V=A.vendedores,f=v=>!S.reg||v.reg===S.reg;
+  const tab=(lista,extra)=>`<div class="tw"><table><tr><th class="n">#</th><th>Vendedor</th><th>Loja</th><th class="n">Venda</th><th class="n">Vendas</th><th class="n">Ticket</th><th class="n">Itens/venda</th>${extra?`<th class="n">Mediana da loja</th><th>Ponto a trabalhar</th>`:""}</tr>
+  ${lista.map(v=>`<tr><td class="n">${v.rank}</td><td><b>${esc(v.nome)}</b></td><td>${esc(v.lojaNome)} <span class="sub">${v.reg}</span></td><td class="n">${mil(v.venda)}</td><td class="n">${num(v.pedidos)}</td><td class="n">${brl(v.ticket)}</td><td class="n">${num(v.pa,2)}</td>${extra?`<td class="n">${mil(v.medLoja)}</td><td>${esc(v.motivo)}</td>`:""}</tr>`).join("")}</table></div>`;
+  $("#m").innerHTML=`<div class="filtros">${["","R1","R2","R3","R4"].map(r=>`<button data-f="${r}" class="${S.reg===r?"on":""}">${r||"Rede toda"}</button>`).join("")}</div>
+  <div class="grid k4" style="margin-bottom:14px">${kpi("Vendedores vendendo",num(V.total),`mediana ${mil(V.mediana)} no período`)}${V.destaqueTicket[0]?kpi("Maior ticket",brl(V.destaqueTicket[0].ticket),esc(V.destaqueTicket[0].nome+" · "+V.destaqueTicket[0].lojaNome)):""}${V.destaquePA[0]?kpi("Mais itens por venda",num(V.destaquePA[0].pa,2),esc(V.destaquePA[0].nome+" · "+V.destaquePA[0].lojaNome)):""}</div>
+  <div class="card"><h2>🏆 Destaques — reconhecer e usar como exemplo</h2>${tab(V.top.filter(f).slice(0,20))}</div>
+  <div class="card"><h2>🤝 Precisam de acompanhamento</h2><p class="sub" style="margin-top:-6px">Vendedores com menos de 40% do que vende a metade do time da própria loja (pode ser férias, folga ou recém-chegado — o gerente confirma).</p>${V.apoio.filter(f).length?tab(V.apoio.filter(f),1):"<p class='sub'>Nenhum.</p>"}</div>`;
+  document.querySelectorAll("[data-f]").forEach(x=>x.onclick=()=>{S.reg=x.dataset.f;vendedores()});
+}
+
+/* ---------- produtos e categorias ---------- */
+function produtos(){
+  $("#m").innerHTML=`<div class="grid k2">
+  <div class="card"><h2>Categorias x meta</h2><p class="sub" style="margin-top:-6px">Da mais atrasada pra mais adiantada.</p><div class="tw"><table><tr><th>Categoria</th><th class="n">Venda</th><th class="n">Meta</th><th class="n">%</th><th></th></tr>${A.categorias.map(c=>`<tr><td><b>${esc(c.nome)}</b></td><td class="n">${mil(c.venda)}</td><td class="n">${mil(c.meta)}</td><td class="n c-${stPct(c.pct)}"><b>${pc(c.pct)}</b></td><td>${barra(c.pct)}</td></tr>`).join("")}</table></div></div>
+  <div class="card"><h2>Grupos de produto (participação)</h2><div class="tw"><table><tr><th>Grupo</th><th class="n">Venda</th><th class="n">% da venda</th><th class="n">Mês passado</th></tr>${A.grupos.map(x=>{const d=x.shareAnt==null?null:x.share-x.shareAnt;return`<tr><td>${esc(x.nome)}</td><td class="n">${mil(x.valor)}</td><td class="n">${pc(x.share,1)}</td><td class="n">${x.shareAnt==null?"—":pc(x.shareAnt,1)+` <span class="${d>=0?"up":"down"}">${d>=0?"▲":"▼"}</span>`}</td></tr>`}).join("")}</table></div></div></div>
+  <div class="card"><h2>Produtos mais vendidos da rede</h2><div class="tw"><table><tr><th>#</th><th>Produto</th><th>Grupo</th><th class="n">Qtd</th><th class="n">Venda</th><th class="n">Lojas que venderam</th></tr>${A.produtos.map((p,i)=>`<tr><td>${i+1}</td><td><b>${esc(p.nome)}</b></td><td>${esc(p.grupo)}</td><td class="n">${num(p.qtd)}</td><td class="n">${mil(p.valor)}</td><td class="n">${p.lojas}</td></tr>`).join("")}</table></div></div>`;
+}
+carrega();
+</script>
+</body>
+</html>
