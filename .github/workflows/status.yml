@@ -42,6 +42,8 @@ jobs:
             echo "\"robo_vivo\":$(lista "$REPO" robo-descontos.yml 5 in_progress),"
             echo "\"robo_fila\":$(lista "$REPO" robo-descontos.yml 5 queued),"
             echo "\"rel\":$(lista "$REPO" relatorios.yml 10),"
+            echo "\"analise\":$(lista "$REPO" analise.yml 3),"
+            echo "\"analise_dados\":\"$(gh api "repos/$REPO/commits/analise" --jq .commit.committer.date 2>/dev/null || echo "")\","
             echo "\"fotos\":$(lista bacetto/fotos-baianao publicar.yml 3)"
             echo "}"
           } > pub/status.json

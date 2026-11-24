@@ -46,7 +46,7 @@ h2 small{font-weight:500;color:var(--mut);font-size:13px}
 .ev .p{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
 .ev.passou{opacity:.5}.ev.passou .dot{background:var(--mut)}
 .ev.prox{background:#f2f5ff}.ev.prox .dot{background:var(--red);box-shadow:0 0 0 4px #e02b2b30}.ev.prox .h{color:var(--red)}
-.p.lid{background:#e8ecfb;color:var(--navy)}.p.ed{background:#fff1cc;color:#7a5600}.p.mk{background:#f1e8fb;color:#5b2a8a}
+.p.lid{background:#e8ecfb;color:var(--navy)}.p.ed{background:#fff1cc;color:#7a5600}.p.mk{background:#f1e8fb;color:#5b2a8a}.p.dir{background:#e6f6ef;color:#0b7a55}
 .filtros{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 .filtros button{border:1px solid var(--line);background:var(--card);padding:6px 12px;border-radius:999px;font:inherit;font-size:13px;font-weight:600;color:var(--mut);cursor:pointer}
 .filtros button.on{background:var(--navy);border-color:var(--navy);color:#fff}
@@ -133,6 +133,7 @@ footer{color:var(--mut);font-size:12.5px;text-align:center;padding:20px 0 30px}
       <button data-f="lid">Líderes Regionais</button>
       <button data-f="ed">Ednilson</button>
       <button data-f="mk">Marketing</button>
+      <button data-f="dir">Diretoria</button>
     </div>
     <div class="agenda" id="lista-agenda"></div>
   </section>
@@ -249,6 +250,7 @@ const ha = (iso) => { const s = (Date.now() - new Date(iso)) / 1000; if (s < 90)
 
 // ---------- AGENDA ----------
 const AG = [
+  [5, "Análise de Vendas atualizada", "Gabriel e o patrão · pontos fracos, fortes e plano de ação (até ontem)", "dir", "analise"],
   [6 * 60 + 17, "Fotos do site atualizadas", "Painel de fotos do marketing", "mk", "fotos"],
   [6 * 60 + 50, "Parcial do mês (até ontem)", "Ednilson · chega antes das 7h", "ed", "rel"],
   [8 * 60, "Meta do dia", "Grupo LÍDERES REGIONAL · só a foto por regional", "lid", "rel"],
@@ -259,13 +261,13 @@ const AG = [
   [18 * 60 + 17, "Fotos do site atualizadas", "Painel de fotos do marketing", "mk", "fotos"],
   [22 * 60 + 20, "Resultado final do dia", "Grupo LÍDERES REGIONAL", "lid", "rel"],
 ].sort((a, b) => a[0] - b[0]);
-const TAG = { lid: "Líderes", ed: "Ednilson", mk: "Marketing" };
+const TAG = { lid: "Líderes", ed: "Ednilson", mk: "Marketing", dir: "Diretoria" };
 let filtro = "todos";
 function agenda() {
   const n = tzNow().min, prox = AG.find((e) => e[0] >= n - 2 && (filtro === "todos" || e[3] === filtro));
   document.getElementById("lista-agenda").innerHTML = AG.filter((e) => filtro === "todos" || e[3] === filtro).map((e) =>
     `<div class="ev ${e === prox ? "prox" : e[0] < n - 2 ? "passou" : ""}"><span class="h">${hm(e[0] % 60 === 1 ? e[0] - 1 : e[0])}</span><span class="dot"></span><span class="t">${e[1]}<small>${e[2]}${e === prox ? " · <b style='color:var(--red)'>próximo</b>" : ""}</small></span><span class="p ${e[3]}">${TAG[e[3]]}</span></div>`).join("")
-    + (prox ? "" : `<div class="ev"><span class="h">—</span><span class="dot"></span><span class="t">Envios de hoje encerrados<small>Amanhã começa às 06:17</small></span></div>`);
+    + (prox ? "" : `<div class="ev"><span class="h">—</span><span class="dot"></span><span class="t">Envios de hoje encerrados<small>Amanhã começa às 00:05</small></span></div>`);
 }
 document.getElementById("filtros").onclick = (ev) => { const b = ev.target.closest("button"); if (!b) return; filtro = b.dataset.f; document.querySelectorAll("#filtros button").forEach((x) => x.classList.toggle("on", x === b)); agenda(); };
 
@@ -296,6 +298,10 @@ const A = [
     desc: "Página com as vendas do Universo Baianão e do baianaoeletro (ZepSystem) por regional, loja, vendedor e produto, com assistente de IA.",
     quando: ["07h às 23h", "atualiza a cada ~1 min"], regras: ["Visão por regional somando Universo + baianaoeletro", "Análises do mês sempre até ontem, com crescimento sobre o mês anterior", "Dados criptografados: só abre com a senha"],
     trava: "O Vigia religa a coleta e avisa no WhatsApp se os dados ficarem velhos.", link: "../painel/site/" },
+  { id: "analise", em: "🧭", nome: "Análise de Vendas", quem: "Gabriel e o patrão · com senha (a mesma do painel)",
+    desc: "Análise completa do mês até ontem: pontos fracos e fortes, plano de ação com responsável e prazo, situação de cada regional, loja e vendedor, categorias e produtos.",
+    quando: ["00:05 todo dia", "reserva 00:40"], regras: ["Só dias fechados: o dia de hoje não entra", "Roda quando as outras automações estão paradas (não disputa o portal nem o WhatsApp)", "Confere sozinha se a página abre antes de publicar", "Dados criptografados: só abre com a senha"],
+    trava: "Se o portal não responder, usa a última leitura do painel; se falhar de novo às 00:40, avisa o Gabriel no WhatsApp.", link: "../analise/" },
   { id: "vigia", em: "🛡️", nome: "Vigia do painel", quem: "Avisa o Gabriel no WhatsApp",
     desc: "Confere a cada 15 minutos se o painel está recebendo dados novos. Se parou, religa e avisa.",
     quando: ["07h às 23h", "a cada 15 min"], regras: ["Dados com mais de 15 min = painel parado", "No máximo 1 aviso por hora", "Não atrapalha relatório que estiver saindo"],
@@ -326,7 +332,7 @@ function cards() {
 const vivo = (rs) => rs.filter((r) => r.status !== "completed");
 const feitos = (rs) => rs.filter((r) => r.status === "completed" && r.conclusion !== "cancelled" && r.conclusion !== "skipped");
 
-function avaliar(runs, dadosISO, fotos) {
+function avaliar(runs, dadosISO, fotos, an) {
   const t = tzNow(), n = t.min, por = (f) => runs.filter((r) => r.path === `.github/workflows/${f}`);
   const st = {};
   // Painel (coleta)
@@ -364,6 +370,16 @@ function avaliar(runs, dadosISO, fotos) {
     } else if (ok) st.rel = { s: n < 6 * 60 + 40 ? "off" : "ok", txt: `${n < 6 * 60 + 40 ? "Começa às 06:50 · " : ""}Última rodada ok às ${horaBR(ok.updated_at)} (${ha(ok.updated_at)})` };
     else st.rel = { s: "warn", txt: "Sem rodadas recentes registradas" };
   }
+  // Análise de Vendas (1x por dia, 00:05)
+  if (an) {
+    const fs = feitos(an), u = fs[0], hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+    const dia = an.dataISO ? new Date(new Date(an.dataISO) - 3 * 3600e3).toISOString().slice(0, 10) : "";
+    if (vivo(an).length) st.analise = { s: "ok", txt: "Gerando a análise agora" };
+    else if (dia === hoje) st.analise = { s: "ok", txt: `Atualizada hoje às ${horaBR(an.dataISO)} · próxima às 00:05` };
+    else if (n < 50) st.analise = { s: "off", txt: "Roda às 00:05 (reserva às 00:40)" };
+    else if (u && u.conclusion !== "success") st.analise = { s: "bad", txt: `A atualização de hoje falhou (${horaBR(u.updated_at)}) — página segue no ar com a análise anterior` };
+    else st.analise = { s: "warn", txt: an.dataISO ? `Última atualização ${ha(an.dataISO)} — a de hoje não rodou` : "Sem atualização registrada" };
+  }
   // Fotos
   if (fotos) {
     const fs = feitos(fotos), u = fs[0];
@@ -389,7 +405,7 @@ function banner() {
     <div><b style="color:var(--ok)">${okN}</b><span>funcionando agora</span></div>
     <div><b style="color:${bad.length ? "var(--bad)" : "var(--ink)"}">${bad.length}</b><span>travadas</span></div>
     <div><b>${AG.filter((e) => e[0] < t.min).length}<small style="font-size:15px;color:var(--mut)"> / ${AG.length}</small></b><span>envios de hoje já passaram</span></div>
-    <div><b>${prox ? hm(prox[0] % 60 === 1 ? prox[0] - 1 : prox[0]) : "06:17"}</b><span>próximo: ${prox ? prox[1] : "amanhã"}</span></div>`;
+    <div><b>${prox ? hm(prox[0] % 60 === 1 ? prox[0] - 1 : prox[0]) : "00:05"}</b><span>próximo: ${prox ? prox[1] : "amanhã"}</span></div>`;
 }
 
 let ultima = 0, gerado = null;
@@ -401,12 +417,13 @@ async function atualizar() {
     if (!r.ok) throw new Error("http " + r.status);
     const j = await r.json();
     const runs = [...conv(j.coleta, "coleta.yml"), ...conv(j.vigia, "vigia.yml"), ...conv(j.robo_vivo, "robo-descontos.yml"), ...conv(j.robo_fila, "robo-descontos.yml"), ...conv(j.robo, "robo-descontos.yml"), ...conv(j.rel, "relatorios.yml")];
-    ST = avaliar(runs, j.dados || null, conv(j.fotos, "publicar.yml"));
+    const an = j.analise ? Object.assign(conv(j.analise, "analise.yml"), { dataISO: j.analise_dados || "" }) : null;
+    ST = avaliar(runs, j.dados || null, conv(j.fotos, "publicar.yml"), an);
     gerado = j.gerado; ultima = Date.now();
     const idade = (Date.now() - new Date(gerado)) / 60e3;
     if (idade > 25) for (const k in ST) if (ST[k].s === "ok") ST[k] = { s: "warn", txt: `${ST[k].txt} · (leitura de ${horaBR(gerado)}, o status está atrasado)` };
   } catch (e) {
-    for (const k of ["rel", "robo", "painel", "vigia", "fotos"]) if (!ST[k] || ST[k].s === "load") ST[k] = { s: "load", txt: "Status ao vivo indisponível no momento — tenta de novo em instantes" };
+    for (const k of ["rel", "robo", "painel", "vigia", "fotos", "analise"]) if (!ST[k] || ST[k].s === "load") ST[k] = { s: "load", txt: "Status ao vivo indisponível no momento — tenta de novo em instantes" };
   }
   cards(); banner(); rodape();
 }
