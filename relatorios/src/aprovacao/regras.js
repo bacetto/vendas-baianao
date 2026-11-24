@@ -207,7 +207,7 @@ export function textoAviso(item, regional, d, e, resultado, base) {
     const bloco = (nome, lim, agora, depois, okDepois) => [
       `*${nome} do ${regional} hoje*  _(${lim})_`,
       `Agora: *${pct(agora)}*`,
-      n(depois) ? `${okDepois ? "✅" : "❌"} Com o pedido: *${pct(depois)}*` : "❓ Com o pedido: _não dá pra calcular_",
+      n(depois) ? `${okDepois ? "✅" : "❌"} Com o pedido: *${pct(depois)}*` : null, // sem cálculo exato: não mostra
     ];
     out.push("", L, `*REGRAS DO ${regional}*`,
       `${dc <= g.max + 1e-9 ? "✅" : "❌"} *Desconto:* *${pct(dc)}*  _(máx. ${num2(g.max)}%)_`,
