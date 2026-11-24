@@ -133,7 +133,7 @@ function janela() {
     if (!ls.length) throw new Error("portal não trouxe as lojas");
     est.fotos.reg ||= {};
     const foto = {};
-    for (const l of ls) { foto[l.num] = l.venda; const r = regionalDe(l.regional); if (/^R[1-4]$/.test(r || "")) est.fotos.reg[l.num] = r; }
+    for (const l of ls) { foto[l.num] = l.bruto == null ? l.venda : { v: l.venda, b: l.bruto, d: l.devol, p: l.pedidos }; const r = regionalDe(l.regional); if (/^R[1-4]$/.test(r || "")) est.fotos.reg[l.num] = r; }
     est.fotos[h] = foto; sujo = true;
     console.log(`✅ Leitura das lojas (${h}h)`);
   }).catch((e) => console.log("⚠️ leitura das lojas falhou:", String(e.message).slice(0, 80)))
