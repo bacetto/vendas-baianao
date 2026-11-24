@@ -40,11 +40,8 @@ export function textoJanela(antes, agora, info, h) {
   const cab = `📉 *Lojas abaixo de R$ 5 mil* — ${hh(h - 2)} às ${hh(h)}`;
   if (!ls.length) return `${cab}\n\n✅ Nenhuma loja abaixo de R$ 5 mil.`;
   const nome = (l) => `${String(l.n).padStart(2, "0")} · ${curto(l.nome)}`;
-  // formato simples: quanto a loja vendeu no período; se teve devolução, só informa o valor dela
-  const linha = (l) => {
-    if (l.det) return `• ${nome(l)} — ${brl(l.vend)}${l.devol ? ` · devolução ${brl(l.devol)}` : ""}`;
-    return `• ${nome(l)} — ${l.liq < 0 ? "-" : ""}${brl(Math.abs(l.liq))}`;
-  };
+  // formato de antes: nome da loja e quanto ela VENDEU nas 2 horas (sem descontar devolução)
+  const linha = (l) => `• ${curto(l.nome)} — ${brl(l.det ? l.vend : Math.max(0, l.liq))}`;
   const out = [cab];
   let r = null;
   for (const l of ls) { if (l.reg !== r) { r = l.reg; out.push("", `*${r}*`); } out.push(linha(l)); }
