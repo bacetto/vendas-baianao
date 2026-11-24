@@ -49,12 +49,13 @@ export async function zap({ pasta = "sessao-aprov", onTexto } = {}) {
     if (enviando) return;
     enviando = true;
     try { while (aberto && fila.length) {
-      const { para, texto, citar } = fila[0];
+      const { para, texto, citar, ok } = fila[0];
       try {
         const jid = para === "eu" ? jidNormalizedUser(sock.user.id) : para.includes("@") ? para : `${para.replace(/\D/g, "").replace(/^(?!55)/, "55")}@s.whatsapp.net`;
         const r = await sock.sendMessage(jid, { text: texto }, citar ? { quoted: citar } : undefined);
         if (r?.key?.id) meus.add(r.key.id);
         fila.shift();
+        try { ok?.(); } catch {}
       } catch (e) { console.log("⚠️ envio falhou, tento de novo:", String(e.message).slice(0, 80)); await new Promise((r) => setTimeout(r, 5000)); }
     } } finally { enviando = false; }
   }
@@ -62,7 +63,8 @@ export async function zap({ pasta = "sessao-aprov", onTexto } = {}) {
   abrir();
   await Promise.race([pronto, new Promise((_, rej) => setTimeout(() => rej(new Error("Tempo esgotado conectando no WhatsApp")), 120000))]);
   return {
-    enviar: (para, texto, citar) => { fila.push({ para, texto, citar }); esvaziar(); },
+    // ok: chamado só depois que o WhatsApp confirmou o envio (pra não marcar como avisado o que ficou na fila)
+    enviar: (para, texto, citar, ok) => { fila.push({ para, texto, citar, ok }); esvaziar(); },
     // id do grupo pelo nome (sem acento/maiúscula)
     grupo: async (nome) => {
       const n = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();

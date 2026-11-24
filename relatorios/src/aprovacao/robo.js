@@ -42,7 +42,7 @@ for (const a of AJUSTES) if (!est.ajustes.includes(a.id)) { const n = a.aplicar(
 console.log(`▶ Regras carregadas (${Object.keys(est.regras).length} regionais com regra${est.pausado ? ", pausado" : ""})`);
 let sujo = ajustouAgora, acordar = null, grupoId = null, avisosId = null, avisosEm = 0;
 let wa = null; const antes = [];
-const avisar = (t0) => { const t = SIMULAR ? `🧪 *SIMULAÇÃO* (nada foi feito no portal)\n${t0}` : t0; (avisosId ? [avisosId] : DEST).forEach((d) => (wa ? wa.enviar(d, t) : antes.push([d, t]))); };
+const avisar = (t0, ok) => { const t = SIMULAR ? `🧪 *SIMULAÇÃO* (nada foi feito no portal)\n${t0}` : t0; (avisosId ? [avisosId] : DEST).forEach((d, i) => (wa ? wa.enviar(d, t, undefined, i === 0 ? ok : undefined) : antes.push([d, t]))); };
 
 function mensagem(txt, info) {
   // pedido novo no grupo LIBERAÇÃO DESCONTO
@@ -256,7 +256,7 @@ async function ciclo() {
       d = { acao: "MANUAL", motivo: "não consegui ler (ou conferir) os números do dia do regional no portal" };
     }
     if (d.acao !== "APROVAR") {
-      if (!est.avisados[it.id] && !visto.has(it.id)) { visto.add(it.id); if (!SIMULAR) { est.avisados[it.id] = Date.now(); sujo = true; } cont.manual++; avisar(textoAviso(it, reg, d, est, undefined, servDe(reg))); }
+      if (!est.avisados[it.id] && !visto.has(it.id)) { visto.add(it.id); cont.manual++; const id = it.id; avisar(textoAviso(it, reg, d, est, undefined, servDe(reg)), () => { if (!SIMULAR) { est.avisados[id] = Date.now(); sujo = true; } }); }
       continue; // o robô SÓ aprova; nunca reprova
     }
     if (SIMULAR) { if (!visto.has(it.id)) { visto.add(it.id); console.log(`🧪 faria: APROVAR (${reg})`); avisar(textoAviso(it, reg, d, est, "ok", servDe(reg))); } continue; }
@@ -295,7 +295,12 @@ async function temCodigoNovo() {
   try {
     const r = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/commits/main`, { headers: { Accept: "application/vnd.github.sha", ...(process.env.GH_TOKEN ? { Authorization: `Bearer ${process.env.GH_TOKEN}` } : {}) } });
     const sha = r.ok ? (await r.text()).trim() : "";
-    return /^[0-9a-f]{40}$/.test(sha) && sha !== MEU_SHA;
+    if (!/^[0-9a-f]{40}$/.test(sha) || sha === MEU_SHA) return false;
+    // só reinicia se mudou o código do robô (mudança na Central, no painel etc. não derruba o turno)
+    const c = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/compare/${MEU_SHA}...${sha}`, { headers: { Accept: "application/vnd.github+json", ...(process.env.GH_TOKEN ? { Authorization: `Bearer ${process.env.GH_TOKEN}` } : {}) } });
+    if (!c.ok) return true;
+    const fs = ((await c.json()).files || []).map((f) => f.filename);
+    return fs.some((f) => f.startsWith("relatorios/") || f === ".github/workflows/robo-descontos.yml");
   } catch { return false; }
 }
 
