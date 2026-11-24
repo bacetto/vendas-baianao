@@ -921,6 +921,10 @@ function render(){
   if(S.sec==="regs"){document.querySelectorAll("[data-r2]").forEach(el=>el.onclick=()=>{S.reg2=el.dataset.r2;try{localStorage.setItem("painel-reg2",S.reg2)}catch(e){}render()});$("#btIaReg").onclick=iaRegional;if(!CHAT_URL)$("#btIaReg").style.display="none"}
 }
 
+// versão nova do painel publicada? recarrega sozinho (o navegador guarda a página antiga em cache por alguns minutos)
+const VERSAO="2026-11-24b";
+async function confereVersao(){try{const h=await fetch(location.pathname+"?v="+Date.now(),{cache:"no-store"}).then(r=>r.text());const m=h.match(/const VERSAO="([^"]+)"/);if(m&&m[1]!==VERSAO)location.reload()}catch(e){}}
+setInterval(confereVersao,3*60*1000);setTimeout(confereVersao,5000);
 carrega();setInterval(carrega,20*1000); // sem dado novo o GitHub responde 304 (não conta no limite)setInterval(()=>D&&cabecalho(),60*1000);
 </script>
 </body>
