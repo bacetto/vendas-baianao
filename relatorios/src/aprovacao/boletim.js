@@ -71,7 +71,7 @@ export function textoDia(agora, info, h) {
     .map(([n, x]) => { const g = val(x); return { n, reg: info[n].reg, nome: info[n].nome, v: g.b != null ? g.b : Math.max(0, g.v) }; })
     .filter((l) => l.v < LIMITE_JANELA)
     .sort((a, b) => a.reg.localeCompare(b.reg) || a.v - b.v);
-  const cab = `📉 *Lojas abaixo de R$ 5 mil no dia* — até ${String(h).padStart(2, "0")}h`;
+  const cab = `📉 *Lojas abaixo de R$ 5 mil no dia* — até ${typeof h === "number" ? String(h).padStart(2, "0") + "h" : h}`;
   if (!ls.length) return `${cab}\n\n✅ Todas as lojas já venderam R$ 5 mil hoje.`;
   const out = [cab];
   let r = null;

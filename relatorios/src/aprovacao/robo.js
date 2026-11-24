@@ -222,6 +222,18 @@ async function ciclo() {
   boletim();
   janela();
   leadsJanela();
+  // 24/11 ~17:40: Gabriel pediu pra mandar ao Ed agora a venda do DIA até o momento (uma vez só)
+  if (!SIMULAR && !est.ajustes.includes("agora-2026-11-24-dia") && hoje() === "2026-11-24" && est.fotos?.[17] && Object.keys(nomeLoja).length && !jan.agora) {
+    jan.agora = true;
+    detalheLojas(Date.now(), hoje()).then((sn) => {
+      const foto = {}, info = {};
+      for (const n of Object.keys(est.fotos[17])) { foto[n] = { v: 0, b: sn.lojas[n]?.b || 0 }; info[n] = { reg: est.fotos.reg?.[n], nome: nomeLoja[n] || `Loja ${n}` }; }
+      const hm = new Date(sn.em - 3 * 3600e3).toISOString().slice(11, 16);
+      wa.enviar(ED || "eu", textoDia(foto, info, hm));
+      est.ajustes.push("agora-2026-11-24-dia"); sujo = true;
+      console.log("✅ Venda do dia até agora enviada pro Ed");
+    }).catch((e) => { jan.agora = false; console.log("⚠️ venda do dia agora falhou:", String(e.message).slice(0, 80)); });
+  }
   // 24/11: Gabriel pediu pra reenviar ao Ed a lista das 15h–17h no formato novo (uma vez só)
   if (!SIMULAR && !est.ajustes.includes("reenvio-2026-11-24-17") && est.fotos?.dia === "2026-11-24" && est.fotos[15] && est.fotos[17] && Object.keys(nomeLoja).length) {
     const info = {};
