@@ -109,19 +109,6 @@ export async function abrirPortal() {
       const ls = (r?.porLoja || []).filter((l) => (l.mercantil?.meta || 0) > 0)
         .map((l) => ({ num: Number(String(l.filial || l.loja || "").replace(/\D/g, "").slice(-4)) || 0, regional: l.regional, venda: Number(l.mercantil?.venda) || 0 }))
         .filter((l) => l.num > 0);
-      // detalhe de cada loja (vendido bruto, devoluções e nº de pedidos), pra saber se a loja VENDEU ou se foi devolução.
-      // Se o portal não liberar essa consulta pro login do Ed, o boletim segue só com a venda líquida.
-      try {
-        const q = await chamar("get", `/analise-dinamica-produto/dados?dataInicio=${d}&dataFim=${d}`);
-        const det = {};
-        for (const x of q?.linhas || []) {
-          const m = String(x.loja ?? "").match(/(\d+)/); if (!m) continue;
-          const n = Number(m[1].slice(-4)); const o = (det[n] ||= { b: 0, d: 0, ped: new Set() });
-          const v = Number(x.valorTotal) || 0;
-          if (x.tipo === "DEVOLUCAO") o.d += Math.abs(v); else { o.b += v; if (x.pedido != null) o.ped.add(String(x.pedido)); }
-        }
-        for (const l of ls) { const o = det[l.num] || { b: 0, d: 0, ped: new Set() }; l.bruto = o.b; l.devol = o.d; l.pedidos = o.ped.size; }
-      } catch (e) { console.log("⚠️ detalhe das lojas indisponível:", String(e.message).slice(0, 60)); }
       return ls;
     },
     // resumo do mês por regional (venda e pacote de serviços = Sorte Dobrada + Garantia). Consulta pesada (~1 min).

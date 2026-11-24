@@ -10,6 +10,7 @@ import { carregar, salvar } from "./estado.js";
 import { zap } from "./zap.js";
 import { comando, decidir, regionalDe, textoAviso, textoRegras, lerPedidos, bate, soEdnilson } from "./regras.js";
 import { textoBoletim, BOLETIM_HORAS, textoJanela, JANELA_HORAS, FOTO_HORAS } from "./boletim.js";
+import { detalheLojas } from "./painel-snap.js";
 
 const CICLO = 15000;
 const SIMULAR = process.env.SIMULAR === "1"; // teste: lê e avisa o que faria, sem mexer no portal nem no grupo
@@ -119,11 +120,24 @@ function janela() {
   if (est.fotos[h]) {
     if (!JANELA_HORAS.includes(h) || est.janela === chave) return;
     if (!est.fotos[h - 2]) { if (jan.avisou !== chave) { jan.avisou = chave; est.janela = chave; sujo = true; wa.enviar("eu", `⚠️ *Lojas abaixo de R$ 5 mil (${h}h)* não saiu pro Ed: faltou a leitura das ${h - 2}h.`); } return; }
-    const info = {};
-    for (const n of Object.keys(est.fotos[h])) info[n] = { reg: est.fotos.reg?.[n], nome: nomeLoja[n] || `Loja ${n}` };
-    wa.enviar(ED || "eu", textoJanela(est.fotos[h - 2], est.fotos[h], info, h));
-    est.janela = chave; sujo = true;
-    console.log(`✅ Lojas abaixo de 5 mil (${h}h) enviado`);
+    if (jan.enviando) return;
+    jan.enviando = true;
+    // leitura sem o detalhe (vendido/devolução/pedidos): completa com a publicação do painel daquele horário
+    const completa = async (hh) => {
+      const f = est.fotos[hh]; if (!f || Object.values(f).every((x) => typeof x === "object")) return;
+      const alvo = est.fotos.t?.[hh] || Date.parse(`${hoje()}T${String(hh).padStart(2, "0")}:01:00-03:00`);
+      const s = await detalheLojas(alvo, hoje());
+      for (const n of Object.keys(f)) if (typeof f[n] === "number") f[n] = { v: f[n], ...(s.lojas[n] || { b: 0, d: 0, p: 0 }) }; // loja fora do painel = nenhuma venda até ali
+      sujo = true;
+    };
+    Promise.allSettled([completa(h - 2), completa(h)]).then((r) => {
+      for (const x of r) if (x.status === "rejected") console.log("⚠️ detalhe das lojas não completado:", String(x.reason?.message || x.reason).slice(0, 80));
+      const info = {};
+      for (const n of Object.keys(est.fotos[h])) info[n] = { reg: est.fotos.reg?.[n], nome: nomeLoja[n] || `Loja ${n}` };
+      wa.enviar(ED || "eu", textoJanela(est.fotos[h - 2], est.fotos[h], info, h));
+      est.janela = chave; sujo = true;
+      console.log(`✅ Lojas abaixo de 5 mil (${h}h) enviado`);
+    }).finally(() => { jan.enviando = false; });
     return;
   }
   if (min >= 50) { if (jan.avisou !== chave) { jan.avisou = chave; console.log(`⚠️ leitura das ${h}h não feita`); } return; }
@@ -133,8 +147,8 @@ function janela() {
     if (!ls.length) throw new Error("portal não trouxe as lojas");
     est.fotos.reg ||= {};
     const foto = {};
-    for (const l of ls) { foto[l.num] = l.bruto == null ? l.venda : { v: l.venda, b: l.bruto, d: l.devol, p: l.pedidos }; const r = regionalDe(l.regional); if (/^R[1-4]$/.test(r || "")) est.fotos.reg[l.num] = r; }
-    est.fotos[h] = foto; sujo = true;
+    for (const l of ls) { foto[l.num] = l.venda; const r = regionalDe(l.regional); if (/^R[1-4]$/.test(r || "")) est.fotos.reg[l.num] = r; }
+    est.fotos[h] = foto; (est.fotos.t ||= {})[h] = Date.now(); sujo = true;
     console.log(`✅ Leitura das lojas (${h}h)`);
   }).catch((e) => console.log("⚠️ leitura das lojas falhou:", String(e.message).slice(0, 80)))
     .finally(() => { jan.carregando = false; });
