@@ -18,6 +18,9 @@ export const JANELA_HORAS = [11, 13, 15, 17, 19, 21];
 export const FOTO_HORAS = [9, ...JANELA_HORAS];
 export const LIMITE_JANELA = 5000;
 const brl = (n) => `R$ ${Math.round(n).toLocaleString("pt-BR")}`;
+// nomes encurtados pra caber numa linha do WhatsApp (pedido do Gabriel)
+const APELIDO = { "VALE DAS PEDRINHAS": "VALE PEDRINHAS" };
+const curto = (n) => APELIDO[String(n || "").trim().toUpperCase()] || n;
 const qtd = (n) => `${n} pedido${n === 1 ? "" : "s"}`;
 // foto de cada loja: número (venda líquida do dia, formato antigo) ou { v: líquida, b: vendido bruto, d: devoluções, p: pedidos }
 const val = (x) => (typeof x === "number" ? { v: x } : x || { v: 0 });
@@ -36,7 +39,7 @@ export function textoJanela(antes, agora, info, h) {
     .sort((a, b) => a.reg.localeCompare(b.reg) || (a.det ? a.vend : a.liq) - (b.det ? b.vend : b.liq));
   const cab = `📉 *Lojas abaixo de R$ 5 mil* — ${hh(h - 2)} às ${hh(h)}`;
   if (!ls.length) return `${cab}\n\n✅ Nenhuma loja abaixo de R$ 5 mil.`;
-  const nome = (l) => `${String(l.n).padStart(2, "0")} · ${l.nome}`;
+  const nome = (l) => `${String(l.n).padStart(2, "0")} · ${curto(l.nome)}`;
   // formato simples: quanto a loja vendeu no período; se teve devolução, só informa o valor dela
   const linha = (l) => {
     if (l.det) return `• ${nome(l)} — ${brl(l.vend)}${l.devol ? ` · devolução ${brl(l.devol)}` : ""}`;
@@ -60,6 +63,6 @@ export function textoLeads(antes, agora, abertas, h) {
   if (!ls.length) return `${cab}\n\n✅ Todas as lojas fizeram ${LIMITE_LEADS} ou mais contatos.`;
   const out = [cab];
   let r = null;
-  for (const l of ls) { if (l.reg !== r) { r = l.reg; out.push("", `*${r}*`); } out.push(`• ${String(l.n).padStart(2, "0")} · ${l.nome} — ${l.c ? `${l.c} contato${l.c > 1 ? "s" : ""}` : "❌ *nenhum contato*"}`); }
+  for (const l of ls) { if (l.reg !== r) { r = l.reg; out.push("", `*${r}*`); } out.push(`• ${String(l.n).padStart(2, "0")} · ${curto(l.nome)} — ${l.c ? `${l.c} contato${l.c > 1 ? "s" : ""}` : "❌ *nenhum contato*"}`); }
   return out.join("\n");
 }
