@@ -35,7 +35,7 @@ export function textoJanela(antes, agora, info, h) {
       return { n, reg: info[n].reg, nome: info[n].nome, liq: g.v - a.v, det,
         vend: det ? Math.max(0, g.b - a.b) : null, devol: det ? Math.max(0, g.d - a.d) : null, ped: det ? Math.max(0, g.p - a.p) : null };
     })
-    .filter((l) => l.liq < LIMITE_JANELA)
+    .filter((l) => (l.det ? l.vend : l.liq) < LIMITE_JANELA) // vendeu menos de R$ 5 mil nas 2h
     .sort((a, b) => a.reg.localeCompare(b.reg) || (a.det ? a.vend : a.liq) - (b.det ? b.vend : b.liq));
   const cab = `📉 *Lojas abaixo de R$ 5 mil* — ${hh(h - 2)} às ${hh(h)}`;
   if (!ls.length) return `${cab}\n\n✅ Nenhuma loja abaixo de R$ 5 mil.`;
