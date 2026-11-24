@@ -121,7 +121,10 @@ export function projetar(item, base) {
   const sv = (item.services || []).reduce((a, s) => a + (Number(s.finalValue) || 0), 0);
   return {
     margemAtual: (100 * base.lucro) / base.custo,
-    margemCom: pc > 0 ? (100 * (base.lucro + pl)) / (base.custo + pc) : null,
+    // NÃO dá pra somar o pedido na margem do regional: o custo dos produtos do pedido (unitCost, só o custo do produto)
+    // não é a mesma base do custo do resumo de vendas (custoVenda = venda − lucro, com impostos/despesas).
+    // Ex. #019966: produtos a 187% sobre o custo unitário vs. 37–42% do regional no resumo. Sem a base certa: null.
+    margemCom: null,
     servAtual: (100 * base.pacote) / base.venda,
     servCom: (100 * (base.pacote + sv)) / (base.venda + fv),
   };
@@ -153,15 +156,15 @@ export function decidir(item, regional, e, base) {
   const proj = projetar(item, base);
   if (!proj) return { acao: "ESPERAR", motivo: "sem os números do dia do regional" };
   const margem = proj.margemCom, serv = proj.servCom;
-  if (!ok(margem) || margem <= 0 || margem > 100) return { acao: "MANUAL", motivo: "não deu pra calcular com segurança a margem do regional com o pedido" };
-  if (!ok(serv) || serv < 0 || serv > 100) return { acao: "MANUAL", motivo: "não deu pra calcular com segurança os serviços do regional com o pedido" };
   // fora da regra: NUNCA reprova — não faz nada no portal e avisa (o Ed decide)
   const fora = (motivo) => ({ acao: "MANUAL", motivo: `fora da regra: ${motivo}` });
   const falhas = [];
   if (desc > regra.max + 1e-9) falhas.push(`desconto ${pct(desc)} acima do D${num2(regra.max)}`);
-  if (margem < regra.min) falhas.push(`margem com o pedido ${pct(margem)} abaixo do M${num2(regra.min)}`);
-  if (serv < regra.serv) falhas.push(`serviços com o pedido ${pct(serv)} abaixo do S${num2(regra.serv)}`);
+  if (ok(serv) && serv < regra.serv) falhas.push(`serviços com o pedido ${pct(serv)} abaixo do S${num2(regra.serv)}`);
+  if (ok(margem) && margem < regra.min) falhas.push(`margem com o pedido ${pct(margem)} abaixo do M${num2(regra.min)}`);
   if (falhas.length) return fora(falhas.join(" · "));
+  if (!ok(margem) || margem <= 0 || margem > 100) return { acao: "MANUAL", motivo: "o Universo não dá o custo do pedido na mesma base da margem do regional — não dá pra calcular a margem com o pedido" };
+  if (!ok(serv) || serv < 0 || serv > 100) return { acao: "MANUAL", motivo: "não deu pra calcular com segurança os serviços do regional com o pedido" };
   return { acao: "APROVAR", motivo: `com o pedido: margem ${pct(margem)} ≥ M${num2(regra.min)} · desconto ${pct(desc)} ≤ D${num2(regra.max)} · serviços ${pct(serv)} ≥ S${num2(regra.serv)}` };
 }
 
@@ -199,21 +202,27 @@ export function textoAviso(item, regional, d, e, resultado, base) {
   ];
   const temRegras = [g.min, g.max, g.serv].every((n) => typeof n === "number");
   const mc = proj?.margemCom, sc = proj?.servCom, dc = item.discountPercentage;
-  if (temRegras && typeof mc === "number" && typeof sc === "number") {
-    const linha = (ok, nome, valor, lim) => `${ok ? "✅" : "❌"} ${nome}: *${pct(valor)}*  _(${lim})_`;
+  const n = (v) => typeof v === "number" && Number.isFinite(v);
+  if (temRegras && proj) {
+    const bloco = (nome, lim, agora, depois, okDepois) => [
+      `*${nome} do ${regional} hoje*  _(${lim})_`,
+      `Agora: *${pct(agora)}*`,
+      n(depois) ? `${okDepois ? "✅" : "❌"} Com o pedido: *${pct(depois)}*` : "❓ Com o pedido: _não dá pra calcular_",
+    ];
     out.push("", L, `*REGRAS DO ${regional}*`,
-      linha(dc <= g.max + 1e-9, "Desconto", dc, `máx. ${num2(g.max)}%`),
-      linha(mc >= g.min, "Margem", mc, `mín. ${num2(g.min)}%`),
-      linha(sc >= g.serv, "Serviços", sc, `mín. ${num2(g.serv)}%`),
-      L,
-      `_Margem e serviços do ${regional} no dia, já contando este pedido (antes dele: ${pct(proj.margemAtual)} e ${pct(proj.servAtual)})_`);
+      `${dc <= g.max + 1e-9 ? "✅" : "❌"} *Desconto:* *${pct(dc)}*  _(máx. ${num2(g.max)}%)_`,
+      "",
+      ...bloco("Margem", `mín. ${num2(g.min)}%`, proj.margemAtual, mc, n(mc) && mc >= g.min),
+      "",
+      ...bloco("Serviços", `mín. ${num2(g.serv)}%`, proj.servAtual, sc, n(sc) && sc >= g.serv),
+      L);
   } else {
     out.push("", `📝 ${d.motivo}`);
     if (regional && REGIONAIS.includes(regional) && !temRegras) out.push("", `👉 Pra o robô decidir o ${regional}, mande: *${regional} - M40 - D20 - S7*`);
   }
   if (d.acao === "APROVAR" && resultado !== "ok") out.push("", `📝 ${d.motivo}`);
-  // não aprovado por motivo que NÃO é regra (dado faltando etc.): mostra o motivo mesmo com as 3 regras ✅
-  else if (d.acao !== "APROVAR" && !foraRegra && temRegras && typeof mc === "number" && typeof sc === "number") out.push("", `⚠️ *Por que não aprovei:* ${d.motivo}`);
+  // não aprovado por motivo que NÃO é regra (dado faltando etc.): mostra o motivo
+  else if (d.acao !== "APROVAR" && !foraRegra && temRegras && proj) out.push("", `⚠️ *Por que não aprovei:* ${d.motivo}`);
   return out.filter((x) => x !== null).join("\n");
 }
 
