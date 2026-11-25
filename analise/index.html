@@ -151,6 +151,7 @@ function geral(){
     ${b.fechado?"":kpi("Projeção do mês",`<span class="c-${stPct(r.projPct)}">${pc(r.projPct)}</span>`,`${mil(r.projetado)} de ${mil(r.metaMes)}`)}
     ${b.fechado?"":kpi("Precisa por dia",mil(r.precisaDia),`hoje faz ${mil(r.mediaDia)}/dia`)}
     ${r.cresc!=null?kpi("Vs mês passado",cresc(r.cresc),`mesmos ${b.diasPassados} dias: ${mil(r.anterior)}`):""}
+    ${A.semanal&&A.semanal.rede.cresc!=null?kpi("Vs semana passada",cresc(A.semanal.rede.cresc),`${mil(A.semanal.rede.atual)} x ${mil(A.semanal.rede.anterior)} (7 dias)`):""}
     ${kpi("Margem",pc(r.margem,1),`lucro ${mil(r.lucro)}`)}
     ${kpi("Serviços",pc(r.servPct,1),`garantia ${mil(r.garantia)} · pacote ${mil(r.pacote)}`)}
     ${kpi("Ticket médio",brl(r.ticket),`${num(r.pedidos)} vendas · ${num(r.pa,2)} itens/venda`)}
@@ -166,10 +167,31 @@ function geral(){
     <div class="card"><h2>🔴 Pontos fracos — onde melhorar</h2>${A.fracos.length?A.fracos.map(f=>`<div class="item"><span class="dot d-${f.nivel}"></span><div><b>${esc(f.titulo)}</b><span class="sub">${esc(f.txt)}</span></div></div>`).join(""):"<p class='sub'>Nenhum ponto fraco relevante.</p>"}</div>
     <div class="card"><h2>🟢 Pontos fortes — onde incentivar</h2>${A.fortes.length?A.fortes.map(f=>`<div class="item"><span class="dot d-bom"></span><div><b>${esc(f.titulo)}</b><span class="sub">${esc(f.txt)}</span></div></div>`).join(""):"<p class='sub'>—</p>"}</div>
   </div>
+  ${semanalCard()}
   <div class="card chart"><h2>Venda dia a dia x meta do dia</h2>${grafDias()}</div>
   ${A.semana.length?`<div class="card"><h2>Desempenho por dia da semana</h2><div class="tw"><table><tr><th>Dia</th><th class="n">Dias no mês</th><th class="n">Venda média</th><th class="n">% da meta</th><th></th></tr>
     ${A.semana.map(s=>`<tr><td>${s.nome}</td><td class="n">${s.dias}</td><td class="n">${mil(s.media)}</td><td class="n c-${s.pct==null?"ok":stPct(s.pct)}">${pc(s.pct)}</td><td>${s.pct==null?"":barra(s.pct)}</td></tr>`).join("")}</table></div></div>`:""}`;
   document.querySelectorAll("[data-r]").forEach(x=>x.onclick=()=>{S.aba="lojas";S.reg=x.dataset.r;S.st="";render()});
+  document.querySelectorAll("tr[data-l]").forEach(x=>x.onclick=()=>{S.aba="lojas";S.reg="";S.st="";S.q="";S.aberta=x.dataset.l;render();scrollTo(0,0)});
+}
+function semanalCard(){
+  const W=A.semanal;if(!W)return "";
+  const dm=x=>x.slice(8,10)+"/"+x.slice(5,7),per=p=>`${dm(p.inicio)} a ${dm(p.fim)}`;
+  const dif=v=>`<span class="${v>=0?"up":"down"}">${v>=0?"+":"−"}${mil(Math.abs(v))}</span>`;
+  const linha=l=>`<tr class="cl" data-l="${l.cod}"><td><b>${esc(l.nome)}</b><div class="sub">${l.reg} · ${esc(l.lider||"")}</div></td><td class="n">${mil(l.atual)}</td><td class="n sub">${mil(l.anterior)}</td><td class="n">${l.cresc==null?"<span class='sub'>novo</span>":cresc(l.cresc)}</td><td class="n">${dif(l.dif)}</td></tr>`;
+  const cab=`<tr><th>Loja</th><th class="n">Esta semana</th><th class="n">Anterior</th><th class="n">Cresc.</th><th class="n">Diferença</th></tr>`;
+  const sobe=W.lojas.filter(l=>l.dif>0).sort((a,b)=>(b.cresc??9)-(a.cresc??9)), cai=W.lojas.filter(l=>l.dif<0).sort((a,b)=>(a.cresc??0)-(b.cresc??0)), igual=W.lojas.filter(l=>l.dif===0);
+  return `<div class="card"><h2>📅 Semana x semana passada</h2>
+  <p class="sub" style="margin-top:-6px">Últimos 7 dias fechados (${per(W.atual)}) comparados com os 7 dias antes (${per(W.anterior)}) — mesmos dias da semana. Venda líquida (vendas − devoluções).</p>
+  <div class="grid k4" style="margin:12px 0">
+    <div class="kpi"><span class="sub">Rede</span><b>${cresc(W.rede.cresc)}</b><span class="sub">${mil(W.rede.atual)} x ${mil(W.rede.anterior)} · ${dif(W.rede.dif)}</span></div>
+    ${W.regionais.map(g=>`<div class="kpi"><span class="sub">${g.reg} · ${esc(g.lider)}</span><b>${cresc(g.cresc)}</b><span class="sub">${mil(g.atual)} x ${mil(g.anterior)} · ${dif(g.dif)}</span></div>`).join("")}
+  </div>
+  ${W.lojas.length?`<div class="grid k2">
+    <div><h3 class="up">▲ ${sobe.length} lojas cresceram</h3><div class="tw"><table>${cab}${sobe.map(linha).join("")||"<tr><td class='sub' colspan='5'>Nenhuma</td></tr>"}</table></div></div>
+    <div><h3 class="down">▼ ${cai.length} lojas caíram</h3><div class="tw"><table>${cab}${cai.map(linha).join("")||"<tr><td class='sub' colspan='5'>Nenhuma</td></tr>"}</table></div></div>
+  </div>${igual.length?`<p class="sub">Sem variação: ${igual.map(l=>esc(l.nome)).join(", ")}</p>`:""}`:`<p class="sub">Comparação por loja indisponível hoje (o portal não respondeu na leitura da meia-noite).</p>`}
+  </div>`;
 }
 const kpi=(t,v,s)=>`<div class="kpi"><span class="sub">${t}</span><b>${v}</b><span class="sub">${s||""}</span></div>`;
 function grafDias(){
@@ -230,7 +252,8 @@ function lojas(){
   document.querySelectorAll("th[data-s]").forEach(x=>x.onclick=()=>{const k=x.dataset.s,o=S.sort.lojas;S.sort.lojas=[k,o&&o[0]===k?-o[1]:(k==="nome"||k==="reg"?1:-1)];if(k==="status")S.sort.lojas=null;lojas()});
 }
 function detLoja(l){
-  return `<div class="mini"><div><span class="sub">Meta até ontem</span><b>${mil(l.meta)}</b></div><div><span class="sub">Meta do mês</span><b>${mil(l.metaMes)}</b></div>${A.base.fechado?"":`<div><span class="sub">Precisa/dia</span><b>${mil(l.precisaDia)}</b></div>`}<div><span class="sub">Faz por dia</span><b>${mil(l.mediaDia)}</b></div><div><span class="sub">Vendas</span><b>${num(l.pedidos)}</b></div><div><span class="sub">Itens/venda</span><b>${num(l.pa,2)}</b></div><div><span class="sub">Devolução</span><b>${pc(l.devolPct,1)}</b></div><div><span class="sub">Vendedores</span><b>${l.nVend}</b></div>${l.eletro?`<div><span class="sub">Baianão Eletro</span><b>${mil(l.eletro.venda)}</b></div>`:""}${l.leads?`<div><span class="sub">Leads</span><b>${num(l.leads.convertidos)}/${num(l.leads.contatos)}</b></div>`:""}</div>
+  const ws=A.semanal&&A.semanal.lojas.find(x=>x.cod===l.cod);
+  return `<div class="mini">${ws?`<div><span class="sub">Vs semana passada</span><b>${ws.cresc==null?"—":cresc(ws.cresc)}</b><span class="sub">${mil(ws.atual)} x ${mil(ws.anterior)}</span></div>`:""}<div><span class="sub">Meta até ontem</span><b>${mil(l.meta)}</b></div><div><span class="sub">Meta do mês</span><b>${mil(l.metaMes)}</b></div>${A.base.fechado?"":`<div><span class="sub">Precisa/dia</span><b>${mil(l.precisaDia)}</b></div>`}<div><span class="sub">Faz por dia</span><b>${mil(l.mediaDia)}</b></div><div><span class="sub">Vendas</span><b>${num(l.pedidos)}</b></div><div><span class="sub">Itens/venda</span><b>${num(l.pa,2)}</b></div><div><span class="sub">Devolução</span><b>${pc(l.devolPct,1)}</b></div><div><span class="sub">Vendedores</span><b>${l.nVend}</b></div>${l.eletro?`<div><span class="sub">Baianão Eletro</span><b>${mil(l.eletro.venda)}</b></div>`:""}${l.leads?`<div><span class="sub">Leads</span><b>${num(l.leads.convertidos)}/${num(l.leads.contatos)}</b></div>`:""}</div>
   <div class="cols"><div><h3>🔴 Pontos fracos</h3>${l.fracos.length?l.fracos.map(f=>`<div class="item"><span class="dot d-medio"></span><div><b>${esc(f.titulo)}</b><span class="sub">${esc(f.txt)}</span></div></div>`).join(""):"<p class='sub'>Nenhum ponto fraco relevante.</p>"}</div>
   <div><h3>🟢 Pontos fortes</h3>${l.fortes.length?l.fortes.map(f=>`<div class="item"><span class="dot d-bom"></span><div>${esc(f.txt)}</div></div>`).join(""):"<p class='sub'>—</p>"}${l.topVend?`<p class="sub" style="margin-top:8px">Melhor vendedor: <b>${esc(l.topVend.nome)}</b> (${mil(l.topVend.venda)}, ${pc(l.topVend.share)} da loja)</p>`:""}</div>
   <div><h3>✅ O que fazer</h3>${l.acoes.length?l.acoes.map((a,i)=>`<div class="item"><div class="prio p${i?2:1}" style="width:22px;height:22px;font-size:12px">${i+1}</div><div>${esc(a)}</div></div>`).join(""):"<p class='sub'>Manter o ritmo e reconhecer a equipe.</p>"}<p class="sub">Responsável: ${esc(l.lider)} (líder ${l.reg}) com o gerente da loja.</p></div></div>`;

@@ -248,6 +248,47 @@ for (let d = 1; d <= diasPassados; d++) {
 }
 const semanaOut = semana.filter((s) => s.dias).map((s) => ({ nome: s.nome, dias: s.dias, media: r2(s.venda / s.dias), pct: s.meta ? r4(s.venda / s.meta) : null }));
 
+// ---------- semana x semana passada: últimos 7 dias fechados x os 7 dias antes (mesmos dias da semana) ----------
+// Venda líquida (vendas − devoluções) dia a dia. Com o raw do portal sai por loja; sem ele, só rede e regionais.
+const isoMais = (iso, n) => new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10) + n)).toISOString().slice(0, 10);
+let semanal = null;
+try {
+  const fimS = B.fim, iniS = isoMais(fimS, -6), fimA = isoMais(fimS, -7), iniA = isoMais(fimS, -13);
+  const lado = (d) => (d >= iniS && d <= fimS ? "atual" : d >= iniA && d <= fimA ? "anterior" : null);
+  const cresceu = (a, b) => (b > 0 ? r4(a / b - 1) : null);
+  const tot = { atual: 0, anterior: 0 }, porReg = {}, porLoja = {};
+  const linhas = [...(RAW?.dados?.atual || []), ...(RAW?.dados?.anterior || [])];
+  if (linhas.length) {
+    const codDe = (t) => { t = limpa(t); if (/^001\d{4}$/.test(t)) return t; const m = t.match(/(\d+)/); return m ? `001${m[1].padStart(4, "0")}` : t; };
+    for (const l of linhas) {
+      const k = lado(String(l.data || "").slice(0, 10)); if (!k) continue;
+      const v = l.valorTotal || 0, cod = codDe(l.loja), reg = regDe(cod);
+      tot[k] += v;
+      if (/^R[1-9]$/.test(reg)) { (porReg[reg] ||= { atual: 0, anterior: 0 })[k] += v; (porLoja[cod] ||= { atual: 0, anterior: 0 })[k] += v; }
+    }
+  } else {
+    // plano B (sem raw): dia a dia do painel
+    const mesA = P.mes?.inicio?.slice(0, 7), mesB = P.mesAnt?.inicio?.slice(0, 7);
+    const valor = (arr, d) => (arr && arr[+d.slice(8, 10) - 1]) || 0;
+    for (let i = 0; i < 14; i++) {
+      const d = isoMais(iniA, i), k = lado(d), qual = d.slice(0, 7) === mesA ? "atual" : d.slice(0, 7) === mesB ? "anterior" : null;
+      if (!qual) throw new Error("fora dos meses lidos");
+      tot[k] += valor(D.diario?.[qual], d);
+      for (const reg in D.diario?.porRegional || {}) (porReg[reg] ||= { atual: 0, anterior: 0 })[k] += valor(D.diario.porRegional[reg][qual], d);
+    }
+  }
+  if (tot.atual || tot.anterior) {
+    const lojasS = lojas.map((l) => ({ cod: l.cod, nome: l.nome, reg: l.reg, lider: l.lider, atual: r2(porLoja[l.cod]?.atual), anterior: r2(porLoja[l.cod]?.anterior) }))
+      .map((l) => ({ ...l, dif: r2(l.atual - l.anterior), cresc: cresceu(l.atual, l.anterior) }));
+    semanal = {
+      atual: { inicio: iniS, fim: fimS }, anterior: { inicio: iniA, fim: fimA },
+      rede: { atual: r2(tot.atual), anterior: r2(tot.anterior), dif: r2(tot.atual - tot.anterior), cresc: cresceu(tot.atual, tot.anterior) },
+      regionais: REGS.filter((r) => porReg[r]).map((r) => ({ reg: r, lider: LIDER[r], atual: r2(porReg[r].atual), anterior: r2(porReg[r].anterior), dif: r2(porReg[r].atual - porReg[r].anterior), cresc: cresceu(porReg[r].atual, porReg[r].anterior) })),
+      lojas: linhas.length ? lojasS.filter((l) => l.atual || l.anterior) : [],
+    };
+  }
+} catch (e) { console.log("⚠️ comparação semanal não gerada:", String(e.message).slice(0, 120)); semanal = null; }
+
 // ---------- pontos fracos e fortes da rede + plano de ação ----------
 const L = (cods) => cods.map((c) => lojas.find((l) => l.cod === c)).filter(Boolean);
 const lojasCom = (tipo) => lojas.filter((l) => l.fracos.some((f) => f.tipo === tipo));
@@ -303,6 +344,8 @@ resumoTxt.push(`${fechado ? "Mês fechado" : `Até ontem (dia ${diasPassados})`}
 if (!fechado) resumoTxt.push(`No ritmo atual, fecha ${mesLabel} em ${mil(rede.projetado)} (${pc(rede.projPct)} da meta). ${rede.precisaDia > rede.mediaDia ? `Pra bater, precisa de ${mil(rede.precisaDia)}/dia nos ${diasRestantes} dias que faltam.` : "Está no caminho pra bater a meta."}`);
 resumoTxt.push(`${rede.status.ok} lojas no ritmo da meta, ${rede.status.perto} perto, ${rede.status.atencao} em atenção e ${rede.status.critica} críticas.`);
 if (regMelhor && regPior) resumoTxt.push(`Melhor regional: ${regMelhor.reg} (${regMelhor.lider}) com ${pc(regMelhor.pct)}. Mais atrasada: ${regPior.reg} (${regPior.lider}) com ${pc(regPior.pct)}.`);
+if (semanal?.rede.cresc != null) { const sb = semanal.lojas.filter((l) => l.cresc != null && l.cresc > 0).length, sc = semanal.lojas.filter((l) => l.cresc != null && l.cresc < 0).length;
+  resumoTxt.push(`Na semana (últimos 7 dias fechados), a rede vendeu ${mil(semanal.rede.atual)}: ${semanal.rede.cresc >= 0 ? "+" : ""}${pc(semanal.rede.cresc, 1)} sobre a semana anterior (${mil(semanal.rede.anterior)}).` + (semanal.lojas.length ? ` ${sb} lojas cresceram e ${sc} caíram.` : "")); }
 
 const out = {
   geradoEm: new Date().toISOString(), dadosDe: D.geradoEm, fonte: RAW ? "portal" : "painel",
@@ -310,7 +353,7 @@ const out = {
   resumo: resumoTxt, rede, regionais, lojas: lojas.sort((a, b) => ordemStatus[a.status] - ordemStatus[b.status] || a.pct - b.pct),
   fracos, fortes, plano,
   vendedores: { top: vendList.slice(0, 30), apoio, destaqueTicket, destaquePA, total: vendList.length, mediana: r2(medVend) },
-  categorias, grupos, produtos, semana: semanaOut, dias,
+  categorias, grupos, produtos, semana: semanaOut, dias, semanal,
 };
 fs.writeFileSync(ARQ_SAIDA, JSON.stringify(out));
 // registro público: só contagens
