@@ -48,19 +48,20 @@ export function textoJanela(antes, agora, info, h) {
   return out.join("\n");
 }
 
-// Lojas com menos de 3 CONTATOS com leads nas últimas 3 horas (contato com o lead, não venda). Pro Ed, de 3 em 3h.
-export const LEADS_HORAS = [11, 14, 17, 20]; // janelas 08–11, 11–14, 14–17, 17–20
+// Lojas com menos de 3 CONTATOS com leads NO DIA (contato com o lead, não venda), contando desde a abertura até a hora do envio.
+// Pro Ed, de 3 em 3h. (Antes contava só as últimas 3h; o Gabriel pediu o acumulado do dia em 25/11.)
+export const LEADS_HORAS = [11, 14, 17, 20];
 export const LIMITE_LEADS = 3;
-// antes/agora: { num: contatos acumulados no dia }; abertas: { num: { reg, nome } }
-export function textoLeads(antes, agora, abertas, h) {
+// agora: { num: contatos acumulados no dia }; abertas: { num: { reg, nome } }
+export function textoLeads(agora, abertas, h) {
   const hh = (x) => `${String(x).padStart(2, "0")}h`;
-  const ls = Object.entries(abertas).map(([n, i]) => ({ n, ...i, c: Math.max(0, (agora[n] || 0) - (antes[n] || 0)) }))
+  const ls = Object.entries(abertas).map(([n, i]) => ({ n, ...i, c: Math.max(0, agora[n] || 0) }))
     .filter((l) => l.c < LIMITE_LEADS).sort((a, b) => a.reg.localeCompare(b.reg) || a.c - b.c || Number(a.n) - Number(b.n));
-  const cab = `📞 *Lojas com menos de ${LIMITE_LEADS} contatos com leads* — ${hh(h - 3)} às ${hh(h)}`;
-  if (!ls.length) return `${cab}\n\n✅ Todas as lojas fizeram ${LIMITE_LEADS} ou mais contatos.`;
+  const cab = `📞 *Lojas com menos de ${LIMITE_LEADS} contatos com leads no dia* — até ${hh(h)}`;
+  if (!ls.length) return `${cab}\n\n✅ Todas as lojas já fizeram ${LIMITE_LEADS} ou mais contatos hoje.`;
   const out = [cab];
   let r = null;
-  for (const l of ls) { if (l.reg !== r) { r = l.reg; out.push("", `*${r}*`); } out.push(`• ${String(l.n).padStart(2, "0")} · ${curto(l.nome)} — ${l.c ? `${l.c} contato${l.c > 1 ? "s" : ""}` : "❌ *nenhum contato*"}`); }
+  for (const l of ls) { if (l.reg !== r) { r = l.reg; out.push("", `*${r}*`); } out.push(`• ${String(l.n).padStart(2, "0")} · ${curto(l.nome)} — ${l.c ? `${l.c} contato${l.c > 1 ? "s" : ""} no dia` : "❌ *nenhum contato hoje*"}`); }
   return out.join("\n");
 }
 

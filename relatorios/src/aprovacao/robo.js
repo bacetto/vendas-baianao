@@ -158,8 +158,8 @@ function janela() {
 // Boletim pro Ed de 2 em 2 horas (parcial do DIA: margem / serviços por regional). Roda em paralelo, sem segurar as aprovações;
 // tenta de novo a cada 2 min até :50 da hora; "est.boletim" evita mandar 2x (inclusive na troca de turno).
 const bol = { carregando: false, tentou: 0, avisou: null };
-// Lojas com menos de 3 contatos com leads nas últimas 3h (pro Ed, 11h/14h/17h/20h). Contatos vêm do painel de vendas
-// (Painel Vendas Leads do Universo, lido a cada ~1 min), comparando a publicação da hora cheia com a de 3h antes.
+// Lojas com menos de 3 contatos com leads NO DIA (pro Ed, 11h/14h/17h/20h). Contatos vêm do painel de vendas
+// (Painel Vendas Leads do Universo, lido a cada ~1 min): usa o acumulado do dia publicado na hora cheia.
 // Não usa o portal do Ed. "est.leads" evita mandar 2x (inclusive na troca de turno). 1ª vez: cópia pro Gabriel conferir.
 const ld = { carregando: false, tentou: 0, avisou: null };
 function leadsJanela() {
@@ -168,8 +168,8 @@ function leadsJanela() {
   if (min >= 50) { if (ld.avisou !== chave) { ld.avisou = chave; wa.enviar("eu", `⚠️ *Lojas com menos de 3 contatos de leads (${h}h)* não saiu pro Ed: o painel não respondeu.`); } return; }
   ld.carregando = true; ld.tentou = Date.now();
   const alvo = (hh) => Date.parse(`${hoje()}T${String(hh).padStart(2, "0")}:00:30-03:00`);
-  Promise.all([leadsLojas(alvo(h - 3), hoje()), leadsLojas(alvo(h), hoje())]).then(([a, g]) => {
-    const t = textoLeads(a.contatos, g.contatos, g.abertas, h);
+  leadsLojas(alvo(h), hoje()).then((g) => {
+    const t = textoLeads(g.contatos, g.abertas, h);
     wa.enviar(ED || "eu", t);
     if (!est.leadsTeste) { wa.enviar("eu", `🧪 *Cópia pra você conferir — o Ed recebeu agora:*\n\n${t}`); est.leadsTeste = Date.now(); }
     est.leads = chave; sujo = true;
