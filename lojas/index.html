@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lojas com menores vendas · Baianão</title>
+<style>
+:root{--bg:#f3f4f8;--card:#fff;--ink:#12172b;--mut:#687087;--line:#e3e6ee;--navy:#14246b;--red:#e02b2b;--ok:#0e9f6e;--okbg:#e6f6ef;--at:#e0700b;--bad:#d63b3b;--badbg:#fbe7e7;--soft:#eef0f7}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
+header{background:var(--navy);color:#fff;padding:14px 20px 0;position:sticky;top:0;z-index:5;box-shadow:0 2px 8px #0002}
+.top{display:flex;align-items:center;gap:12px;max-width:1280px;margin:0 auto}
+.logo{width:38px;height:38px;border-radius:10px;background:var(--red);display:grid;place-items:center;font-weight:900;font-size:20px;color:#fff;flex:none}
+h1{font-size:18px;margin:0}.hsub{font-size:12.5px;opacity:.8}
+.tabs{display:flex;gap:2px;max-width:1280px;margin:12px auto 0;overflow-x:auto;scrollbar-width:none}
+.tabs button{background:none;border:0;color:#c9d0f0;font:inherit;font-weight:600;padding:10px 14px;border-radius:8px 8px 0 0;cursor:pointer;white-space:nowrap}
+.tabs button.on{background:var(--bg);color:var(--navy)}
+main{max-width:1280px;margin:0 auto;padding:18px 20px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:14px}
+h2{font-size:16px;margin:0 0 12px}h3{font-size:15px;margin:0 0 4px}
+.sub{color:var(--mut);font-size:12.5px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.kpi{background:var(--soft);border-radius:10px;padding:8px 10px}.kpi b{display:block;font-size:16px}
+.mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:12px 0}
+.loja{border-left:5px solid var(--bad)}
+.big{font-size:26px;font-weight:800;color:var(--bad)}
+.hd{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.prob{background:var(--badbg);border-radius:10px;padding:10px 12px;font-weight:600;margin:6px 0 10px}
+.lbl{font-size:12px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--mut);font-weight:600;font-size:12px;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+td.n,th.n{text-align:right;white-space:nowrap}
+tr.rede td{font-weight:700;background:#eef3ff}
+tr.top5 td{background:#fdf1f1}
+.tw{overflow-x:auto}
+.up{color:var(--ok);font-weight:600}.down{color:var(--bad);font-weight:600}
+.good{color:var(--ok);font-weight:700}
+.tip{background:#eef3ff;border:1px solid #d6e0ff;border-radius:12px;padding:10px 14px;font-size:13px;color:#2a3a78;margin-bottom:14px}
+ol.ach{margin:0;padding-left:20px}ol.ach li{margin:0 0 10px}
+.lock{max-width:380px;margin:80px auto;text-align:center}
+.lock input{width:100%;margin:12px 0 10px;padding:10px;font:inherit;border:1px solid var(--line);border-radius:8px}
+.lock button{width:100%;padding:10px;border:0;border-radius:8px;background:var(--navy);color:#fff;font:inherit;font-weight:700;cursor:pointer}
+@media print{header{position:static}.tabs{display:none}body{background:#fff}}
+@media(max-width:640px){main{padding:12px}}
+</style>
+</head>
+<body>
+<div id="app"><div class="card lock">Carregando…</div></div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const brl=v=>"R$ "+Math.round(v||0).toLocaleString("pt-BR");
+const pc=(v,d=1)=>((v||0)*100).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d})+"%";
+const cr=c=>`<span class="${c>=0?"up":"down"}">${c>=0?"▲ +":"▼ "}${pc(c)}</span>`;
+let A=null,aba="resumo";
+
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function abre(enc,senha){
+  const k0=await crypto.subtle.importKey("raw",new TextEncoder().encode(senha),"PBKDF2",false,["deriveKey"]);
+  const k=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(enc.salt),iterations:enc.iter,hash:"SHA-256"},k0,{name:"AES-GCM",length:256},false,["decrypt"]);
+  const zip=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(enc.iv)},k,b64(enc.dados));
+  return JSON.parse(await new Response(new Blob([zip]).stream().pipeThrough(new DecompressionStream("gzip"))).text());
+}
+function pedeSenha(enc,erro){
+  $("#app").innerHTML=`<div class="card lock"><div class="logo" style="margin:0 auto 12px">B</div><b style="font-size:17px">Lojas com menores vendas</b><p class="sub">Acesso restrito. Use a mesma senha do painel de vendas.</p>
+  <form id="fS"><input type="password" id="iS" placeholder="Senha" autofocus><button>Entrar</button></form><p class="down" style="min-height:18px">${erro?"Senha incorreta.":""}</p></div>`;
+  $("#fS").onsubmit=async e=>{e.preventDefault();const s=$("#iS").value;try{A=await abre(enc,s);try{localStorage.setItem("painel-baianao-s",s)}catch(x){}render()}catch(x){pedeSenha(enc,true)}};
+}
+async function carrega(){
+  try{const r=await fetch("dados.enc?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const enc=await r.json();let s="";try{s=localStorage.getItem("painel-baianao-s")||""}catch(x){}
+    if(s){try{A=await abre(enc,s);render();return}catch(x){}}pedeSenha(enc)}
+  catch(e){$("#app").innerHTML='<div class="card lock">Não foi possível carregar. Atualize a página.</div>'}
+}
+
+const ABAS=[["resumo","Resumo"],["lojas","As 5 lojas"],["comparativo","Comparativo"],["plano","Plano de ação"],["todas","Todas as lojas"]];
+function render(){
+  $("#app").innerHTML=`<header><div class="top"><div class="logo">B</div><div><h1>${esc(A.titulo)}</h1><div class="hsub">${esc(A.base)}</div></div></div>
+  <nav class="tabs">${ABAS.map(([k,t])=>`<button data-a="${k}" class="${k===aba?"on":""}">${t}</button>`).join("")}</nav></header><main id="m"></main>`;
+  document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{aba=b.dataset.a;render();scrollTo(0,0)});
+  $("#m").innerHTML=({resumo,lojas,comparativo,plano,todas})[aba]();
+}
+
+function resumo(){
+  const R=A.rede;
+  return `<div class="tip">A rede está vendendo <b>${pc(R.cresc)} a mais</b> que no mesmo período de outubro. Essas 5 lojas estão vendendo menos — o problema é da loja, não do mercado.</div>
+  <div class="card"><h2>O que está derrubando as 5 lojas</h2><ol class="ach">
+  <li><b>Ticket baixo.</b> Quatro delas vendem entre R$ 660 e R$ 770 por pedido. A rede faz ${brl(R.ticket)} e as lojas que batem meta, de R$ 1.040 a R$ 1.600. O número de pedidos não é o problema: elas vendem item barato e não fecham produto grande.</li>
+  <li><b>Leads sem retorno.</b> Boca do Rio recebeu 958 contatos e fechou cerca de 7 vendas; Campinas, 508 contatos e cerca de 3. Na média da rede (${pc(R.conv)}) seriam umas 25 e 13 vendas.</li>
+  <li><b>Uma categoria quase parada em cada loja.</b> O pior caso é Eletro em Camaçari: 8% da meta, faltando R$ 84 mil só nela. Queda assim costuma ser estoque, exposição ou preço.</li>
+  <li><b>Equipe pequena ou dependente de uma pessoa.</b> Campinas tem 3 vendedores e um deles faz 70% da venda.</li>
+  </ol><p class="sub">Os números não mostram fluxo de clientes, ruptura de estoque, falta de funcionário nem concorrência perto da loja — isso os líderes confirmam na visita. Com 6 dias pro fim do mês, a meta cheia dessas lojas não fecha mais: o foco é recuperar a tendência pra dezembro.</p></div>
+  <div class="card"><h2>As 5 lojas num relance</h2><div class="tw">${tabela5()}</div></div>`;
+}
+function tabela5(){
+  const R=A.rede;
+  return `<table><tr><th>Loja</th><th>Regional</th><th class="n">% da meta</th><th class="n">Vs. mês passado</th><th class="n">Ticket</th><th class="n">Conversão de leads</th><th>Categoria mais fraca</th></tr>
+  ${A.cinco.map(l=>`<tr><td><b>${l.num} · ${esc(l.nome)}</b></td><td>${esc(l.reg)}</td><td class="n down">${pc(l.venda/l.meta)}</td><td class="n">${cr(l.cresc)}</td><td class="n">${brl(l.ticket)}</td><td class="n ${l.conv>=R.conv?"good":"down"}">${pc(l.conv)}</td><td>${esc(l.catPior)}</td></tr>`).join("")}
+  <tr class="rede"><td>REDE</td><td></td><td class="n">${pc(R.pct)}</td><td class="n">${cr(R.cresc)}</td><td class="n">${brl(R.ticket)}</td><td class="n">${pc(R.conv)}</td><td></td></tr></table>`;
+}
+function lojas(){
+  const R=A.rede;
+  return A.cinco.map(l=>`<div class="card loja"><div class="hd"><div><h3>${l.num} · ${esc(l.nome)}</h3><div class="sub">${esc(l.reg)}</div></div><div style="text-align:right"><div class="big">${pc(l.venda/l.meta)}</div><div class="sub">da meta · ${brl(l.venda)} de ${brl(l.meta)}</div></div></div>
+  <div class="prob">${esc(l.problema)}</div>
+  <div class="mini">
+   <div class="kpi"><span class="sub">Vs. mês passado</span><b>${cr(l.cresc)}</b></div>
+   <div class="kpi"><span class="sub">Ticket (rede ${brl(R.ticket)})</span><b>${brl(l.ticket)}</b></div>
+   <div class="kpi"><span class="sub">Com ticket da rede venderia</span><b>${brl(l.pedidos*R.ticket)}</b></div>
+   <div class="kpi"><span class="sub">Leads → vendas</span><b>${Math.round(l.leads)} → ${Math.round(l.leads*l.conv)}</b></div>
+   <div class="kpi"><span class="sub">Na taxa da rede seriam</span><b>${Math.round(l.leads*R.conv)} vendas</b></div>
+   <div class="kpi"><span class="sub">Serviços (rede ${pc(R.serv)})</span><b>${pc(l.serv)}</b></div>
+   <div class="kpi"><span class="sub">Devolução (rede ${pc(R.devol)})</span><b>${pc(l.devol)}</b></div>
+   <div class="kpi"><span class="sub">Vendedores</span><b>${l.vend}</b></div>
+  </div>
+  <div class="lbl">Outros sinais</div><div>${esc(l.sinais)}</div>
+  <div class="lbl">O que confirmar na visita</div><div>${esc(l.confirmar)}</div></div>`).join("");
+}
+function comparativo(){
+  const R=A.rede;
+  return `<div class="card"><h2>5 lojas x rede</h2><p class="sub">As colunas em verde mostram quanto cada loja venderia com o ticket médio da rede e quantas vendas faria convertendo os leads na taxa da rede.</p><div class="tw"><table>
+  <tr><th>Loja</th><th class="n">Venda</th><th class="n">Meta até 24/11</th><th class="n">% meta</th><th class="n">Vs. mês passado</th><th class="n">Ticket</th><th class="n">Pedidos</th><th class="n" style="color:var(--ok)">Venda c/ ticket da rede</th><th class="n">Leads</th><th class="n">Conversão</th><th class="n">Vendas de leads</th><th class="n" style="color:var(--ok)">Na taxa da rede</th><th class="n">PA</th><th class="n">Margem</th><th class="n">Serviços</th><th class="n">Devolução</th><th class="n">Vendedores</th></tr>
+  ${A.cinco.map(l=>`<tr><td><b>${l.num} · ${esc(l.nome)}</b><div class="sub">${esc(l.reg)}</div></td><td class="n">${brl(l.venda)}</td><td class="n">${brl(l.meta)}</td><td class="n down">${pc(l.venda/l.meta)}</td><td class="n">${cr(l.cresc)}</td><td class="n">${brl(l.ticket)}</td><td class="n">${l.pedidos}</td><td class="n good">${brl(l.pedidos*R.ticket)}</td><td class="n">${Math.round(l.leads)}</td><td class="n">${pc(l.conv)}</td><td class="n">${Math.round(l.leads*l.conv)}</td><td class="n good">${Math.round(l.leads*R.conv)}</td><td class="n">${l.pa.toLocaleString("pt-BR")}</td><td class="n">${pc(l.margem)}</td><td class="n">${pc(l.serv)}</td><td class="n">${pc(l.devol)}</td><td class="n">${l.vend}</td></tr>`).join("")}
+  <tr class="rede"><td>REDE</td><td></td><td></td><td class="n">${pc(R.pct)}</td><td class="n">${cr(R.cresc)}</td><td class="n">${brl(R.ticket)}</td><td></td><td></td><td class="n">${R.leads.toLocaleString("pt-BR")}</td><td class="n">${pc(R.conv)}</td><td></td><td></td><td class="n">${R.pa.toLocaleString("pt-BR")}</td><td class="n">${pc(R.margem)}</td><td class="n">${pc(R.serv)}</td><td class="n">${pc(R.devol)}</td><td></td></tr>
+  </table></div></div>`;
+}
+function plano(){
+  return `<div class="card"><h2>O que fazer já</h2><div class="tw"><table><tr><th>#</th><th>Ação</th><th>Lojas</th><th>Responsável</th><th>Prazo</th><th>Como medir</th></tr>
+  ${A.plano.map((p,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(p.acao)}</td><td>${esc(p.lojas)}</td><td>${esc(p.resp)}</td><td>${esc(p.prazo)}</td><td>${esc(p.medir)}</td></tr>`).join("")}
+  </table></div></div>`;
+}
+function todas(){
+  const cinco=new Set(A.cinco.map(l=>l.num));
+  return `<div class="card"><h2>Todas as lojas — da menor para a maior % da meta</h2><p class="sub">As 5 analisadas estão destacadas.</p><div class="tw"><table>
+  <tr><th>Loja</th><th>Regional</th><th class="n">% meta</th><th class="n">Venda</th><th class="n">Vs. mês passado</th><th class="n">Ticket</th><th class="n">PA</th><th class="n">Serviços</th><th class="n">Devolução</th><th class="n">Leads</th><th class="n">Conversão</th><th class="n">Vendedores</th><th>Categoria mais fraca</th><th>Categoria mais forte</th></tr>
+  ${A.todas.map(l=>`<tr class="${cinco.has(l.num)?"top5":""}"><td><b>${l.num} · ${esc(l.nome)}</b></td><td>${esc(l.reg)}</td><td class="n">${pc(l.venda/l.meta)}</td><td class="n">${brl(l.venda)}</td><td class="n">${cr(l.cresc)}</td><td class="n">${brl(l.ticket)}</td><td class="n">${l.pa.toLocaleString("pt-BR")}</td><td class="n">${pc(l.serv)}</td><td class="n">${pc(l.devol)}</td><td class="n">${Math.round(l.leads)}</td><td class="n">${pc(l.conv)}</td><td class="n">${l.vend}</td><td>${esc(l.catPior)}</td><td>${esc(l.catMelhor)}</td></tr>`).join("")}
+  </table></div></div>`;
+}
+carrega();
+</script>
+</body>
+</html>
