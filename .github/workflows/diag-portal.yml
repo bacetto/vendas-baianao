@@ -1,0 +1,16 @@
+name: Diagnóstico do login do portal (temporário)
+# Só abre a tela de login (sem senha) e mostra o que aparece pro robô. Não mexe em nada.
+on: workflow_dispatch
+permissions: { contents: read }
+jobs:
+  diag:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults: { run: { working-directory: relatorios } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: relatorios/package-lock.json }
+      - run: npm ci --no-audit --no-fund > /dev/null 2>&1
+      - run: curl -s https://api.ipify.org; echo; curl -s -o /dev/null -w "curl login: %{http_code}\n" https://universobaianao.com.br/login
+      - run: node src/diag/portal-login.mjs
