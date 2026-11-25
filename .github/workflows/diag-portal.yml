@@ -13,5 +13,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: relatorios/package-lock.json }
       - run: npm ci --no-audit --no-fund > /dev/null 2>&1
-      - run: curl -s https://api.ipify.org; echo; curl -s -o /dev/null -w "curl login: %{http_code}\n" https://universobaianao.com.br/login
+      - run: |
+          curl -s https://api.ipify.org; echo
+          curl -s -o /dev/null -w "curl login %{http_code}\n" https://universobaianao.com.br/login
       - run: node src/diag/portal-login.mjs
