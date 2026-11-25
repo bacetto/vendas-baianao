@@ -17,3 +17,7 @@ jobs:
           curl -s https://api.ipify.org; echo
           curl -s -o /dev/null -w "curl login %{http_code}\n" https://universobaianao.com.br/login
       - run: node src/diag/portal-login.mjs
+      - run: node src/diag/portal-login2.mjs
+        env:
+          ED_CPF: ${{ secrets.ED_CPF || secrets.PORTAL_CPF }}
+          ED_SENHA: ${{ secrets.ED_SENHA || secrets.PORTAL_SENHA }}
