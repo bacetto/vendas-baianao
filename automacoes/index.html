@@ -316,6 +316,10 @@ const A = [
     desc: "Análise completa do mês até ontem: pontos fracos e fortes, plano de ação com responsável e prazo, situação de cada regional, loja e vendedor, categorias e produtos.",
     quando: ["00:05 todo dia", "reserva 00:40"], regras: ["Só dias fechados: o dia de hoje não entra", "Roda quando as outras automações estão paradas (não disputa o portal nem o WhatsApp)", "Confere sozinha se a página abre antes de publicar", "Dados criptografados: só abre com a senha"],
     trava: "Se o portal não responder, usa a última leitura do painel; se falhar de novo às 00:40, avisa o Gabriel no WhatsApp.", link: "../analise/" },
+  { id: "lojas", em: "🔻", nome: "Lojas com menores vendas", quem: "Gabriel e o patrão · com senha (a mesma do painel)",
+    desc: "Análise das lojas que menos vendem no mês: venda, meta, % da meta, comparação com o mês passado, ticket, pedidos, leads e conversão de cada uma.",
+    quando: ["página de consulta"], regras: ["Retrato do mês com os dias já fechados (na data indicada no topo da página)", "Não atualiza sozinha: é refeita quando o Gabriel pede", "Dados criptografados: só abre com a senha"],
+    trava: "Não roda sozinha, então não trava: se a página não abrir, a Central avisa aqui.", link: "../lojas/" },
   { id: "guardiao", em: "⏰", nome: "Guardião dos horários", quem: "Interno · garante que tudo rode na hora",
     desc: "O agendamento do GitHub atrasa ou pula execuções. O Guardião fica ligado 24h e chama no horário certo o status desta Central, o Vigia e a Análise de Vendas, e religa a coleta do painel se ela parar.",
     quando: ["24h", "confere a cada 20 s"], regras: ["Não muda a regra de nenhuma automação: só garante o horário", "Ele e a coleta do painel se vigiam: se um cair, o outro religa", "Não usa o portal nem o WhatsApp"],
@@ -419,7 +423,7 @@ function avaliar(runs, dadosISO, fotos, an) {
 function banner() {
   const vals = A.filter((a, i, arr) => arr.findIndex((b) => b.id === a.id) === i).map((a) => [a, ST[a.id]]).filter(([, s]) => s);
   const nomes = (k) => A.filter((a) => ST[a.id]?.s === k).map((a) => a.nome);
-  const bad = nomes("bad"), warn = nomes("warn"), okN = A.filter((a) => ST[a.id]?.s === "ok").length, offN = A.filter((a) => ST[a.id]?.s === "off").length;
+  const bad = nomes("bad"), warn = nomes("warn"), okN = A.filter((a) => a.id !== "lojas" && ST[a.id]?.s === "ok").length, offN = A.filter((a) => ST[a.id]?.s === "off").length;
   const b = document.getElementById("banner");
   if (!vals.length) return;
   if (bad.length) { b.className = "banner bad"; b.innerHTML = `<div class="ico">🚨</div><div><h3>${bad.length === 1 ? "1 automação travou" : bad.length + " automações travaram"}</h3><p>Precisa olhar:</p><ul class="lista">${bad.map((x) => `<li>❌ ${x}</li>`).join("")}</ul></div>`; }
@@ -433,6 +437,18 @@ function banner() {
     <div><b>${prox ? hm(prox[0] % 60 === 1 ? prox[0] - 1 : prox[0]) : "00:05"}</b><span>próximo: ${prox ? prox[1] : "amanhã"}</span></div>`;
 }
 
+// página de consulta (não é automação): só confere se está no ar e de quando são os dados
+async function statusLojas() {
+  try {
+    const r = await fetch(`../lojas/?t=${Math.floor(Date.now() / 60e3)}`, { cache: "no-store" });
+    if (!r.ok) throw 0;
+    const h = await r.text();
+    const ate = (h.match(/até (\d{2}\/\d{2})/) || [])[1];
+    return { s: "ok", txt: `No ar${ate ? ` · dados até ${ate}` : ""} · atualiza quando o Gabriel pedir` };
+  } catch {
+    return { s: "warn", txt: "A página não abriu agora — confira o link" };
+  }
+}
 let ultima = 0, gerado = null;
 const STATUS_URL = "https://raw.githubusercontent.com/bacetto/vendas-baianao/status/status.json";
 const conv = (lst, f) => (lst || []).map((r) => ({ path: `.github/workflows/${f}`, status: r.status, conclusion: r.conclusion, created_at: r.createdAt, updated_at: r.updatedAt, run_started_at: r.startedAt })).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -444,10 +460,12 @@ async function atualizar() {
     const runs = [...conv(j.coleta, "coleta.yml"), ...conv(j.vigia, "vigia.yml"), ...conv(j.robo_vivo, "robo-descontos.yml"), ...conv(j.robo_fila, "robo-descontos.yml"), ...conv(j.robo, "robo-descontos.yml"), ...conv(j.rel, "relatorios.yml"), ...conv(j.guardiao, "guardiao.yml")];
     const an = j.analise ? Object.assign(conv(j.analise, "analise.yml"), { dataISO: j.analise_dados || "" }) : null;
     ST = avaliar(runs, j.dados || null, conv(j.fotos, "publicar.yml"), an);
+    ST.lojas = await statusLojas();
     gerado = j.gerado; ultima = Date.now();
     const idade = (Date.now() - new Date(gerado)) / 60e3;
     if (idade > 25) for (const k in ST) if (ST[k].s === "ok") ST[k] = { s: "warn", txt: `${ST[k].txt} · (leitura de ${horaBR(gerado)}, o status está atrasado)` };
   } catch (e) {
+    ST.lojas = await statusLojas();
     for (const k of ["rel", "robo", "painel", "vigia", "fotos", "analise", "guardiao"]) if (!ST[k] || ST[k].s === "load") ST[k] = { s: "load", txt: "Status ao vivo indisponível no momento — tenta de novo em instantes" };
   }
   cards(); banner(); rodape();
