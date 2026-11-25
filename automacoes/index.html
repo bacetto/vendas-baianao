@@ -5,17 +5,24 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>Central de Automações · Baianão</title>
+<link rel="icon" href="https://baianao.com.br/cdn/shop/files/logo_d4a14027-c809-4795-88f1-a011c0050bb3.png?v=1746454030">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f4f5f8;--card:#fff;--ink:#12172b;--mut:#6b7285;--line:#e4e6ee;--navy:#14246b;--navy2:#1d3394;--red:#e02b2b;--yel:#ffc928;--ok:#0e9f6e;--okbg:#e6f6ef;--bad:#d63b3b;--badbg:#fdecec;--warn:#b77a00;--warnbg:#fff5dc;--off:#8a90a2;--offbg:#eef0f4;--soft:#eef0f7}
+:root{--bg:#f4f5f8;--card:#fff;--ink:#12172b;--mut:#6b7285;--line:#e4e6ee;--navy:#00388a;--navy2:#1d3394;--red:#e3262b;--yel:#ffc928;--ok:#0e9f6e;--okbg:#e6f6ef;--bad:#d63b3b;--badbg:#fdecec;--warn:#b77a00;--warnbg:#fff5dc;--off:#8a90a2;--offbg:#eef0f4;--soft:#eef0f7}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Poppins,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
 a{color:var(--navy2)}
-header{background:var(--navy);color:#fff;border-bottom:5px solid var(--red)}
+header{background:var(--navy);color:#fff}
+.brand{background:#fff;color:var(--ink);border-bottom:4px solid var(--red)}
+.marca{height:46px;width:auto;display:block;flex:none}
+.top .sep{width:1px;height:38px;background:var(--line);flex:none}
+header nav{padding-top:10px}
 .wrap{max-width:1180px;margin:0 auto;padding:0 18px}
 .top{display:flex;align-items:center;gap:14px;padding:16px 0}
 .logo{width:46px;height:46px;border-radius:12px;background:#fff;color:var(--navy);display:grid;place-items:center;font-weight:900;font-style:italic;font-size:28px;border-bottom:5px solid var(--red);flex:none}
-.top h1{margin:0;font-size:21px;font-weight:800;letter-spacing:-.3px}
-.top p{margin:1px 0 0;opacity:.8;font-size:13.5px}
+.top h1{margin:0;font-size:21px;font-weight:800;letter-spacing:-.3px;color:var(--navy)}
+.top p{margin:1px 0 0;color:var(--mut);font-size:13.5px}
 .relogio{margin-left:auto;text-align:right;font-size:13px;opacity:.9}
 .relogio b{display:block;font-size:22px;opacity:1}
 nav{display:flex;gap:4px;overflow-x:auto;padding-bottom:10px}
@@ -96,15 +103,17 @@ footer{color:var(--mut);font-size:12.5px;text-align:center;padding:20px 0 30px}
 </head>
 <body>
 <header>
-  <div class="wrap">
+  <div class="brand"><div class="wrap">
     <div class="top">
-      <div class="logo">B</div>
+      <img class="marca" src="https://baianao.com.br/cdn/shop/files/logo_d4a14027-c809-4795-88f1-a011c0050bb3.png?v=1746454030" alt="Baianão"><div class="sep"></div>
       <div>
         <h1>Central de Automações</h1>
         <p>Baianão Móveis · tudo que roda sozinho, quando roda e com quais regras</p>
       </div>
       <div class="relogio"><b id="hora">--:--</b><span id="data"></span></div>
     </div>
+  </div></div>
+  <div class="wrap">
     <nav>
       <a href="#status">Situação agora</a>
       <a href="#agenda">Agenda de hoje</a>

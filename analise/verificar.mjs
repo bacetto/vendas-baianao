@@ -14,7 +14,8 @@ try {
   for (const vp of [{ width: 1366, height: 900 }, { width: 390, height: 840 }]) {
     const page = await browser.newPage({ viewport: vp });
     page.on("pageerror", (e) => erros.push(e.message));
-    page.on("console", (m) => { if (m.type() === "error") erros.push(m.text()); });
+    // logo e fonte vêm de fora (site do Baianão / Google Fonts): se não carregarem no runner, não é erro da página
+    page.on("console", (m) => { if (m.type() === "error" && !/^Failed to load resource/.test(m.text())) erros.push(m.text()); });
     await page.setContent(html, { waitUntil: "load" });
     for (const aba of ["geral", "plano", "regionais", "lojas", "vendedores", "produtos"]) {
       await page.click(`.tabs button[data-a="${aba}"]`);
