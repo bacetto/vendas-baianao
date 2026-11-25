@@ -34,7 +34,7 @@ export const pct = (n) => (n == null ? "—" : `${Number(n).toLocaleString("pt-B
 export function textoRegra(r, e) {
   const g = e.regras[r] || {};
   if (g.min == null && g.max == null && g.serv == null) return `*${r}* · manual (fica pro Ed)`;
-  const t = `*${r}* · ${g.min != null ? `M${num2(g.min)}` : "M ?"} · ${g.max != null ? `D${num2(g.max)}` : "D ?"} · ${g.serv != null ? `S${num2(g.serv)}` : "S ?"}`;
+  const t = `*${r}* · ${g.min != null ? `M${num2(g.min)}` : "M ?"} · ${g.max != null ? `D${num2(g.max)}${typeof g.maxServ === "number" ? ` (D${num2(g.maxServ)} com serviço)` : ""}` : "D ?"} · ${g.serv != null ? `S${num2(g.serv)}` : "S ?"}`;
   return g.min != null && g.max != null && g.serv != null ? t : `${t} — ⚠️ incompleta: fica pro Ed`;
 }
 const num2 = (n) => Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
@@ -144,6 +144,11 @@ export function soEdnilson(item) {
   return Number.isFinite(desc) && desc > 20;
 }
 
+// 25/11 (Gabriel): pedido COM serviço vendido junto pode ter desconto até o "D com serviço" (maxServ, ex.: 27%);
+// sem serviço vale o D normal. Margem (M) e serviços (S) não mudam.
+export function temServicoVenda(item) { return (item?.services || []).some((x) => (Number(x.finalValue) || 0) > 0); }
+export function descMax(regra, item) { return temServicoVenda(item) && typeof regra?.maxServ === "number" ? Math.max(regra.max, regra.maxServ) : regra?.max; }
+
 // Decide um pedido pendente. item = objeto do portal; regional = "R1".."R4".
 export function decidir(item, regional, e, base) {
   // REGRA DE OURO: só APROVA se M, D e S estiverem cadastrados E os 3 forem cumpridos com números confiáveis.
@@ -167,13 +172,14 @@ export function decidir(item, regional, e, base) {
   // fora da regra: NUNCA reprova — não faz nada no portal e avisa (o Ed decide)
   const fora = (motivo) => ({ acao: "MANUAL", motivo: `fora da regra: ${motivo}` });
   const falhas = [];
-  if (desc > regra.max + 1e-9) falhas.push(`desconto ${pct(desc)} acima do D${num2(regra.max)}`);
+  const dmax = descMax(regra, item), dTxt = dmax !== regra.max ? `D${num2(dmax)} (com serviço)` : `D${num2(regra.max)}`;
+  if (desc > dmax + 1e-9) falhas.push(`desconto ${pct(desc)} acima do ${dTxt}`);
   if (ok(serv) && serv < regra.serv) falhas.push(`serviços com o pedido ${pct(serv)} abaixo do S${num2(regra.serv)}`);
   if (ok(margem) && margem < regra.min) falhas.push(`margem do regional ${pct(margem)} abaixo do M${num2(regra.min)}`);
   if (falhas.length) return fora(falhas.join(" · "));
   if (!ok(margem) || margem <= 0 || margem > 100) return { acao: "MANUAL", motivo: "não deu pra ler com segurança a margem do regional" };
   if (!ok(serv) || serv < 0 || serv > 100) return { acao: "MANUAL", motivo: "não deu pra calcular com segurança os serviços do regional com o pedido" };
-  return { acao: "APROVAR", motivo: `margem do regional ${pct(margem)} ≥ M${num2(regra.min)} · desconto ${pct(desc)} ≤ D${num2(regra.max)} · serviços ${pct(serv)} ≥ S${num2(regra.serv)}` };
+  return { acao: "APROVAR", motivo: `margem do regional ${pct(margem)} ≥ M${num2(regra.min)} · desconto ${pct(desc)} ≤ ${dTxt} · serviços ${pct(serv)} ≥ S${num2(regra.serv)}` };
 }
 
 const brl = (n) => (typeof n === "number" ? n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—");
@@ -213,7 +219,7 @@ export function textoAviso(item, regional, d, e, resultado, base) {
   if (temRegras && typeof mc === "number" && typeof sc === "number") {
     const linha = (ok, nome, valor, lim) => `${ok ? "✅" : "❌"} ${nome}: *${pct(valor)}*  _(${lim})_`;
     out.push("", L, `*REGRAS DO ${regional}*`,
-      linha(dc <= g.max + 1e-9, "Desconto", dc, `máx. ${num2(g.max)}%`),
+      linha(dc <= descMax(g, item) + 1e-9, "Desconto", dc, `máx. ${num2(descMax(g, item))}%${descMax(g, item) !== g.max ? " com serviço" : ""}`),
       linha(mc >= g.min, "Margem", mc, `mín. ${num2(g.min)}%`),
       linha(proj.servAtual >= g.serv, "Serviços", proj.servAtual, `mín. ${num2(g.serv)}%`),
       L,

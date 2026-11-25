@@ -34,6 +34,8 @@ est.solicitados ||= {};
 // Ajustes de regra pedidos fora do grupo (aplicados uma vez só; o id fica salvo no estado)
 est.ajustes ||= [];
 const AJUSTES = [
+  // 25/11: Gabriel pediu desconto máximo de 27% quando o pedido tiver serviço vendido junto (sem serviço continua o D atual)
+  { id: "2026-11-25-dserv27", aplicar: (e) => { let n = 0; for (const r of Object.keys(e.regras)) if (typeof e.regras[r]?.max === "number") { e.regras[r].maxServ = 27; n++; } return n; } },
   // 24/11: Gabriel pediu desconto máximo de 20% -> 25% (sem mexer pelo grupo)
   { id: "2026-11-24-d20-d25", aplicar: (e) => { let n = 0; for (const r of Object.keys(e.regras)) if (e.regras[r]?.max === 20) { e.regras[r].max = 25; e.regras[r].em = new Date().toISOString(); n++; } return n; } },
 ];
