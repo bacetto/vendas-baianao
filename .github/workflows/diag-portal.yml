@@ -1,6 +1,7 @@
 name: Diagnóstico do login do portal (temporário)
 # Só abre a tela de login (sem senha) e mostra o que aparece pro robô. Não mexe em nada.
-on: workflow_dispatch
+on:
+  workflow_dispatch:
 permissions: { contents: read }
 jobs:
   diag:
