@@ -295,11 +295,12 @@ function leadsLojas(l){
   if(!ls.length)return"";
   const z=ls.filter(x=>!x.c).length,b=ls.filter(x=>x.c>0&&x.c<3).length,NOM={R1:"UARA",R2:"DIEGO",R3:"ALEXANDRE",R4:"MICHEL"},regs=[...new Set(ls.map(x=>x.reg))].sort();
   const tag=x=>!x.c?`<b style="color:var(--bad)">0 · nenhum contato</b>`:x.c<3?`<b style="color:var(--warn)">${num(x.c)}</b>`:`<b>${num(x.c)}</b>`;
-  return `<div style="margin-top:16px"><b>Contatos com leads por loja (${S.per==="hoje"?"hoje":"mês"})</b>
-  <div class="sub" style="margin:4px 0 8px">${ls.length} lojas · <b style="color:var(--bad)">${z} sem nenhum contato</b>${b?` · <b style="color:var(--warn)">${b} com 1 ou 2</b>`:""}</div>
-  <div class="tw"><table><thead><tr><th class="l">Regional</th><th class="l">Loja</th><th>Contatos</th></tr></thead><tbody>
+  return `<details class="ll" style="margin-top:16px"${window.__ll?" open":""} ontoggle="window.__ll=this.open"><summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="seta" style="display:inline-block;transition:transform .2s;color:var(--navy)">▶</span><b>Contatos com leads por loja (${S.per==="hoje"?"hoje":"mês"})</b>
+  <span class="sub">${ls.length} lojas · <b style="color:var(--bad)">${z} sem nenhum contato</b>${b?` · <b style="color:var(--warn)">${b} com 1 ou 2</b>`:""}</span></summary>
+  <style>.ll summary::-webkit-details-marker{display:none}.ll[open] .seta{transform:rotate(90deg)}</style>
+  <div class="tw" style="margin-top:8px"><table><thead><tr><th class="l">Regional</th><th class="l">Loja</th><th>Contatos</th></tr></thead><tbody>
   ${regs.map(rg=>ls.filter(x=>x.reg===rg).sort((a,c)=>a.c-c.c||a.n-c.n).map((x,i)=>`<tr${!x.c?' style="background:#fdecec"':""}><td class="l">${i?"":`<b>${rg} · ${NOM[rg]||""}</b>`}</td><td class="l nome">${String(x.n).padStart(2,"0")} · ${esc(x.nome)}</td><td>${tag(x)}</td></tr>`).join("")).join("")}
-  </tbody></table></div></div>`;
+  </tbody></table></div></details>`;
 }
 function leadsRegionais(l){
   const m={};for(const x of l.porLoja||[]){const r=x.regional;if(!/^R[1-9]$/.test(r||""))continue;m[r]??={reg:r,lojas:0,contatos:0,convertidos:0,valor:0};const y=m[r];y.lojas++;y.contatos+=x.contatos||0;y.convertidos+=x.convertidos||0;y.valor+=x.valor||0}
