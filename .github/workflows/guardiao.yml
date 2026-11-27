@@ -56,6 +56,24 @@ jobs:
             # Análise de Vendas: 00:05 e 00:40 (janela de 10 min se o minuto exato passar)
             if [ "$A" -ge 5 ] && [ "$A" -lt 15 ] && mk an1; then chama analise.yml -f agenda=1; fi
             if [ "$A" -ge 40 ] && [ "$A" -lt 50 ] && mk an2; then chama analise.yml -f agenda=1; fi
+            # 27/11: painel PARADO com a coleta "viva" (travada): dados com mais de 6 min (07:10–23:00) e a coleta rodando há
+            # mais de 8 min -> cancela essa coleta e liga outra (no máx. 1 vez a cada 10 min). O vigia segue avisando se passar de 15 min.
+            if [ "$A" -ge 430 ] && [ "$A" -lt 1380 ] && mk "tr-$A"; then
+              ULT=$(gh api "repos/$REPO/commits/dados" --jq .commit.committer.date 2>/dev/null)
+              if [ -n "$ULT" ]; then
+                IDADE=$(( ( $(date +%s) - $(date -d "$ULT" +%s) ) / 60 ))
+                CO=$(gh run list -R "$REPO" -w coleta.yml -L 5 --json databaseId,status,createdAt --jq '[.[]|select(.status=="in_progress")][0]|"\(.databaseId) \(.createdAt)"' 2>/dev/null)
+                CID=${CO%% *}; CEM=${CO#* }
+                if [ "$IDADE" -ge 6 ] && [ -n "$CID" ] && [ "$CID" != "null" ] && [ $(( $(date +%s) - $(date -d "$CEM" +%s 2>/dev/null || date +%s) )) -gt 480 ] \
+                   && [ $(( $(date +%s) - ${ULT_TROCA:-0} )) -gt 600 ]; then
+                  ULT_TROCA=$(date +%s)
+                  echo "⚠️ $(TZ=America/Bahia date +%H:%M) painel parado há $IDADE min com a coleta viva — trocando a coleta"
+                  gh run cancel "$CID" -R "$REPO" >/dev/null 2>&1
+                  for i in $(seq 1 12); do [ "$(ativos coleta.yml)" = "0" ] && break; sleep 5; done
+                  chama coleta.yml
+                fi
+              fi
+            fi
             # Coleta do painel: tem que existir sempre (ela mesma decide quando lê o portal)
             if [ $((M % 2)) -eq 0 ] && mk "co-$A"; then
               [ "$(ativos coleta.yml)" = "0" ] && { chama coleta.yml; echo "⚠️ coleta estava parada — religada"; }

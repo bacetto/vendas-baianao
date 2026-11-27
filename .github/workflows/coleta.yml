@@ -79,11 +79,11 @@ jobs:
               for t in 1 2 3; do
                 rm -f saida/dados.json
                 [ "$t" -gt 1 ] && export LEVE=0
-                timeout 600 node painel/coletar.js && [ -s saida/dados.json ] && publicar && { echo "publicado $(TZ=America/Bahia date +%H:%M)"
+                timeout 300 node painel/coletar.js && [ -s saida/dados.json ] && publicar && { echo "publicado $(TZ=America/Bahia date +%H:%M)"
                   # IA em paralelo: nunca segura o ciclo da coleta (ela mesma só chama a IA de hora em hora)
                   if ! kill -0 "$(cat /tmp/ia.pid 2>/dev/null)" 2>/dev/null; then cp saida/dados.json saida/dados-ia.json; (timeout 300 node painel/ia-run.mjs >> /tmp/ia.log 2>&1 &  echo $! > /tmp/ia.pid); fi
                   break; }
-                echo "tentativa $t falhou"; sleep 30
+                echo "tentativa $t falhou"; sleep 10
               done
             fi
             if [ $(( $(date +%s) - INICIO )) -gt 19500 ]; then

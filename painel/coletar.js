@@ -125,6 +125,9 @@ try {
   console.log(`✅ dados.json (${leve ? "leve" : "completa"}): ${(fs.statSync("saida/dados.json").size / 1024).toFixed(0)} KB | ${m.vendedores.length} vendedores | ${m.produtos.length} produtos${dados.zep ? " | ZepSystem ok" : ""}`);
 } catch (e) {
   await page.screenshot({ path: "saida/erro-painel.png", fullPage: true }).catch(() => {});
+  // 27/11: sessão guardada quebrada ("Token de acesso ausente") fazia TODAS as tentativas falharem.
+  // Qualquer erro: joga a sessão fora -> a próxima tentativa entra com login novo.
+  try { fs.rmSync(ESTADO, { force: true }); } catch {}
   throw e;
 } finally {
   await browser.close();
