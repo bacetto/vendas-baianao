@@ -150,7 +150,7 @@ export function soEdnilson(item) {
 export function temServicoVenda(item) { return (item?.services || []).some((x) => (Number(x.finalValue) || 0) > 0); }
 // 27/11 (Gabriel): SÓ HOJE (Black Friday) o D com serviço sobe de 27% pra 32%; sem serviço continua o D normal (25%).
 // Volta sozinho pro maxServ salvo (27%) a partir de 28/11 (data de Salvador). M e S não mudam.
-const D_SERV_DIA = { "2026-11-27": 32 };
+const D_SERV_DIA = {}; // 27/11 07:42: Gabriel pediu pra segurar (vai mudar o %) — vale o 27% até ele mandar o novo
 export function maxServHoje(regra) {
   if (typeof regra?.maxServ !== "number") return regra?.maxServ;
   const dia = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
