@@ -72,14 +72,28 @@ jobs:
             done
           }
           disparador &
+          node painel/raw-restaurar.mjs
+          # guarda a base completa (raw.json) criptografada no ramo "dados-raw" — só depois de leitura completa (~10 min)
+          guardar_raw() {
+            rm -rf pubraw && mkdir pubraw && node painel/cifrar.js saida/raw.json pubraw/raw.enc || return 1
+            (cd pubraw && git init -q -b dados-raw && git config user.name "bacetto" && git config user.email "bacetto@users.noreply.github.com" \
+              && git add raw.enc && git commit -qm "raw $(date -u +%FT%TZ)" \
+              && git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${REPO}" dados-raw) && echo "base completa guardada"
+          }
           while :; do
             T0=$(date +%s); h=$(hora)
             if [ "$h" -ge 7 ] && [ "$h" -lt 23 ]; then   # até 23h: pega o fechamento das lojas de shopping (22h) e os lançamentos finais
               N=$((N+1)); if [ $((N % 10)) -eq 1 ]; then export LEVE=0; else export LEVE=1; fi   # completa a cada ~10 min
               for t in 1 2 3; do
                 rm -f saida/dados.json
-                [ "$t" -gt 1 ] && export LEVE=0
-                timeout 300 node painel/coletar.js && [ -s saida/dados.json ] && publicar && { echo "publicado $(TZ=America/Bahia date +%H:%M)"
+                # 27/11: se a leitura COMPLETA falhar (portal lento), as tentativas seguintes vão na LEVE (o painel não para).
+                # Sem base do dia, a coletar.js já faz a completa sozinha.
+                [ "$t" -gt 1 ] && export LEVE=1
+                HOJE=$(TZ=America/Bahia date +%F)
+                node -e 'const r=require("./saida/raw.json");process.exit(r?.periodos?.hoje?.inicio?.startsWith(process.argv[1])?0:1)' "$HOJE" 2>/dev/null || export LEVE=0   # sem base de hoje: completa
+                if [ "$LEVE" = "1" ]; then TO=180; else TO=600; fi
+                timeout $TO node painel/coletar.js && [ -s saida/dados.json ] && publicar && { echo "publicado $(TZ=America/Bahia date +%H:%M) ($([ "$LEVE" = 1 ] && echo leve || echo completa))"
+                  [ "$LEVE" = "0" ] && (guardar_raw >/dev/null 2>&1 &)
                   # IA em paralelo: nunca segura o ciclo da coleta (ela mesma só chama a IA de hora em hora)
                   if ! kill -0 "$(cat /tmp/ia.pid 2>/dev/null)" 2>/dev/null; then cp saida/dados.json saida/dados-ia.json; (timeout 300 node painel/ia-run.mjs >> /tmp/ia.log 2>&1 &  echo $! > /tmp/ia.pid); fi
                   break; }
