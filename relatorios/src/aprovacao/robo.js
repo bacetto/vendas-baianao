@@ -8,7 +8,7 @@
 import { abrirPortal } from "./portal.js";
 import { carregar, salvar } from "./estado.js";
 import { zap } from "./zap.js";
-import { comando, decidir, regionalDe, textoAviso, textoRegras, lerPedidos, bate, soEdnilson } from "./regras.js";
+import { comando, decidir, regionalDe, textoAviso, textoRegras, lerPedidos, bate, soEdnilson, REGIONAIS } from "./regras.js";
 import { textoBoletim, BOLETIM_HORAS, textoJanela, textoDia, JANELA_HORAS, FOTO_HORAS, textoLeads, LEADS_HORAS } from "./boletim.js";
 import { detalheLojas, leadsLojas } from "./painel-snap.js";
 
@@ -31,6 +31,16 @@ if (hora() < 7 || hora() >= 23) { console.log("Fora do horário (07h–23h)"); p
 
 const est = await carregar();
 est.solicitados ||= {};
+// 27/11: contagem do dia pro resumo — pedidos "só do Ed" (só Ed aprova ou desconto > 20%) que passaram no Universo e os aprovados pelo robô, por regional
+function diaPedidos() {
+  if (est.diaPedidos?.dia === hoje()) return est.diaPedidos;
+  const ini = Date.parse(`${hoje()}T03:00:00Z`); // 00h de Salvador
+  est.diaPedidos = { dia: hoje(), ids: {}, aprov: {} };
+  // começo da contagem no meio do dia: aproveita o que o robô já tinha registrado hoje
+  for (const [id, t] of Object.entries(est.avisados || {})) if (t >= ini) est.diaPedidos.ids[id] = "?";
+  for (const h of est.historico || []) if (h.tipo === "APROVADO" && h.t >= ini) est.diaPedidos.aprov[`p${h.pedido}`] = h.reg || "?";
+  return est.diaPedidos;
+}
 // Ajustes de regra pedidos fora do grupo (aplicados uma vez só; o id fica salvo no estado)
 est.ajustes ||= [];
 const AJUSTES = [
@@ -252,6 +262,7 @@ async function ciclo() {
     if (!soEdnilson(it)) continue; // outra pessoa também pode aprovar: fora da automação (nem aprova, nem avisa)
     primeiraVez[it.id] ||= Date.now();
     const reg = regionalDe(filial[String(it.branchCode).trim()] ?? it.regional);
+    { const dp = diaPedidos(); const rg = reg || "?"; if (dp.ids[it.id] !== rg && (dp.ids[it.id] === undefined || dp.ids[it.id] === "?")) { dp.ids[it.id] = rg; sujo = true; } }
     let d = decidir(it, reg, est, servDe(reg));
     if (d.acao === "ESPERAR") {
       if (Date.now() - primeiraVez[it.id] < 10 * 60e3) continue; // números do dia chegando
@@ -277,6 +288,7 @@ async function ciclo() {
       }
       est.avisados[it.id] = Date.now();
       est.historico.push({ t: Date.now(), tipo: "APROVADO", pedido: it.orderNumber, reg, desc: it.discountPercentage });
+      diaPedidos().aprov[`p${it.orderNumber}`] = reg || "?";
       sujo = true;
       console.log(`✅ aprovado 1 pedido (${reg})`);
       avisar(textoAviso(it, reg, d, est, "ok", servDe(reg)));
@@ -336,10 +348,13 @@ while (true) {
 }
 
 if (!SIMULAR && hora() >= 23 && est.resumo !== hoje()) {
-  const dia = est.historico.filter((h) => h.t > Date.now() - 18 * 3600e3);
-  const a = dia.filter((h) => h.tipo === "APROVADO").length;
+  const dp = diaPedidos();
+  const ap = Object.values(dp.aprov), a = ap.length, total = Object.keys(dp.ids).length;
+  const porReg = REGIONAIS.map((r) => `${r} - ${ap.filter((x) => x === r).length} APROVADOS`);
+  const semReg = ap.filter((x) => !REGIONAIS.includes(x)).length;
+  if (semReg) porReg.push(`Sem regional - ${semReg} APROVADOS`);
   est.resumo = hoje();
-  avisar(`🌙 *Resumo do robô de descontos — hoje*\n✅ Aprovados: *${a}*\n\n${textoRegras(est)}`);
+  avisar(`🌙 *Resumo do robô de descontos — hoje*\n✅ Aprovados: *${a}*\n${porReg.join("\n")}\n\n📥 Pedidos só do Ed no Universo hoje: *${total}*\n_(só o Ed libera ou desconto acima de 20%)_\n\n${textoRegras(est)}`);
   await salvar(est).catch(() => {});
 }
 if (sujo && !SIMULAR) await salvar(est).catch(() => {}); // garante que o próximo turno saiba o que já foi enviado
