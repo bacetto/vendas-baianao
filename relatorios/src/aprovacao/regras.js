@@ -154,6 +154,10 @@ export function temServicoVenda(item) { return (item?.services || []).some((x) =
 // servOu (27/11 09:00): serviço passa se o regional JÁ está no S OU se fica no S contando o pedido.
 // servServ (27/11 09:51): pedido COM serviço vendido -> serviço mínimo do regional cai de 8% pra 7% (atual OU com o pedido).
 const REGRAS_DIA = { "2026-11-27": { min: 38, serv: 8, maxServ: 30, servOu: true, servServ: 7 } };
+// 27/11 10:32 (Gabriel): SÓ HOJE, todo pedido da automação com desconto até 25% é aprovado direto, mesmo fora de M/S,
+// e SEM aviso no grupo. Acima de 25% segue as regras normais do dia.
+const LIVRE_DIA = { "2026-11-27": 25 };
+export function livreHoje() { return LIVRE_DIA[new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10)]; }
 export function regraHoje(regra) {
   const dia = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10), x = REGRAS_DIA[dia];
   if (!x || !regra || ![regra.min, regra.max, regra.serv].every((n) => typeof n === "number")) return regra;
@@ -171,6 +175,7 @@ export function decidir(item, regional, e, base) {
   const regra = regraPedido(regraHoje(e.regras[regional] || {}), item);
   const desc = item?.discountPercentage;
   if (e.pausado) return { acao: "MANUAL", motivo: "robô pausado" };
+  { const lv = livreHoje(); if (typeof lv === "number" && ok(desc) && desc >= 0 && desc <= lv + 1e-9) return { acao: "APROVAR", silencioso: true, motivo: `desconto ${pct(desc)} ≤ ${num2(lv)}% (liberado direto hoje)` }; }
   if (!REGIONAIS.includes(regional)) return { acao: "MANUAL", motivo: `loja sem regional (${regional || "?"})` };
   if (!ok(regra.min) || !ok(regra.max) || !ok(regra.serv)) return { acao: "MANUAL", motivo: `${regional} sem as 3 regras (M, D e S) cadastradas` };
   if (!ok(desc) || desc < 0 || desc > 100) return { acao: "MANUAL", motivo: "portal não trouxe o % de desconto" };
