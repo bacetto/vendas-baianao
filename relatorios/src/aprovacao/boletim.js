@@ -17,6 +17,11 @@ export function textoBoletim(r, h) {
 export const JANELA_HORAS = [11, 13, 15, 17, 19, 21];
 export const FOTO_HORAS = [9, ...JANELA_HORAS];
 export const LIMITE_JANELA = 5000;
+// Limite do dia trocado só em datas específicas (pedido do Gabriel). 27/11/2026 (Black Friday): R$ 10 mil. Nos outros dias volta sozinho pros R$ 5 mil.
+const LIMITE_DIA_ESPECIAL = { "2026-11-27": 10000 };
+const hojeBahia = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia" }).format(new Date());
+export const limiteDia = () => LIMITE_DIA_ESPECIAL[hojeBahia()] || LIMITE_JANELA;
+const milTxt = (n) => `R$ ${n / 1000} mil`;
 const brl = (n) => `R$ ${Math.round(n).toLocaleString("pt-BR")}`;
 // nomes encurtados pra caber numa linha do WhatsApp (pedido do Gabriel)
 const APELIDO = { "VALE DAS PEDRINHAS": "VALE PEDRINHAS" };
@@ -68,12 +73,13 @@ export function textoLeads(agora, abertas, h) {
 // Lojas que NÃO venderam R$ 5 mil NO DIA (venda do dia até a hora do envio, sem descontar devolução). Enviado de 2 em 2h.
 // agora: { num: foto } (foto com detalhe: b = vendido no dia); info: { num: { reg, nome } }
 export function textoDia(agora, info, h) {
+  const lim = limiteDia();
   const ls = Object.entries(agora).filter(([n]) => /^R[1-4]$/.test(info[n]?.reg || ""))
     .map(([n, x]) => { const g = val(x); return { n, reg: info[n].reg, nome: info[n].nome, v: g.b != null ? g.b : Math.max(0, g.v) }; })
-    .filter((l) => l.v < LIMITE_JANELA)
+    .filter((l) => l.v < lim)
     .sort((a, b) => a.reg.localeCompare(b.reg) || a.v - b.v);
-  const cab = `📉 *Lojas abaixo de R$ 5 mil no dia* — até ${typeof h === "number" ? String(h).padStart(2, "0") + "h" : h}`;
-  if (!ls.length) return `${cab}\n\n✅ Todas as lojas já venderam R$ 5 mil hoje.`;
+  const cab = `📉 *Lojas abaixo de ${milTxt(lim)} no dia* — até ${typeof h === "number" ? String(h).padStart(2, "0") + "h" : h}`;
+  if (!ls.length) return `${cab}\n\n✅ Todas as lojas já venderam ${milTxt(lim)} hoje.`;
   const out = [cab];
   let r = null;
   for (const l of ls) { if (l.reg !== r) { r = l.reg; out.push("", `*${r}*`); } out.push(`• ${curto(l.nome)} — ${brl(l.v)}`); }
