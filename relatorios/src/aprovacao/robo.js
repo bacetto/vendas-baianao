@@ -275,6 +275,8 @@ async function ciclo() {
     if (SIMULAR) { if (!visto.has(it.id)) { visto.add(it.id); console.log(`🧪 faria: APROVAR (${reg})`); avisar(textoAviso(it, reg, d, est, "ok", servDe(reg))); } continue; }
     if ((tentativas[it.id] || 0) >= 2) continue; // já falhou 2x e já avisou: fica pro Ed
     const nota = process.env.NOTA_APROVACAO || "vendaa"; // descrição no portal quando o ROBÔ aprova ("vendaa" com 2 "a" = foi o robô)
+    // 27/11: foto dos números do regional ANTES de somar o pedido — o aviso tem que mostrar os mesmos números da decisão
+    const baseDecisao = servDe(reg) ? { ...servDe(reg) } : null;
     try {
       await portal.decidir(it, "APROVADO", nota);
       cont.aprov++;
@@ -291,7 +293,7 @@ async function ciclo() {
       diaPedidos().aprov[`p${it.orderNumber}`] = reg || "?";
       sujo = true;
       console.log(`✅ aprovado 1 pedido (${reg})`);
-      avisar(textoAviso(it, reg, d, est, "ok", servDe(reg)));
+      avisar(textoAviso(it, reg, d, est, "ok", baseDecisao));
     } catch (e) {
       tentativas[it.id] = (tentativas[it.id] || 0) + 1;
       console.log(`⚠️ aprovação não registrada (tentativa ${tentativas[it.id]}): ${String(e.message).slice(0, 100)}`);
