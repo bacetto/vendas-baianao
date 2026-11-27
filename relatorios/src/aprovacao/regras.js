@@ -34,7 +34,7 @@ export const pct = (n) => (n == null ? "—" : `${Number(n).toLocaleString("pt-B
 export function textoRegra(r, e) {
   const g = e.regras[r] || {};
   if (g.min == null && g.max == null && g.serv == null) return `*${r}* · manual (fica pro Ed)`;
-  const t = `*${r}* · ${g.min != null ? `M${num2(g.min)}` : "M ?"} · ${g.max != null ? `D${num2(g.max)}${typeof g.maxServ === "number" ? ` (D${num2(g.maxServ)} com serviço)` : ""}` : "D ?"} · ${g.serv != null ? `S${num2(g.serv)}` : "S ?"}`;
+  const t = `*${r}* · ${g.min != null ? `M${num2(g.min)}` : "M ?"} · ${g.max != null ? `D${num2(g.max)}${typeof maxServHoje(g) === "number" ? ` (D${num2(maxServHoje(g))} com serviço)` : ""}` : "D ?"} · ${g.serv != null ? `S${num2(g.serv)}` : "S ?"}`;
   return g.min != null && g.max != null && g.serv != null ? t : `${t} — ⚠️ incompleta: fica pro Ed`;
 }
 const num2 = (n) => Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
@@ -148,7 +148,15 @@ export function soEdnilson(item) {
 // 25/11 (Gabriel): pedido COM serviço vendido junto pode ter desconto até o "D com serviço" (maxServ, ex.: 27%);
 // sem serviço vale o D normal. Margem (M) e serviços (S) não mudam.
 export function temServicoVenda(item) { return (item?.services || []).some((x) => (Number(x.finalValue) || 0) > 0); }
-export function descMax(regra, item) { return temServicoVenda(item) && typeof regra?.maxServ === "number" ? Math.max(regra.max, regra.maxServ) : regra?.max; }
+// 27/11 (Gabriel): SÓ HOJE (Black Friday) o D com serviço sobe de 27% pra 32%; sem serviço continua o D normal (25%).
+// Volta sozinho pro maxServ salvo (27%) a partir de 28/11 (data de Salvador). M e S não mudam.
+const D_SERV_DIA = { "2026-11-27": 32 };
+export function maxServHoje(regra) {
+  if (typeof regra?.maxServ !== "number") return regra?.maxServ;
+  const dia = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+  return typeof D_SERV_DIA[dia] === "number" ? D_SERV_DIA[dia] : regra.maxServ;
+}
+export function descMax(regra, item) { const ms = maxServHoje(regra); return temServicoVenda(item) && typeof ms === "number" ? Math.max(regra.max, ms) : regra?.max; }
 
 // Decide um pedido pendente. item = objeto do portal; regional = "R1".."R4".
 export function decidir(item, regional, e, base) {
