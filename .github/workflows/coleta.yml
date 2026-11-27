@@ -83,7 +83,7 @@ jobs:
           while :; do
             T0=$(date +%s); h=$(hora)
             if [ "$h" -ge 7 ] && [ "$h" -lt 23 ]; then   # até 23h: pega o fechamento das lojas de shopping (22h) e os lançamentos finais
-              N=$((N+1)); if [ $((N % 10)) -eq 1 ]; then export LEVE=0; else export LEVE=1; fi   # completa a cada ~10 min
+              N=$((N+1)); export LEVE=1   # 27/11: durante o dia só a leitura LEVE (1 min); a completa (pesada, travava o painel por minutos) só quando não há base de hoje — a carga completa vai pra madrugada
               for t in 1 2 3; do
                 rm -f saida/dados.json
                 # 27/11: se a leitura COMPLETA falhar (portal lento), as tentativas seguintes vão na LEVE (o painel não para).
