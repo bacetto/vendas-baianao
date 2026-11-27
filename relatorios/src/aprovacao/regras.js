@@ -157,6 +157,8 @@ const REGRAS_DIA = { "2026-11-27": { min: 38, serv: 8, maxServ: 30, servOu: true
 // 27/11 10:32 (Gabriel): SÓ HOJE, todo pedido da automação com desconto até 25% é aprovado direto, mesmo fora de M/S,
 // O aviso no grupo sai IGUAL a qualquer aprovado (selos de M/D/S como estão), sem citar essa regra. Acima de 25% segue as regras do dia.
 const LIVRE_DIA = { "2026-11-27": 25 };
+// 27/11: desconto, margem e serviços comparados com 2 casas (o que aparece no aviso): 30,004% conta como 30%, 37,996% conta como 38%
+const r2 = (n) => Math.round(Number(n) * 100) / 100;
 export function livreHoje() { return LIVRE_DIA[new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10)]; }
 export function regraHoje(regra) {
   const dia = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10), x = REGRAS_DIA[dia];
@@ -175,7 +177,7 @@ export function decidir(item, regional, e, base) {
   const regra = regraPedido(regraHoje(e.regras[regional] || {}), item);
   const desc = item?.discountPercentage;
   if (e.pausado) return { acao: "MANUAL", motivo: "robô pausado" };
-  { const lv = livreHoje(); if (typeof lv === "number" && ok(desc) && desc >= 0 && desc <= lv + 1e-9) return { acao: "APROVAR", livre: true, motivo: `desconto ${pct(desc)}` }; }
+  { const lv = livreHoje(); if (typeof lv === "number" && ok(desc) && desc >= 0 && r2(desc) <= lv) return { acao: "APROVAR", livre: true, motivo: `desconto ${pct(desc)}` }; }
   if (!REGIONAIS.includes(regional)) return { acao: "MANUAL", motivo: `loja sem regional (${regional || "?"})` };
   if (!ok(regra.min) || !ok(regra.max) || !ok(regra.serv)) return { acao: "MANUAL", motivo: `${regional} sem as 3 regras (M, D e S) cadastradas` };
   if (!ok(desc) || desc < 0 || desc > 100) return { acao: "MANUAL", motivo: "portal não trouxe o % de desconto" };
@@ -192,14 +194,14 @@ export function decidir(item, regional, e, base) {
   const fora = (motivo) => ({ acao: "MANUAL", motivo: `fora da regra: ${motivo}` });
   const falhas = [];
   const dmax = descMax(regra, item), dTxt = dmax !== regra.max ? `D${num2(dmax)} (com serviço)` : `D${num2(regra.max)}`;
-  if (desc > dmax + 1e-9) falhas.push(`desconto ${pct(desc)} acima do ${dTxt}`);
-  const servAt = proj.servAtual, servPassa = regra.servOu && ok(servAt) && servAt >= 0 && servAt <= 100 && servAt >= regra.serv;
-  if (ok(serv) && serv < regra.serv && !servPassa) falhas.push(`serviços com o pedido ${pct(serv)} abaixo do S${num2(regra.serv)}`);
-  if (ok(margem) && margem < regra.min) falhas.push(`margem do regional ${pct(margem)} abaixo do M${num2(regra.min)}`);
+  if (r2(desc) > dmax) falhas.push(`desconto ${pct(desc)} acima do ${dTxt}`);
+  const servAt = proj.servAtual, servPassa = regra.servOu && ok(servAt) && servAt >= 0 && servAt <= 100 && r2(servAt) >= regra.serv;
+  if (ok(serv) && r2(serv) < regra.serv && !servPassa) falhas.push(`serviços com o pedido ${pct(serv)} abaixo do S${num2(regra.serv)}`);
+  if (ok(margem) && r2(margem) < regra.min) falhas.push(`margem do regional ${pct(margem)} abaixo do M${num2(regra.min)}`);
   if (falhas.length) return fora(falhas.join(" · "));
   if (!ok(margem) || margem <= 0 || margem > 100) return { acao: "MANUAL", motivo: "não deu pra ler com segurança a margem do regional" };
   if (!servPassa && (!ok(serv) || serv < 0 || serv > 100)) return { acao: "MANUAL", motivo: "não deu pra calcular com segurança os serviços do regional com o pedido" };
-  return { acao: "APROVAR", motivo: `margem do regional ${pct(margem)} ≥ M${num2(regra.min)} · desconto ${pct(desc)} ≤ ${dTxt} · serviços ${pct(servPassa && !(serv >= regra.serv) ? servAt : serv)} ≥ S${num2(regra.serv)}` };
+  return { acao: "APROVAR", motivo: `margem do regional ${pct(margem)} ≥ M${num2(regra.min)} · desconto ${pct(desc)} ≤ ${dTxt} · serviços ${pct(servPassa && !(r2(serv) >= regra.serv) ? servAt : serv)} ≥ S${num2(regra.serv)}` };
 }
 
 const brl = (n) => (typeof n === "number" ? n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—");
@@ -239,9 +241,9 @@ export function textoAviso(item, regional, d, e, resultado, base) {
   if (temRegras && typeof mc === "number" && typeof sc === "number") {
     const linha = (ok, nome, valor, lim) => `${ok ? "✅" : "❌"} ${nome}: *${pct(valor)}*  _(${lim})_`;
     out.push("", L, `*REGRAS DO ${regional}*`,
-      linha(dc <= descMax(g, item) + 1e-9, "Desconto", dc, `máx. ${num2(descMax(g, item))}%${descMax(g, item) !== g.max ? " com serviço" : ""}`),
-      linha(mc >= g.min, "Margem", mc, `mín. ${num2(g.min)}%`),
-      linha(sc >= g.serv || (g.servOu && proj.servAtual >= g.serv), "Serviços", proj.servAtual, `mín. ${num2(g.serv)}%${g.servComServ ? " com serviço" : ""}`),
+      linha(r2(dc) <= descMax(g, item), "Desconto", dc, `máx. ${num2(descMax(g, item))}%${descMax(g, item) !== g.max ? " com serviço" : ""}`),
+      linha(r2(mc) >= g.min, "Margem", mc, `mín. ${num2(g.min)}%`),
+      linha(r2(sc) >= g.serv || (g.servOu && r2(proj.servAtual) >= g.serv), "Serviços", proj.servAtual, `mín. ${num2(g.serv)}%${g.servComServ ? " com serviço" : ""}`),
       L,
       `_Serviços do ${regional} no dia se este pedido for aprovado: ${pct(sc)}_`);
   } else {
