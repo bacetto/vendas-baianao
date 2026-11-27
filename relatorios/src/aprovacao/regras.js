@@ -32,9 +32,9 @@ const num = (s) => {
 export const pct = (n) => (n == null ? "—" : `${Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`);
 
 export function textoRegra(r, e) {
-  const g = e.regras[r] || {};
+  const g = regraHoje(e.regras[r] || {});
   if (g.min == null && g.max == null && g.serv == null) return `*${r}* · manual (fica pro Ed)`;
-  const t = `*${r}* · ${g.min != null ? `M${num2(g.min)}` : "M ?"} · ${g.max != null ? `D${num2(g.max)}${typeof maxServHoje(g) === "number" ? ` (D${num2(maxServHoje(g))} com serviço)` : ""}` : "D ?"} · ${g.serv != null ? `S${num2(g.serv)}` : "S ?"}`;
+  const t = `*${r}* · ${g.min != null ? `M${num2(g.min)}` : "M ?"} · ${g.max != null ? `D${num2(g.max)}${typeof g.maxServ === "number" ? ` (D${num2(g.maxServ)} com serviço)` : ""}` : "D ?"} · ${g.serv != null ? `S${num2(g.serv)}` : "S ?"}`;
   return g.min != null && g.max != null && g.serv != null ? t : `${t} — ⚠️ incompleta: fica pro Ed`;
 }
 const num2 = (n) => Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
@@ -148,22 +148,23 @@ export function soEdnilson(item) {
 // 25/11 (Gabriel): pedido COM serviço vendido junto pode ter desconto até o "D com serviço" (maxServ, ex.: 27%);
 // sem serviço vale o D normal. Margem (M) e serviços (S) não mudam.
 export function temServicoVenda(item) { return (item?.services || []).some((x) => (Number(x.finalValue) || 0) > 0); }
-// 27/11 (Gabriel): SÓ HOJE (Black Friday) o D com serviço sobe de 27% pra 32%; sem serviço continua o D normal (25%).
-// Volta sozinho pro maxServ salvo (27%) a partir de 28/11 (data de Salvador). M e S não mudam.
-const D_SERV_DIA = {}; // 27/11 07:42: Gabriel pediu pra segurar (vai mudar o %) — vale o 27% até ele mandar o novo
-export function maxServHoje(regra) {
-  if (typeof regra?.maxServ !== "number") return regra?.maxServ;
-  const dia = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
-  return typeof D_SERV_DIA[dia] === "number" ? D_SERV_DIA[dia] : regra.maxServ;
+// 27/11 (Gabriel): SÓ HOJE (Black Friday) as regras de todos os regionais mudam pra M38 · S8 · D30 com serviço
+// (sem serviço continua o D normal, 25%). A partir de 28/11 (data de Salvador) volta sozinho pras regras salvas.
+// Só vale pra regional que já tem as 3 regras cadastradas (regional "manual" continua manual).
+const REGRAS_DIA = { "2026-11-27": { min: 38, serv: 8, maxServ: 30 } };
+export function regraHoje(regra) {
+  const dia = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10), x = REGRAS_DIA[dia];
+  if (!x || !regra || ![regra.min, regra.max, regra.serv].every((n) => typeof n === "number")) return regra;
+  return { ...regra, ...x };
 }
-export function descMax(regra, item) { const ms = maxServHoje(regra); return temServicoVenda(item) && typeof ms === "number" ? Math.max(regra.max, ms) : regra?.max; }
+export function descMax(regra, item) { return temServicoVenda(item) && typeof regra?.maxServ === "number" ? Math.max(regra.max, regra.maxServ) : regra?.max; }
 
 // Decide um pedido pendente. item = objeto do portal; regional = "R1".."R4".
 export function decidir(item, regional, e, base) {
   // REGRA DE OURO: só APROVA se M, D e S estiverem cadastrados E os 3 forem cumpridos com números confiáveis.
   // Qualquer dado faltando, estranho ou dúvida -> MANUAL (não faz nada no portal; o Ed decide).
   const ok = (n) => typeof n === "number" && Number.isFinite(n);
-  const regra = e.regras[regional] || {};
+  const regra = regraHoje(e.regras[regional] || {});
   const desc = item?.discountPercentage;
   if (e.pausado) return { acao: "MANUAL", motivo: "robô pausado" };
   if (!REGIONAIS.includes(regional)) return { acao: "MANUAL", motivo: `loja sem regional (${regional || "?"})` };
@@ -207,7 +208,7 @@ export function textoServicosVenda(item) {
 export function textoAviso(item, regional, d, e, resultado, base) {
   const proj = projetar(item, base);
   const ev = item.evaluation || {};
-  const g = e.regras[regional] || {};
+  const g = regraHoje(e.regras[regional] || {});
   const prod = (item.products || []).map((p) => p.description || p.name || p.productName).filter(Boolean)[0];
   const foraRegra = d.acao === "MANUAL" && /^fora da regra/.test(d.motivo);
   const cab = d.acao === "APROVAR"
@@ -230,7 +231,7 @@ export function textoAviso(item, regional, d, e, resultado, base) {
     out.push("", L, `*REGRAS DO ${regional}*`,
       linha(dc <= descMax(g, item) + 1e-9, "Desconto", dc, `máx. ${num2(descMax(g, item))}%${descMax(g, item) !== g.max ? " com serviço" : ""}`),
       linha(mc >= g.min, "Margem", mc, `mín. ${num2(g.min)}%`),
-      linha(proj.servAtual >= g.serv, "Serviços", proj.servAtual, `mín. ${num2(g.serv)}%`),
+      linha(sc >= g.serv, "Serviços", proj.servAtual, `mín. ${num2(g.serv)}%`),
       L,
       `_Serviços do ${regional} no dia se este pedido for aprovado: ${pct(sc)}_`);
   } else {
