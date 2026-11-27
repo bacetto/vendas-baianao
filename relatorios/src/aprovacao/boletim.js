@@ -9,7 +9,12 @@ const ok = (n) => typeof n === "number" && Number.isFinite(n);
 export function textoBoletim(r, h) {
   const linhas = REGS.filter((k) => ok(r?.[k]?.margem) && ok(r?.[k]?.pct)).map((k) => `${k} - ${p(r[k].margem)} / ${p(r[k].pct)}`);
   if (linhas.length < REGS.length) return null; // faltou regional: não manda número pela metade
-  return [`📊 *Parcial do dia — ${String(h).padStart(2, "0")}h*`, "_Margem / Serviços_", "", ...linhas].join("\n");
+  // 27/11 (Gabriel): linha do GERAL da empresa (R1–R4 juntos), ponderado pela venda de cada regional — é o número real da empresa,
+  // não a média simples. Margem = lucro / custo (mesma conta do portal); serviços = pacote / venda.
+  let venda = 0, lucro = 0, pac = 0;
+  for (const k of REGS) { const x = r[k], v = Number(x.venda); if (!(v > 0)) return [`📊 *Parcial do dia — ${String(h).padStart(2, "0")}h*`, "_Margem / Serviços_", "", ...linhas].join("\n"); venda += v; lucro += (v * x.margem) / (100 + x.margem); pac += (v * x.pct) / 100; }
+  const geral = venda - lucro > 0 ? `GERAL - ${p((100 * lucro) / (venda - lucro))} / ${p((100 * pac) / venda)}` : null;
+  return [`📊 *Parcial do dia — ${String(h).padStart(2, "0")}h*`, "_Margem / Serviços_", "", ...linhas, ...(geral ? ["", `*${geral}*`] : [])].join("\n");
 }
 
 // Lojas que venderam menos de R$ 5 mil nas últimas 2 horas (diferença entre 2 leituras da venda do dia).
