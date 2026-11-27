@@ -306,12 +306,11 @@ async function ciclo() {
       diaPedidos().aprov[`p${it.orderNumber}`] = reg || "?";
       sujo = true;
       console.log(`✅ aprovado 1 pedido (${reg})`);
-      if (!d.silencioso) avisar(textoAviso(it, reg, d, est, "ok", baseDecisao)); // liberado direto (até 25% hoje): aprova sem aviso no grupo
+      avisar(textoAviso(it, reg, d, est, "ok", baseDecisao));
     } catch (e) {
       tentativas[it.id] = (tentativas[it.id] || 0) + 1;
       console.log(`⚠️ aprovação não registrada (tentativa ${tentativas[it.id]}): ${String(e.message).slice(0, 100)}`);
-      if (tentativas[it.id] >= 2 && d.silencioso) wa.enviar("eu", `⚠️ Pedido #${it.orderNumber} (até 25%, liberado direto hoje): o portal recusou a aprovação 2x — fica pro Ed.`);
-      else if (tentativas[it.id] >= 2) avisar(textoAviso(it, reg, { ...d, motivo: `${d.motivo}. Portal recusou: ${String(e.message).slice(0, 120)}` }, est, "erro"));
+      if (tentativas[it.id] >= 2) avisar(textoAviso(it, reg, { ...d, motivo: `${d.motivo}. Portal recusou: ${String(e.message).slice(0, 120)}` }, est, "erro"));
     }
   }
 }
