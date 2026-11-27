@@ -190,6 +190,19 @@ function leadsJanela() {
 
 function boletim() {
   const h = hora(), min = bahia().getUTCMinutes(), chave = `${hoje()}-${h}`;
+  // 27/11 ~10:22: Gabriel pediu a parcial de AGORA com o GERAL real, só pra ele (uma vez só; o Ed não recebe)
+  if (!SIMULAR && portal && hoje() === "2026-11-27" && !est.ajustes.includes("parcial-agora-2026-11-27") && !bol.carregando && Date.now() - bol.tentou > 60e3) {
+    bol.carregando = true; bol.tentou = Date.now();
+    portal.resumoDia().then((r) => {
+      const t = textoBoletim(r, h);
+      if (!t) throw new Error("números dos regionais incompletos");
+      const hm = bahia().toISOString().slice(11, 16).replace(":", "h");
+      wa.enviar("eu", t.replace(/Parcial do dia — \d+h/, `Parcial do dia — ${hm}`));
+      est.ajustes.push("parcial-agora-2026-11-27"); sujo = true;
+      console.log("✅ Parcial de agora enviada pro Gabriel");
+    }).catch((e) => console.log("⚠️ parcial de agora não saiu:", String(e.message).slice(0, 80))).finally(() => { bol.carregando = false; });
+    return;
+  }
   // 1ª vez: manda uma prévia só pro Gabriel ("você mesmo") pra ele conferir antes do Ed receber
   if (!SIMULAR && portal && !est.boletimTeste && !bol.carregando && Date.now() - bol.tentou > 2 * 60e3 && h >= 10 && h < 23) {
     bol.carregando = true; bol.tentou = Date.now();
