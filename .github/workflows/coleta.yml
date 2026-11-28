@@ -81,23 +81,44 @@ jobs:
               && git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${REPO}" dados-raw) && echo "base completa guardada"
           }
           while :; do
-            T0=$(date +%s); h=$(hora)
+            T0=$(date +%s); h=$(hora); HOJE=$(TZ=America/Bahia date +%F)
+            tem_base() { node -e 'const r=require("./saida/raw.json");process.exit(r?.periodos?.hoje?.inicio?.startsWith(process.argv[1])?0:1)' "$HOJE" 2>/dev/null; }
+            ciclo() {   # $1 = modo (0 completa · 1 leve · 2 leve+ontem); $2 = tempo máximo
+              rm -f saida/dados.json
+              LEVE=$1 timeout $2 node painel/coletar.js && [ -s saida/dados.json ] && publicar && {
+                echo "publicado $(TZ=America/Bahia date +%H:%M) ($([ "$1" = 0 ] && echo completa || { [ "$1" = 2 ] && echo leve+ontem || echo leve; }))"
+                [ "$1" != "1" ] && (guardar_raw >/dev/null 2>&1 &)   # completa/ontem atualizam a base guardada
+                # IA em paralelo: nunca segura o ciclo da coleta (ela mesma só chama a IA de hora em hora)
+                if ! kill -0 "$(cat /tmp/ia.pid 2>/dev/null)" 2>/dev/null; then cp saida/dados.json saida/dados-ia.json; (timeout 300 node painel/ia-run.mjs >> /tmp/ia.log 2>&1 &  echo $! > /tmp/ia.pid); fi
+                return 0; }
+              return 1
+            }
+            # 27/11 — MADRUGADA (03h–07h, lojas fechadas): carga COMPLETA do dia novo (mês atual + anterior + metas) e guarda a base.
+            # Pega cancelamentos/ajustes de dias anteriores. Se falhar, mantém a base anterior e tenta de novo a cada 10 min;
+            # às 06h, se ainda não deu, avisa o Gabriel. (Às 07h, sem base, o dia começa com a completa — igual era antes.)
+            if [ "$h" -ge 3 ] && [ "$h" -lt 7 ] && ! tem_base; then
+              ULTN=$(cat /tmp/noturna-tentou 2>/dev/null || echo 0)
+              if [ $(( $(date +%s) - ULTN )) -ge 600 ]; then
+                date +%s > /tmp/noturna-tentou
+                ciclo 0 900 && echo "✅ carga da madrugada ok" || echo "⚠️ carga da madrugada falhou — tenta de novo em 10 min"
+              fi
+              if [ "$h" -ge 6 ] && ! tem_base && [ ! -f "/tmp/noturna-aviso-$HOJE" ]; then
+                touch "/tmp/noturna-aviso-$HOJE"
+                gh workflow run relatorios.yml -R "$REPO" --ref main -f acao=alerta -f texto="⚠️ *Painel Vendas ao vivo*: a carga completa da madrugada não conseguiu ler o portal (sigo tentando). O painel abre às 07h com a última base." >/dev/null 2>&1
+              fi
+            fi
             if [ "$h" -ge 7 ] && [ "$h" -lt 23 ]; then   # até 23h: pega o fechamento das lojas de shopping (22h) e os lançamentos finais
-              N=$((N+1)); export LEVE=1   # 27/11: durante o dia só a leitura LEVE (1 min); a completa (pesada, travava o painel por minutos) só quando não há base de hoje — a carga completa vai pra madrugada
+              N=$((N+1))
+              # durante o dia: só a leitura LEVE (1 min). Às 10h, 14h e 18h: leve + reconferência de ONTEM (cancelamentos).
+              # Sem base de hoje (madrugada falhou): completa — se ela falhar, a próxima tentativa é de novo completa só no ciclo seguinte.
+              MODO=1; TO=180
+              if ! tem_base; then MODO=0; TO=600
+              elif { [ "$h" = 10 ] || [ "$h" = 14 ] || [ "$h" = 18 ]; } && [ ! -f "/tmp/ontem-$HOJE-$h" ]; then MODO=2; TO=300; fi
               for t in 1 2 3; do
-                rm -f saida/dados.json
-                # 27/11: se a leitura COMPLETA falhar (portal lento), as tentativas seguintes vão na LEVE (o painel não para).
-                # Sem base do dia, a coletar.js já faz a completa sozinha.
-                [ "$t" -gt 1 ] && export LEVE=1
-                HOJE=$(TZ=America/Bahia date +%F)
-                node -e 'const r=require("./saida/raw.json");process.exit(r?.periodos?.hoje?.inicio?.startsWith(process.argv[1])?0:1)' "$HOJE" 2>/dev/null || export LEVE=0   # sem base de hoje: completa
-                if [ "$LEVE" = "1" ]; then TO=180; else TO=600; fi
-                timeout $TO node painel/coletar.js && [ -s saida/dados.json ] && publicar && { echo "publicado $(TZ=America/Bahia date +%H:%M) ($([ "$LEVE" = 1 ] && echo leve || echo completa))"
-                  [ "$LEVE" = "0" ] && (guardar_raw >/dev/null 2>&1 &)
-                  # IA em paralelo: nunca segura o ciclo da coleta (ela mesma só chama a IA de hora em hora)
-                  if ! kill -0 "$(cat /tmp/ia.pid 2>/dev/null)" 2>/dev/null; then cp saida/dados.json saida/dados-ia.json; (timeout 300 node painel/ia-run.mjs >> /tmp/ia.log 2>&1 &  echo $! > /tmp/ia.pid); fi
-                  break; }
+                if ciclo $MODO $TO; then [ "$MODO" = 2 ] && touch "/tmp/ontem-$HOJE-$h"; break; fi
                 echo "tentativa $t falhou"; sleep 10
+                # reconferência de ontem falhou: o painel não espera por ela (volta pra leve; tenta ontem de novo no próximo ciclo)
+                [ "$MODO" = 2 ] && { MODO=1; TO=180; }
               done
             fi
             if [ $(( $(date +%s) - INICIO )) -gt 19500 ]; then

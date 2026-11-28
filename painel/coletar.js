@@ -4,7 +4,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { agregarPainel, periodosPainel } = require("./agregar.cjs");
-const { coletarRawPainel, coletarRawLeve } = require("./coleta-pagina.cjs");
+const { coletarRawPainel, coletarRawLeve, coletarRawOntem } = require("./coleta-pagina.cjs");
 import { coletarZep } from "./zep.mjs";
 import { ultimaAnalise } from "./ia.mjs";
 
@@ -95,7 +95,8 @@ try {
   const RAW = "saida/raw.json";
   let base = null;
   try { base = JSON.parse(fs.readFileSync(RAW, "utf8")); } catch (e) {}
-  const leve = process.env.LEVE === "1" && base && base.periodos?.hoje?.inicio === P.hoje.inicio;
+  // LEVE=1: só hoje · LEVE=2: só hoje + reconferência de ONTEM · LEVE=0 (ou sem base de hoje): leitura completa
+  const leve = (process.env.LEVE === "1" || process.env.LEVE === "2") && base && base.periodos?.hoje?.inicio === P.hoje.inicio;
   let raw;
   if (leve) {
     const l = await page.evaluate(coletarRawLeve, P);
@@ -104,6 +105,14 @@ try {
     raw.resumo.hoje = l.resumoHoje; raw.resumo.mes = l.resumoMes;
     raw.dados.atual = raw.dados.atual.filter((x) => !String(x.data).startsWith(P.hoje.inicio)).concat(l.linhasHoje);
     if (l.leadsHoje) raw.leads.hoje = l.leadsHoje;
+    if (process.env.LEVE === "2") {
+      const o = await page.evaluate(coletarRawOntem, P);
+      if (o.resumoOntem) raw.resumo.ontem = o.resumoOntem;
+      if (o.resumoMesAteOntem) raw.resumo.mesAteOntem = o.resumoMesAteOntem;
+      const arr = P.ontem.inicio.slice(0, 7) === P.hoje.inicio.slice(0, 7) ? "atual" : "anterior";
+      raw.dados[arr] = raw.dados[arr].filter((x) => !String(x.data).startsWith(P.ontem.inicio)).concat(o.linhasOntem);
+      console.log(`✅ ontem reconferido (${o.linhasOntem.length} linhas)`);
+    }
   } else {
     raw = await page.evaluate(coletarRawPainel, P);
     if (Array.isArray(raw.metasDia) && !raw.metasDia.includes(null)) fs.writeFileSync(CACHE, JSON.stringify({ dia: P.hoje.inicio, metas: raw.metasDia }));
@@ -122,7 +131,7 @@ try {
   fs.writeFileSync("saida/dados.json", JSON.stringify(dados));
   const m = dados.periodos.mes, h = dados.periodos.hoje;
   // registro público: sem valores de venda
-  console.log(`✅ dados.json (${leve ? "leve" : "completa"}): ${(fs.statSync("saida/dados.json").size / 1024).toFixed(0)} KB | ${m.vendedores.length} vendedores | ${m.produtos.length} produtos${dados.zep ? " | ZepSystem ok" : ""}`);
+  console.log(`✅ dados.json (${leve ? (process.env.LEVE === "2" ? "leve+ontem" : "leve") : "completa"}): ${(fs.statSync("saida/dados.json").size / 1024).toFixed(0)} KB | ${m.vendedores.length} vendedores | ${m.produtos.length} produtos${dados.zep ? " | ZepSystem ok" : ""}`);
 } catch (e) {
   await page.screenshot({ path: "saida/erro-painel.png", fullPage: true }).catch(() => {});
   // 27/11: sessão guardada quebrada ("Token de acesso ausente") fazia TODAS as tentativas falharem.

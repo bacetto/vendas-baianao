@@ -67,4 +67,22 @@ async function coletarRawLeve(P) {
   const enxuga = (ls) => ls.map((l) => ({ grupo: l.grupo, subgrupo: l.subgrupo, produto: l.produto, loja: l.loja, data: l.data, vendedor: l.vendedor, pedido: l.pedido, tipo: l.tipo, marca: l.marca, quantidade: l.quantidade, valorTotal: l.valorTotal }));
   return { agora: new Date().toISOString(), resumoHoje: rH, resumoMes: rM, linhasHoje: enxuga(linhas), leadsHoje: lH };
 }
-if (typeof module !== "undefined") module.exports = { coletarRawPainel, coletarRawLeve };
+// 27/11: reconferência de ONTEM (3x ao dia): resumo de ontem, mês até ontem e as linhas de ontem (pega cancelamentos/ajustes)
+async function coletarRawOntem(P) {
+  let req;
+  self.webpackChunk_N_E.push([[Symbol()], {}, (r) => { req = r; }]);
+  let api = null;
+  try { if (req(64665)?.x1?.get) api = req(64665).x1; } catch (e) {}
+  if (!api) for (const m of Object.values(req.c || {})) { const x = m?.exports?.x1; if (x?.get && x?.post) { api = x; break; } }
+  if (!api) throw new Error("cliente de API do portal não encontrado");
+  const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+  const get = async (u) => { for (let t = 0; ; t++) { try { return await api.get(u); } catch (e) { if (t >= 3) throw e; await espera(3000 * (t + 1)); } } };
+  const q = (o) => new URLSearchParams(o).toString();
+  const resumo = (x) => x ? get(`/vendas-lojas/resumo?${q({ dataInicio: x.inicio, dataFim: x.fim })}`) : null;
+  const rO = await resumo(P.ontem);
+  const rAO = await resumo(P.mesAteOntem);
+  const linhas = await get(`/analise-dinamica-produto/dados?${q({ dataInicio: P.ontem.inicio, dataFim: P.ontem.fim })}`).then((r) => r.linhas || []);
+  const enxuga = (ls) => ls.map((l) => ({ grupo: l.grupo, subgrupo: l.subgrupo, produto: l.produto, loja: l.loja, data: l.data, vendedor: l.vendedor, pedido: l.pedido, tipo: l.tipo, marca: l.marca, quantidade: l.quantidade, valorTotal: l.valorTotal }));
+  return { resumoOntem: rO, resumoMesAteOntem: rAO, linhasOntem: enxuga(linhas) };
+}
+if (typeof module !== "undefined") module.exports = { coletarRawPainel, coletarRawLeve, coletarRawOntem };
