@@ -153,10 +153,11 @@ export function temServicoVenda(item) { return (item?.services || []).some((x) =
 // Só vale pra regional que já tem as 3 regras cadastradas (regional "manual" continua manual).
 // servOu (27/11 09:00): serviço passa se o regional JÁ está no S OU se fica no S contando o pedido.
 // servServ (27/11 09:51): pedido COM serviço vendido -> serviço mínimo do regional cai de 8% pra 7% (atual OU com o pedido).
-const REGRAS_DIA = { "2026-11-27": { min: 38, serv: 8, maxServ: 30, servOu: true, servServ: 7 } };
+const R_BLACK = { min: 38, serv: 8, maxServ: 30, servOu: true, servServ: 7 };
+const REGRAS_DIA = { "2026-11-27": R_BLACK, "2026-11-28": R_BLACK }; // 28/11: Gabriel pediu repetir as regras da Black (só hoje)
 // 27/11 10:32 (Gabriel): SÓ HOJE, todo pedido da automação com desconto até 25% é aprovado direto, mesmo fora de M/S,
 // O aviso no grupo sai IGUAL a qualquer aprovado (selos de M/D/S como estão), sem citar essa regra. Acima de 25% segue as regras do dia.
-const LIVRE_DIA = { "2026-11-27": 25 };
+const LIVRE_DIA = { "2026-11-27": 25, "2026-11-28": 25 };
 // 27/11: desconto, margem e serviços comparados com 2 casas (o que aparece no aviso): 30,004% conta como 30%, 37,996% conta como 38%
 const r2 = (n) => Math.round(Number(n) * 100) / 100;
 export function livreHoje() { return LIVRE_DIA[new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10)]; }
